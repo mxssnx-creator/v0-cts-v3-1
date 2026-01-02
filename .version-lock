@@ -1,0 +1,12 @@
+# CTS v3.1 Version Lock File
+# DO NOT DELETE THIS FILE
+
+VERSION=343
+LOCKED=true
+PROTECTED_ROUTES=/,/live-trading,/presets,/indications,/strategies,/statistics,/analysis,/structure,/logistics,/monitoring,/settings
+BASELINE_DATE=2025-12-11
+POLICY_FILE=PROJECT_PROTECTION_POLICY.md
+
+# This file marks v343 as the protected baseline version
+# All core functionality must remain operational in deployments
+# New features should be added under /additional/ routes

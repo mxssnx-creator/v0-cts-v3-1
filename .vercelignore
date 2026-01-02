@@ -1,0 +1,11 @@
+# Backup files
+backups/
+**/*.tmp
+**/*_backup*
+
+# Build artifacts
+.next/
+out/
+
+# Cache
+.turbo/

@@ -1,0 +1,2490 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
+import InstallManager from "@/components/settings/install-manager"
+import { toast } from "sonner"
+import { Plus, X, TrendingUp, Save, Download, Upload, RefreshCw } from "lucide-react"
+import type { ExchangeConnection } from "@/lib/types"
+import { LogsViewer } from "@/components/settings/logs-viewer"
+import { Badge } from "@/components/ui/badge"
+import { AuthGuard } from "@/components/auth-guard"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+
+const EXCHANGE_MAX_POSITIONS: Record<string, number> = {
+  bybit: 500,
+  binance: 500,
+  okx: 150,
+  kucoin: 150,
+  gateio: 150,
+  bitget: 150,
+  mexc: 100,
+  bingx: 100,
+  coinex: 75,
+  lbank: 50,
+  bitmart: 50,
+}
+
+// Define SystemSettings type for clarity
+interface SystemSettings {
+  database_type: string
+  trade_interval?: number
+  engine_speed?: number
+  monitoring_interval?: number
+  tradeMode?: string
+  marketTimeframe?: number
+  prehistoricDataDays?: number
+  positionCost?: number
+  useMaximalLeverage?: boolean
+  leveragePercentage?: number
+  mainSymbols?: string[]
+  forcedSymbols?: string[]
+  symbolsCount?: number
+  maxPositionsPerExchange?: Record<string, number>
+  stepRelationMinRatio?: number
+  stepRelationMaxRatio?: number
+  minimumConnectInterval?: number
+  symbolsExchangeCount?: number
+  defaultMarginType?: string
+  defaultPositionMode?: string
+  rateLimitDelay?: number
+  maxConcurrentConnections?: number
+  testnetEnabled?: boolean
+  monitoringEnabled?: boolean
+  metricsRetention?: number
+  // Add other settings as they are introduced
+  strategyMinProfitFactor?: number
+  indicationMinProfitFactor?: number
+  profitFactorMultiplier?: number
+  baseVolumeFactor?: number
+  strategyTrailingEnabled?: boolean
+  strategyBlockEnabled?: boolean
+  strategyDcaEnabled?: boolean
+  blockAutoDisableEnabled?: boolean
+  blockAdjustmentRatio?: number
+  blockAutoDisableMinBlocks?: number
+  blockAutoDisableComparisonWindow?: number
+  minWinRate?: number
+  maxDrawdownHours?: number
+  adjustStrategyDrawdownPositions?: number
+  positionsAverage?: number
+  volumeRangePercentage?: number
+  rateLimitPerSecond?: number
+  connectionTimeout?: number
+  arrangementType?: string
+  arrangementCount?: number
+  // Connection specific settings that might be global defaults
+  baseVolumeFactorLive?: number
+  profitFactorMinMain?: number
+  drawdownTimeMain?: number
+  trailingEnabled?: boolean
+  trailingOnly?: boolean
+  blockEnabled?: boolean
+  blockOnly?: boolean
+  dcaEnabled?: boolean
+  presetTrailingEnabled?: boolean
+  presetTrailingOnly?: boolean
+  presetBlockEnabled?: boolean
+  presetBlockOnly?: boolean
+  presetDcaEnabled?: boolean
+  baseVolumeFactorPreset?: number
+  profitFactorMinPreset?: number
+  drawdownTimePreset?: number
+  // NEW: Engine Trade Intervals
+  mainTradeInterval?: number
+  presetTradeInterval?: number
+  // NEW: Database limits per connection
+  maxPseudoPositions?: number
+  marketDataRetention?: number
+}
+
+export default function SettingsPage() {
+  const [settings, setSettings] = useState<SystemSettings>({
+    database_type: "sqlite",
+    positionCost: 0.1,
+    symbolsExchangeCount: 30,
+    positionsAverage: 50,
+    baseVolumeFactor: 1.0,
+    mainSymbols: ["bch", "xrp", "eth", "link", "doge", "h"],
+    forcedSymbols: ["xrp", "bch"],
+    prehistoricDataDays: 5,
+    marketTimeframe: 1,
+    maxPositionsPerExchange: {
+      bybit: 200,
+      binance: 200,
+      okx: 150,
+      kucoin: 150,
+      gateio: 150,
+      bitget: 150,
+      mexc: 100,
+      bingx: 100,
+      lbank: 50,
+      bitmart: 50,
+    },
+    // Default values for other settings
+    trade_interval: 5,
+    engine_speed: 1,
+    monitoring_interval: 30,
+    tradeMode: "both",
+    stepRelationMinRatio: 0.5,
+    stepRelationMaxRatio: 2.0,
+    minimumConnectInterval: 200,
+    defaultMarginType: "isolated",
+    defaultPositionMode: "one-way",
+    rateLimitDelay: 1000,
+    maxConcurrentConnections: 5,
+    testnetEnabled: false,
+    monitoringEnabled: true,
+    metricsRetention: 30,
+    strategyMinProfitFactor: 0.5,
+    indicationMinProfitFactor: 0.7,
+    profitFactorMultiplier: 1.0,
+    strategyTrailingEnabled: true,
+    strategyBlockEnabled: true,
+    strategyDcaEnabled: false,
+    blockAutoDisableEnabled: true,
+    blockAdjustmentRatio: 1.0,
+    blockAutoDisableMinBlocks: 2,
+    blockAutoDisableComparisonWindow: 50,
+    minWinRate: 45,
+    maxDrawdownHours: 24,
+    adjustStrategyDrawdownPositions: 80,
+    volumeRangePercentage: 20,
+    rateLimitPerSecond: 10,
+    connectionTimeout: 30,
+    arrangementType: "market_cap",
+    baseVolumeFactorLive: 1.0,
+    profitFactorMinMain: 0.6,
+    drawdownTimeMain: 300,
+    trailingEnabled: false, // Defaulting to false for new connections
+    trailingOnly: false,
+    blockEnabled: false, // Defaulting to false for new connections
+    blockOnly: false,
+    dcaEnabled: false,
+    presetTrailingEnabled: false,
+    presetTrailingOnly: false,
+    presetBlockEnabled: false,
+    presetBlockOnly: false,
+    presetDcaEnabled: false,
+    baseVolumeFactorPreset: 1.0,
+    profitFactorMinPreset: 0.6,
+    drawdownTimePreset: 300,
+    // NEW: Default values for Engine Trade Intervals
+    mainTradeInterval: 1,
+    presetTradeInterval: 2,
+    // NEW: Default values for database limits per connection
+    maxPseudoPositions: 250,
+    marketDataRetention: 24,
+  })
+  const [activeTab, setActiveTab] = useState("overall")
+  const [connections, setConnections] = useState<ExchangeConnection[]>([])
+  const [databaseStatus, setDatabaseStatus] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [initializing, setInitializing] = useState(false)
+  const [migrating, setMigrating] = useState(false)
+  const [currentTab, setCurrentTab] = useState("overall")
+
+  const [selectedExchange, setSelectedExchange] = useState<string>("")
+
+  const [newMainSymbol, setNewMainSymbol] = useState("")
+  const [newForcedSymbol, setNewForcedSymbol] = useState("")
+
+  const [exchanges, setExchanges] = useState<any[]>([])
+  const [presets, setPresets] = useState<any[]>([])
+
+  // Add state for connection-specific settings
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string>("")
+  const [connectionSettings, setConnectionSettings] = useState<any>({})
+  const [activeIndications, setActiveIndications] = useState<string[]>([])
+  const [activeStrategies, setActiveStrategies] = useState<string[]>([])
+
+  useEffect(() => {
+    const initialize = async () => {
+      console.log("[v0] Settings page initializing...")
+
+      await Promise.all([
+        loadConnections(),
+        loadSettings(),
+        initializePredefinedConnections(),
+        loadExchanges(),
+        loadPresets(),
+        loadDatabaseStatus(),
+      ]).catch((error) => {
+        console.error("[v0] Settings initialization error:", error)
+      })
+    }
+
+    initialize()
+  }, [])
+
+  useEffect(() => {
+    if (selectedConnectionId && currentTab === "exchange") {
+      loadConnectionSettings()
+      loadConnectionIndications()
+      loadConnectionStrategies()
+    }
+  }, [selectedConnectionId, currentTab])
+
+  const initializePredefinedConnections = async () => {
+    try {
+      console.log("[v0] Checking for predefined connections...")
+      const response = await fetch("/api/settings/connections/init-predefined", {
+        method: "POST",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log("[v0] Predefined connections check:", data.message)
+        if (data.connections) {
+          await loadConnections()
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to initialize predefined connections:", error)
+    }
+  }
+
+  const loadConnections = async () => {
+    try {
+      console.log("[v0] Loading connections...")
+      const response = await fetch("/api/settings/connections")
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setConnections(data)
+
+          // Initialize selectedConnectionId from localStorage or first connection
+          const dashboardSelection = localStorage.getItem("selectedExchange")
+          if (dashboardSelection && data.some((conn: ExchangeConnection) => conn.id === dashboardSelection)) {
+            setSelectedConnectionId(dashboardSelection)
+          } else if (data.length > 0) {
+            setSelectedConnectionId(data[0].id)
+          } else {
+            setSelectedConnectionId("") // No connections available
+          }
+          console.log("[v0] Connections loaded:", data.length)
+        } else {
+          console.log("[v0] Invalid connections data")
+          setConnections([])
+          setSelectedConnectionId("")
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connections:", error)
+      setConnections([])
+      setSelectedConnectionId("")
+    }
+  }
+
+  const handleSettingChange = (key: string, value: any) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleExchangeChange = (value: string) => {
+    setSelectedExchange(value)
+    localStorage.setItem("selectedExchange", value)
+  }
+
+  const loadSettings = async () => {
+    try {
+      console.log("[v0] Loading settings...")
+      const response = await fetch("/api/settings/system") // Use specific endpoint for system settings
+
+      if (!response.ok) {
+        const text = await response.text()
+        console.error("[v0] Failed to load settings, status:", response.status, "body:", text)
+        return
+      }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("[v0] Invalid response type:", contentType, "body:", text)
+        return
+      }
+
+      const data = await response.json()
+      if (data && typeof data === "object") {
+        console.log("[v0] Settings loaded:", Object.keys(data).length, "keys")
+        // Ensure we only update known settings to prevent issues with unknown API responses
+        setSettings((prev) => {
+          const newSettings: SystemSettings = { ...prev }
+          for (const key in data) {
+            if (key in newSettings) {
+              ;(newSettings as any)[key] = data[key]
+            }
+          }
+          return newSettings
+        })
+      } else {
+        console.log("[v0] Invalid settings data")
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load settings:", error)
+      toast.error("Failed to load settings")
+    }
+  }
+
+  const loadExchanges = async () => {
+    try {
+      const response = await fetch("/api/settings/exchanges")
+      if (response.ok) {
+        const data = await response.json()
+        setExchanges(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load exchanges:", error)
+    }
+  }
+
+  const loadPresets = async () => {
+    try {
+      const response = await fetch("/api/settings/presets")
+      if (response.ok) {
+        const data = await response.json()
+        setPresets(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load presets:", error)
+    }
+  }
+
+  const loadDatabaseStatus = async () => {
+    try {
+      console.log("[v0] Loading database status...")
+      const response = await fetch("/api/settings/database-status")
+      if (response.ok) {
+        const status = await response.json()
+        setDatabaseStatus(status)
+        console.log("[v0] Database status:", status)
+      } else {
+        console.error("[v0] Failed to load database status:", response.statusText)
+        setDatabaseStatus(null)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load database status:", error)
+      setDatabaseStatus(null)
+    }
+  }
+
+  // Load connection-specific settings
+  const loadConnectionSettings = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/settings`)
+      if (response.ok) {
+        const data = await response.json()
+        setConnectionSettings(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection settings:", error)
+    }
+  }
+
+  // Load active indications for a connection
+  const loadConnectionIndications = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/active-indications`)
+      if (response.ok) {
+        const data = await response.json()
+        setActiveIndications(data.indications || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection indications:", error)
+    }
+  }
+
+  // Load active strategies for a connection
+  const loadConnectionStrategies = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/active-strategies`)
+      if (response.ok) {
+        const data = await response.json()
+        setActiveStrategies(data.strategies || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection strategies:", error)
+      setActiveStrategies([])
+    }
+  }
+
+  // Handler for connection-specific setting changes
+  const handleConnectionSettingChange = async (key: string, value: any) => {
+    if (!selectedConnectionId) return
+
+    const updatedSettings = { ...connectionSettings, [key]: value }
+    setConnectionSettings(updatedSettings)
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSettings),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update connection settings")
+      }
+
+      toast.success("Connection setting updated")
+    } catch (error) {
+      console.error("[v0] Failed to update connection setting:", error)
+      toast.error("Failed to update connection setting")
+      setConnectionSettings(connectionSettings) // Revert on error
+    }
+  }
+
+  const initializeDatabase = async () => {
+    setInitializing(true)
+    try {
+      console.log("[v0] Calling database init API...")
+      const response = await fetch("/api/install/database/init", {
+        method: "POST",
+      })
+      const data = await response.json()
+
+      console.log("[v0] Database init response:", data)
+
+      if (response.ok && data.success) {
+        toast.success(data.message || `Database initialized: ${data.tables_created} tables created`)
+
+        if (data.logs) {
+          console.log("[v0] Init logs:", data.logs)
+        }
+
+        await loadDatabaseStatus()
+      } else {
+        toast.error(data.details || data.error || "Failed to initialize database")
+
+        if (data.logs) {
+          console.error("[v0] Init error logs:", data.logs)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Database initialization failed:", error)
+      toast.error("Failed to initialize database")
+    } finally {
+      setInitializing(false)
+    }
+  }
+
+  const runMigrations = async () => {
+    setMigrating(true)
+    try {
+      console.log("[v0] Calling database migrate API...")
+      const response = await fetch("/api/install/database/migrate", {
+        method: "POST",
+      })
+      const data = await response.json()
+
+      console.log("[v0] Migration response:", data)
+
+      if (response.ok && data.success) {
+        if (data.errors && data.errors.length > 0) {
+          toast.error(`Migrations completed with ${data.errors.length} errors`)
+        } else {
+          toast.success(data.message || `Migrations complete: ${data.migrations_applied} applied`)
+        }
+
+        if (data.logs) {
+          console.log("[v0] Migration logs:", data.logs)
+          data.logs.forEach((log: string) => console.log(`  ${log}`))
+        }
+
+        await loadDatabaseStatus()
+      } else {
+        toast.error(data.details || data.error || "Failed to run migrations")
+
+        if (data.logs) {
+          console.error("[v0] Migration error logs:", data.logs)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Migration failed:", error)
+      toast.error("Failed to run migrations")
+    } finally {
+      setMigrating(false)
+    }
+  }
+
+  const saveAllSettings = async () => {
+    setSaving(true)
+    try {
+      console.log("[v0] ========================================")
+      console.log("[v0] SAVING ALL SETTINGS")
+      console.log("[v0] Settings to save:", Object.keys(settings).length, "keys")
+      console.log("[v0] Database type:", settings.database_type)
+      console.log("[v0] ========================================")
+
+      const response = await fetch("/api/settings/system", {
+        // Use specific endpoint for system settings
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save system settings")
+      }
+
+      const result = await response.json()
+      console.log("[v0] Settings save response:", result)
+
+      toast.success("Settings saved successfully")
+      console.log("[v0] Settings saved successfully")
+
+      console.log("[v0] Reloading database status...")
+      await loadDatabaseStatus()
+
+      console.log("[v0] Reloading trade engine settings...")
+      await fetch("/api/trade-engine/reload-settings", { method: "POST" })
+      console.log("[v0] Trade engine settings reloaded")
+
+      if (result.dbTypeChanged) {
+        console.log("[v0] Database type was changed - system has been reconfigured")
+        toast.info("Database type changed. System reconnected successfully.")
+      }
+
+      console.log("[v0] ========================================")
+      console.log("[v0] ALL SETTINGS SAVED AND APPLIED")
+      console.log("[v0] ========================================")
+    } catch (error) {
+      console.error("[v0] Failed to save settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const exportSettings = async () => {
+    setExporting(true)
+    try {
+      console.log("[v0] Exporting settings via API...")
+      const response = await fetch("/api/settings/export", {
+        method: "GET",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to export settings")
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `cts-settings-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success("Settings exported successfully")
+      console.log("[v0] Settings exported successfully")
+    } catch (error) {
+      console.error("[v0] Failed to export settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to export settings")
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // Modified importSettings to use a dedicated API endpoint and handle file input properly
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      console.log("[v0] Importing settings via API...")
+      const response = await fetch("/api/settings/import", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to import settings")
+      }
+
+      const result = await response.json()
+      console.log("[v0] Settings imported:", result)
+
+      toast.success("Settings imported successfully")
+
+      // Reload everything
+      await Promise.all([loadSettings(), loadConnections(), loadExchanges(), loadPresets()])
+    } catch (error) {
+      console.error("[v0] Failed to import settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to import settings")
+    } finally {
+      setImporting(false)
+      // Reset the input
+      event.target.value = ""
+    }
+  }
+
+  const addMainSymbol = () => {
+    if (!newMainSymbol.trim()) return
+    const currentSymbols = Array.isArray(settings.mainSymbols) ? settings.mainSymbols : []
+    let symbol = newMainSymbol.trim().toUpperCase()
+    symbol = symbol.replace(/(USDT|BUSD|USD|BTC|ETH|BNB)$/, "")
+    if (!currentSymbols.includes(symbol) && symbol.length > 0) {
+      handleSettingChange("mainSymbols", [...currentSymbols, symbol])
+      setNewMainSymbol("")
+    }
+  }
+
+  const removeMainSymbol = (symbol: string) => {
+    const currentSymbols = Array.isArray(settings.mainSymbols) ? settings.mainSymbols : []
+    handleSettingChange(
+      "mainSymbols",
+      currentSymbols.filter((s) => s !== symbol),
+    )
+  }
+
+  const addForcedSymbol = () => {
+    if (!newForcedSymbol.trim()) return
+    const currentSymbols = Array.isArray(settings.forcedSymbols) ? settings.forcedSymbols : []
+    let symbol = newForcedSymbol.trim().toUpperCase()
+    symbol = symbol.replace(/(USDT|BUSD|USD|BTC|ETH|BNB)$/, "")
+    if (!currentSymbols.includes(symbol) && symbol.length > 0) {
+      handleSettingChange("forcedSymbols", [...currentSymbols, symbol])
+      setNewForcedSymbol("")
+    }
+  }
+
+  const removeForcedSymbol = (symbol: string) => {
+    const currentSymbols = Array.isArray(settings.forcedSymbols) ? settings.forcedSymbols : []
+    handleSettingChange(
+      "forcedSymbols",
+      currentSymbols.filter((s) => s !== symbol),
+    )
+  }
+
+  const handleDatabaseTypeChange = async (value: string) => {
+    const oldType = settings.database_type
+    handleSettingChange("database_type", value)
+    console.log(`[v0] Database type changing from ${oldType} to ${value}`)
+
+    if (oldType !== value) {
+      console.log("[v0] Database type changed - system will reconnect on next query")
+      toast.info(`Database type changed to ${value}. Changes will take effect after saving.`)
+    }
+  }
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+        <div className="container mx-auto py-2 px-4 space-y-4">
+          <div className="flex items-center justify-between border-b pb-4">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="md:hidden" />
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+                <p className="text-muted-foreground">Manage your application preferences and exchange connections.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="hidden">
+                <input
+                  id="import-settings-input"
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  disabled={importing}
+                />
+              </div>
+              <Button variant="outline" onClick={exportSettings} disabled={exporting}>
+                {exporting ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById("import-settings-input")?.click()}
+                disabled={importing}
+              >
+                {importing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Import
+              </Button>
+              <Button onClick={saveAllSettings} disabled={saving}>
+                {saving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Changes
+              </Button>
+            </div>
+          </div>
+
+          <Tabs
+            defaultValue="overall"
+            className="w-full"
+            value={activeTab}
+            onValueChange={(val) => {
+              setActiveTab(val)
+              setCurrentTab(val)
+            }}
+          >
+            <TabsList className="w-full justify-start h-auto flex-wrap">
+              <TabsTrigger value="overall">Overall</TabsTrigger>
+              <TabsTrigger value="exchange">Exchange</TabsTrigger>
+              <TabsTrigger value="indication">Indication</TabsTrigger>
+              <TabsTrigger value="strategy">Strategy</TabsTrigger>
+              <TabsTrigger value="system">System</TabsTrigger>
+            </TabsList>
+
+            {/* Overall Tab */}
+            <TabsContent value="overall" className="space-y-6">
+              <Tabs defaultValue="main" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="main">Main</TabsTrigger>
+                  <TabsTrigger value="connection">Connection</TabsTrigger>
+                  <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+                  <TabsTrigger value="install">Install</TabsTrigger>
+                </TabsList>
+
+                {/* Main Section */}
+                <TabsContent value="main" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Trade Mode Configuration</CardTitle>
+                      <CardDescription>Configure trading mode and market data parameters</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <Label>Trade Mode</Label>
+                        <Select
+                          value={settings.tradeMode || "both"}
+                          onValueChange={(value) => handleSettingChange("tradeMode", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="main">Main Trading Only</SelectItem>
+                            <SelectItem value="preset">Preset Trading Only</SelectItem>
+                            <SelectItem value="both">Both (Main + Preset)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Select trading mode (default: both). Determines which trading engines are active.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Days of Prehistoric Data</Label>
+                          <span className="text-sm font-medium">{settings.prehistoricDataDays || 5} days</span>
+                        </div>
+                        <Slider
+                          min={1}
+                          max={15}
+                          step={1}
+                          value={[settings.prehistoricDataDays || 5]}
+                          onValueChange={([value]) => handleSettingChange("prehistoricDataDays", value)}
+                          className="flex-1"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Number of days of historical market data to retrieve on startup (1-15 days, default: 5)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Market Data Timeframe</Label>
+                          <span className="text-sm font-medium">{settings.marketTimeframe || 1} second(s)</span>
+                        </div>
+                        <Select
+                          value={String(settings.marketTimeframe || 1)}
+                          onValueChange={(value) => handleSettingChange("marketTimeframe", Number.parseInt(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 Second</SelectItem>
+                            <SelectItem value="2">2 Seconds</SelectItem>
+                            <SelectItem value="3">3 Seconds</SelectItem>
+                            <SelectItem value="5">5 Seconds</SelectItem>
+                            <SelectItem value="10">10 Seconds</SelectItem>
+                            <SelectItem value="15">15 Seconds</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Real-time market data update interval (values: 1, 2, 3, 5, 10, 15 seconds, default: 1)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Overall Configuration</CardTitle>
+                      <CardDescription>General trading parameters</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <Label>Position Cost (0.01-0.2)</Label>
+                        <div className="flex items-center gap-4">
+                          <Slider
+                            min={0.01}
+                            max={0.2}
+                            step={0.01}
+                            value={[settings.positionCost || 0.1]}
+                            onValueChange={([value]) => handleSettingChange("positionCost", value)}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-medium w-16 text-right">
+                            {(settings.positionCost || 0.1).toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Position cost factor for calculations</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Leverage Configuration</CardTitle>
+                      <CardDescription>Configure leverage settings for trading</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Use Maximal Leverage</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Use maximum leverage available from exchange
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.useMaximalLeverage !== false}
+                          onCheckedChange={(checked) => handleSettingChange("useMaximalLeverage", checked)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Leverage Percentage (1-100, step 5)</Label>
+                        <div className="flex items-center gap-4">
+                          <Slider
+                            min={1}
+                            max={100}
+                            step={5}
+                            value={[settings.leveragePercentage || 100]}
+                            onValueChange={([value]) => handleSettingChange("leveragePercentage", value)}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-medium w-16 text-right">
+                            {settings.leveragePercentage || 100}%
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Percentage of maximum leverage to use (rounded up to full leverage number internally)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Max Positions Per Exchange</CardTitle>
+                      <CardDescription>
+                        Configure maximum number of positions allowed per exchange connection based on exchange API
+                        limits and system capacity
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(settings.maxPositionsPerExchange || {}).map(([exchange, maxPos]) => (
+                          <div key={exchange} className="space-y-2 p-3 border rounded-md">
+                            <Label className="text-sm font-semibold capitalize">{exchange}</Label>
+                            <Input
+                              type="number"
+                              min="10"
+                              max="250"
+                              step="10"
+                              value={maxPos as number}
+                              onChange={(e) => {
+                                const newLimits = { ...settings.maxPositionsPerExchange }
+                                newLimits[exchange] = Number.parseInt(e.target.value)
+                                handleSettingChange("maxPositionsPerExchange", newLimits)
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {exchange === "bybit" || exchange === "binance"
+                                ? "High capacity (up to 200)"
+                                : exchange === "okx" ||
+                                    exchange === "kucoin" ||
+                                    exchange === "gateio" ||
+                                    exchange === "bitget" // Updated for gateio
+                                  ? "Medium capacity (up to 150)"
+                                  : "Standard capacity (up to 100)"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-4">
+                        <strong>Note:</strong> These limits are based on exchange API rate limits, WebSocket connection
+                        capacity, and optimal system performance. Adjust based on your specific needs and exchange tier.
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Symbols Configuration</CardTitle>
+                      <CardDescription>
+                        Configure trading symbols using base names only (e.g., BTC, ETH). Quote currency is
+                        automatically added based on exchange API type. Symbols are stored in text files and work
+                        without database.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Main Symbols */}
+                      <div className="space-y-3">
+                        <Label className="text-base font-semibold">Main Symbols</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Primary trading symbols used when "Use Main Symbols" is enabled. Enter base symbol only (BTC,
+                          not BTCUSDT). Default symbols: BTC, ETH, BNB, XRP, ADA, SOL, DOGE, LTC, BCH, LINK
+                        </p>
+
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter base symbol (e.g., BTC, ETH)"
+                            value={newMainSymbol}
+                            onChange={(e) => setNewMainSymbol(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                addMainSymbol()
+                              }
+                            }}
+                          />
+                          <Button onClick={addMainSymbol} size="icon">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 min-h-[40px] p-3 border rounded-md bg-muted/30">
+                          {Array.isArray(settings.mainSymbols) && settings.mainSymbols.length > 0 ? (
+                            settings.mainSymbols.map((symbol: string) => (
+                              <div
+                                key={symbol}
+                                className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-md border border-primary/20"
+                              >
+                                <span className="text-sm font-medium">{symbol}</span>
+                                <button
+                                  onClick={() => removeMainSymbol(symbol)}
+                                  className="ml-1 hover:text-destructive transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No main symbols added yet</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Forced Symbols */}
+                      <div className="space-y-3">
+                        <Label className="text-base font-semibold">Forced Symbols</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Symbols that are always included regardless of other settings. Enter base symbol only. Default
+                          forced symbols: XRP, BCH
+                        </p>
+
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter base symbol (e.g., XRP, BCH)"
+                            value={newForcedSymbol}
+                            onChange={(e) => setNewForcedSymbol(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                addForcedSymbol()
+                              }
+                            }}
+                          />
+                          <Button onClick={addForcedSymbol} size="icon">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 min-h-[40px] p-3 border rounded-md bg-muted/30">
+                          {Array.isArray(settings.forcedSymbols) && settings.forcedSymbols.length > 0 ? (
+                            settings.forcedSymbols.map((symbol: string) => (
+                              <div
+                                key={symbol}
+                                className="flex items-center gap-1 px-3 py-1 bg-destructive/10 text-destructive rounded-md border border-destructive/20"
+                              >
+                                <span className="text-sm font-medium">{symbol}</span>
+                                <button
+                                  onClick={() => removeForcedSymbol(symbol)}
+                                  className="ml-1 hover:text-destructive transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No forced symbols added yet</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Number of Symbols from Exchange</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={settings.symbolsCount || 30}
+                          onChange={(e) => handleSettingChange("symbolsCount", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Number of symbols to retrieve from exchange (default: 30)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Connection Section */}
+                <TabsContent value="connection" className="space-y-6">
+                  <ExchangeConnectionManager />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Connection Settings</CardTitle>
+                      <CardDescription>Configure connection behavior</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Minimum Connect Interval (ms)</Label>
+                        <Input
+                          type="number"
+                          value={settings.minimumConnectInterval || 200}
+                          onChange={(e) =>
+                            handleSettingChange("minimumConnectInterval", Number.parseInt(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum time between connection attempts (default: 200ms)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Symbols Per Exchange</Label>
+                        <Input
+                          type="number"
+                          value={settings.symbolsExchangeCount || 50}
+                          onChange={(e) => handleSettingChange("symbolsExchangeCount", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">Number of symbols to fetch per exchange</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Default Margin Type</Label>
+                        <Select
+                          value={settings.defaultMarginType || "isolated"}
+                          onValueChange={(value) => handleSettingChange("defaultMarginType", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="isolated">Isolated</SelectItem>
+                            <SelectItem value="cross">Cross</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Default Position Mode</Label>
+                        <Select
+                          value={settings.defaultPositionMode || "one-way"}
+                          onValueChange={(value) => handleSettingChange("defaultPositionMode", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="one-way">One-Way</SelectItem>
+                            <SelectItem value="hedge">Hedge</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Rate Limit Delay (ms)</Label>
+                        <Input
+                          type="number"
+                          value={settings.rateLimitDelay || 1000}
+                          onChange={(e) => handleSettingChange("rateLimitDelay", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">Delay between API calls to avoid rate limits</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Max Concurrent Connections</Label>
+                        <Input
+                          type="number"
+                          value={settings.maxConcurrentConnections || 5}
+                          onChange={(e) =>
+                            handleSettingChange("maxConcurrentConnections", Number.parseInt(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Maximum number of simultaneous exchange connections
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Testnet Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">Enable testnet trading</p>
+                        </div>
+                        <Switch
+                          checked={settings.testnetEnabled === true}
+                          onCheckedChange={(checked) => handleSettingChange("testnetEnabled", checked)}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Monitoring Section */}
+                <TabsContent value="monitoring" className="space-y-6">
+                  <LogsViewer />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Monitoring Settings</CardTitle>
+                      <CardDescription>Configure monitoring and logging behavior</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Monitoring Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">Enable system monitoring and logging</p>
+                        </div>
+                        <Switch
+                          checked={settings.monitoringEnabled !== false}
+                          onCheckedChange={(checked) => handleSettingChange("monitoringEnabled", checked)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Metrics Retention (days)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={settings.metricsRetention || 30}
+                          onChange={(e) => handleSettingChange("metricsRetention", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Number of days to retain performance metrics and logs (default: 30)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Install Section */}
+                <TabsContent value="install" className="space-y-6">
+                  <InstallManager />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+
+            <TabsContent value="exchange" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Connection Settings</CardTitle>
+                  <CardDescription>
+                    Configure settings specific to the selected exchange connection including symbols, indications,
+                    strategies, and trade factors
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Connection Selector */}
+                  <div className="space-y-2">
+                    <Label>Select Active Connection</Label>
+                    <Select value={selectedConnectionId} onValueChange={setSelectedConnectionId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a connection" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {connections
+                          .filter((conn) => conn.is_enabled)
+                          .map((conn) => (
+                            <SelectItem key={conn.id} value={conn.id}>
+                              {conn.name} ({conn.exchange})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Settings below apply to the selected connection. Configure default connection settings in Overall
+                      → Connection tab.
+                    </p>
+                  </div>
+
+                  {selectedConnectionId && (
+                    <>
+                      {(() => {
+                        const selectedConnection = connections.find((c) => c.id === selectedConnectionId)
+                        if (!selectedConnection) return null
+
+                        const exchangeType = selectedConnection.exchange.toLowerCase()
+                        const currentMax = settings.maxPositionsPerExchange?.[exchangeType] || 50
+                        const maxPossible = EXCHANGE_MAX_POSITIONS[exchangeType] || 100
+
+                        return (
+                          <div className="border-t pt-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">Max Positions ({selectedConnection.exchange})</h3>
+                              <Badge variant="outline">Max possible: {maxPossible}</Badge>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Maximum Concurrent Positions</Label>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  {currentMax} positions
+                                </span>
+                              </div>
+                              <Slider
+                                min={1}
+                                max={500}
+                                step={5}
+                                value={[currentMax]}
+                                onValueChange={([value]) => {
+                                  const newLimits = { ...settings.maxPositionsPerExchange }
+                                  newLimits[exchangeType] = value
+                                  handleSettingChange("maxPositionsPerExchange", newLimits)
+                                }}
+                                className="py-2"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Configure the maximum number of positions allowed for {selectedConnection.exchange}{" "}
+                                connections. Higher values require better system performance.
+                                {maxPossible < 500 &&
+                                  ` Note: This exchange typically supports up to ${maxPossible} positions.`}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Position Cost configuration */}
+                      <div className="border-t pt-6 space-y-4">
+                        <h3 className="text-lg font-semibold">Position Cost</h3>
+                        <div className="space-y-2">
+                          <Label>Position Cost Factor</Label>
+                          <div className="flex items-center gap-4">
+                            <Slider
+                              min={0.01}
+                              max={1.0}
+                              step={0.01}
+                              value={[connectionSettings.positionCost || 0.1]}
+                              onValueChange={([value]) => handleConnectionSettingChange("positionCost", value)}
+                              className="flex-1"
+                            />
+                            <span className="text-sm font-medium w-16 text-right">
+                              {(connectionSettings.positionCost || 0.1).toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Default position cost percentage (can vary per exchange based on fees and slippage)
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Symbols Configuration */}
+                      <div className="border-t pt-6 space-y-4">
+                        <h3 className="text-lg font-semibold">Symbols</h3>
+
+                        <div className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <Label>Use Main Symbols</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Use symbols defined in Overall → Main (synchronized with default)
+                            </p>
+                          </div>
+                          <Switch
+                            checked={connectionSettings.useMainSymbols !== false}
+                            onCheckedChange={(checked) => handleConnectionSettingChange("useMainSymbols", checked)}
+                          />
+                        </div>
+
+                        {!connectionSettings.useMainSymbols && (
+                          <>
+                            <div className="space-y-2">
+                              <Label>Symbol Arrangement Type</Label>
+                              <Select
+                                value={connectionSettings.arrangementType || "market_cap"}
+                                onValueChange={(value) => handleConnectionSettingChange("arrangementType", value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="market_cap">Market Cap (24h)</SelectItem>
+                                  <SelectItem value="market_volume">Trading Volume</SelectItem>
+                                  <SelectItem value="market_volatility">Volatility</SelectItem>
+                                  <SelectItem value="price_change">Price Change (24h)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Number of Symbols</Label>
+                              <Input
+                                type="number"
+                                min="5"
+                                max="50"
+                                value={connectionSettings.arrangementCount || 20}
+                                onChange={(e) =>
+                                  handleSettingChange("arrangementCount", Number.parseInt(e.target.value))
+                                }
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Active Indications */}
+                      <div className="border-t pt-6 space-y-4">
+                        <h3 className="text-lg font-semibold">Active Indications</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Synchronized with default indication settings. Manage in Indication tab.
+                        </p>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {["Direction", "Move", "Active", "Optimal", "RSI", "MACD", "Bollinger", "EMA", "SMA"].map(
+                            (indication) => {
+                              const isActive = activeIndications.includes(indication)
+                              return (
+                                <div
+                                  key={indication}
+                                  className={`p-3 border rounded-lg transition-colors ${
+                                    isActive ? "bg-primary/10 border-primary" : "bg-muted/30 border-muted"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-sm">{indication}</span>
+                                    <Badge variant={isActive ? "default" : "secondary"}>
+                                      {isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              )
+                            },
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Main Trading Configuration section */}
+                      <div className="border-t pt-6 space-y-6">
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold">Main Trading Configuration</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Settings for live main trading operations (synchronized with Strategy defaults)
+                          </p>
+                        </div>
+
+                        <Card className="bg-muted/30">
+                          <CardContent className="pt-6 space-y-6">
+                            {/* Volume Factor */}
+                            <div className="space-y-2">
+                              <Label>Volume Factor</Label>
+                              <div className="flex items-center gap-4">
+                                <Slider
+                                  min={0.1}
+                                  max={10}
+                                  step={0.1}
+                                  value={[connectionSettings.baseVolumeFactorLive || 1.0]}
+                                  onValueChange={([value]) => handleSettingChange("baseVolumeFactorLive", value)}
+                                  className="flex-1"
+                                />
+                                <span className="text-sm font-medium w-12 text-right">
+                                  {(connectionSettings.baseVolumeFactorLive || 1.0).toFixed(1)}x
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Position size multiplier for main trading</p>
+                            </div>
+
+                            {/* Profit Factor Minimum */}
+                            <div className="space-y-2">
+                              <Label>Profit Factor Minimum</Label>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                max="5.0"
+                                value={connectionSettings.profitFactorMinMain || 0.6}
+                                onChange={(e) =>
+                                  handleConnectionSettingChange(
+                                    "profitFactorMinMain",
+                                    Number.parseFloat(e.target.value),
+                                  )
+                                }
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Minimum profit factor threshold for main trading
+                              </p>
+                            </div>
+
+                            {/* Drawdown Time */}
+                            <div className="space-y-2">
+                              <Label>Drawdown Time (seconds)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="3600"
+                                value={connectionSettings.drawdownTimeMain || 300}
+                                onChange={(e) =>
+                                  handleSettingChange("drawdownTimeMain", Number.parseInt(e.target.value))
+                                }
+                              />
+                              <p className="text-xs text-muted-foreground">Time window for drawdown calculation</p>
+                            </div>
+
+                            {/* Strategy Toggles */}
+                            <div className="space-y-3">
+                              <Label>Active Strategies</Label>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Trailing Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Dynamic stop-loss following price</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.trailingEnabled !== false}
+                                    onCheckedChange={(checked) => handleSettingChange("trailingEnabled", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Trailing Only</span>
+                                    <p className="text-xs text-muted-foreground">Use trailing without block strategy</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.trailingOnly === true}
+                                    onCheckedChange={(checked) => handleSettingChange("trailingOnly", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Block Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Block-based position management</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.blockEnabled !== false}
+                                    onCheckedChange={(checked) => handleSettingChange("blockEnabled", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Block Only</span>
+                                    <p className="text-xs text-muted-foreground">Use block without trailing strategy</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.blockOnly === true}
+                                    onCheckedChange={(checked) => handleSettingChange("blockOnly", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">DCA Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Dollar-cost averaging for entries</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.dcaEnabled === true}
+                                    onCheckedChange={(checked) => handleSettingChange("dcaEnabled", checked)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Preset Trading Configuration section */}
+                      <div className="border-t pt-6 space-y-6">
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold">Preset Trading Configuration</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Settings for automated preset trading (synchronized with Strategy defaults)
+                          </p>
+                        </div>
+
+                        <Card className="bg-muted/30">
+                          <CardContent className="pt-6 space-y-6">
+                            {/* Volume Factor */}
+                            <div className="space-y-2">
+                              <Label>Volume Factor</Label>
+                              <div className="flex items-center gap-4">
+                                <Slider
+                                  min={0.1}
+                                  max={10}
+                                  step={0.1}
+                                  value={[connectionSettings.baseVolumeFactorPreset || 1.0]}
+                                  onValueChange={([value]) => handleSettingChange("baseVolumeFactorPreset", value)}
+                                  className="flex-1"
+                                />
+                                <span className="text-sm font-medium w-12 text-right">
+                                  {(connectionSettings.baseVolumeFactorPreset || 1.0).toFixed(1)}x
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Position size multiplier for preset trading
+                              </p>
+                            </div>
+
+                            {/* Profit Factor Minimum */}
+                            <div className="space-y-2">
+                              <Label>Profit Factor Minimum</Label>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                max="5.0"
+                                value={connectionSettings.profitFactorMinPreset || 0.6}
+                                onChange={(e) =>
+                                  handleSettingChange("profitFactorMinPreset", Number.parseFloat(e.target.value))
+                                }
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Minimum profit factor threshold for preset trading
+                              </p>
+                            </div>
+
+                            {/* Drawdown Time */}
+                            <div className="space-y-2">
+                              <Label>Drawdown Time (seconds)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="3600"
+                                value={connectionSettings.drawdownTimePreset || 300}
+                                onChange={(e) =>
+                                  handleSettingChange("drawdownTimePreset", Number.parseInt(e.target.value))
+                                }
+                              />
+                              <p className="text-xs text-muted-foreground">Time window for drawdown calculation</p>
+                            </div>
+
+                            {/* Strategy Toggles */}
+                            <div className="space-y-3">
+                              <Label>Active Strategies</Label>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Trailing Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Dynamic stop-loss following price</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.presetTrailingEnabled !== false}
+                                    onCheckedChange={(checked) => handleSettingChange("presetTrailingEnabled", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Trailing Only</span>
+                                    <p className="text-xs text-muted-foreground">Use trailing without block strategy</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.presetTrailingOnly === true}
+                                    onCheckedChange={(checked) => handleSettingChange("presetTrailingOnly", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Block Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Block-based position management</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.presetBlockEnabled !== false}
+                                    onCheckedChange={(checked) => handleSettingChange("presetBlockEnabled", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">Block Only</span>
+                                    <p className="text-xs text-muted-foreground">Use block without trailing strategy</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.presetBlockOnly === true}
+                                    onCheckedChange={(checked) => handleSettingChange("presetBlockOnly", checked)}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <span className="font-medium text-sm">DCA Strategy</span>
+                                    <p className="text-xs text-muted-foreground">Dollar-cost averaging for entries</p>
+                                  </div>
+                                  <Switch
+                                    checked={connectionSettings.presetDcaEnabled === true}
+                                    onCheckedChange={(checked) => handleSettingChange("presetDcaEnabled", checked)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Preset Selection */}
+                            <div className="border-t pt-4 space-y-2">
+                              <Label>Selected Preset Type</Label>
+                              <Select
+                                value={connectionSettings.presetTypeId || ""}
+                                onValueChange={(value) => handleSettingChange("presetTypeId", value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a preset type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {presets.length === 0 ? (
+                                    <div className="p-2 text-xs text-muted-foreground text-center">
+                                      No presets available
+                                    </div>
+                                  ) : (
+                                    presets.map((preset: any) => (
+                                      <SelectItem key={preset.id} value={preset.id}>
+                                        {preset.name}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">Manage presets in the Presets section</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </>
+                  )}
+
+                  {!selectedConnectionId && (
+                    <div className="text-center p-8 text-muted-foreground">
+                      <p>Select an active connection above to view and configure its settings</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Global Exchange Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Global Exchange Settings</CardTitle>
+                  <CardDescription>Default settings applied to all new connections</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="margin-type-global">Default Margin Type</Label>
+                      <Select
+                        value={settings.defaultMarginType || "isolated"}
+                        onValueChange={(value) => handleSettingChange("defaultMarginType", value)}
+                      >
+                        <SelectTrigger id="margin-type-global">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cross">Cross Margin</SelectItem>
+                          <SelectItem value="isolated">Isolated Margin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="position-mode-global">Default Position Mode</Label>
+                      <Select
+                        value={settings.defaultPositionMode || "one-way"}
+                        onValueChange={(value) => handleSettingChange("defaultPositionMode", value)}
+                      >
+                        <SelectTrigger id="position-mode-global">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="one-way">One-Way (Single)</SelectItem>
+                          <SelectItem value="hedge">Hedge Mode (Both)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="rate-limit-second">Rate Limit (per second)</Label>
+                      <Input
+                        id="rate-limit-second"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={settings.rateLimitPerSecond || 10}
+                        onChange={(e) => handleSettingChange("rateLimitPerSecond", Number.parseInt(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="connection-timeout-global">Connection Timeout (seconds)</Label>
+                      <Input
+                        id="connection-timeout-global"
+                        type="number"
+                        min="5"
+                        max="60"
+                        value={settings.connectionTimeout || 30}
+                        onChange={(e) => handleSettingChange("connectionTimeout", Number.parseInt(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Enable Testnet by Default</Label>
+                      <p className="text-sm text-muted-foreground">Use testnet for new connections</p>
+                    </div>
+                    <Switch
+                      checked={settings.testnetEnabled === true}
+                      onCheckedChange={(checked) => handleSettingChange("testnetEnabled", checked)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Symbol Configuration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Symbol Configuration</CardTitle>
+                  <CardDescription>
+                    Configure which symbols to trade (uses Main Symbols from Overall or automatic arrangement)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Configure Main Symbols and Forced Symbols in <strong>Overall → Main</strong> tab. These settings
+                      apply to all connections unless overridden per connection.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Automatic Arrangement (when not using Main Symbols)</Label>
+                    <Select
+                      value={settings.arrangementType || "market_cap"}
+                      onValueChange={(value) => handleSettingChange("arrangementType", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="market_cap">Market Cap (24h)</SelectItem>
+                        <SelectItem value="market_volume">Trading Volume</SelectItem>
+                        <SelectItem value="market_volatility">Volatility</SelectItem>
+                        <SelectItem value="price_change">Price Change (24h)</SelectItem>
+                        <SelectItem value="liquidity">Liquidity Score</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="symbols-count-exchange">Number of Symbols</Label>
+                    <Input
+                      id="symbols-count-exchange"
+                      type="number"
+                      min="5"
+                      max="100"
+                      value={settings.symbolsExchangeCount || 50}
+                      onChange={(e) => handleSettingChange("symbolsExchangeCount", Number.parseInt(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of symbols to select with automatic arrangement
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Volume Configuration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Volume Configuration</CardTitle>
+                  <CardDescription>Configure base volume calculation for position sizing</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="volume-range">Volume Range Percentage</Label>
+                    <div className="flex items-center gap-4">
+                      <Slider
+                        id="volume-range"
+                        min={5}
+                        max={50}
+                        step={5}
+                        value={[settings.volumeRangePercentage || 20]}
+                        onValueChange={([value]) => handleSettingChange("volumeRangePercentage", value)}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-medium w-12 text-right">
+                        {settings.volumeRangePercentage || 20}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Percentage of balance allocated for trading (5-50%)</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Supported Exchanges - Keep existing implementation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Supported Exchanges</CardTitle>
+                  <CardDescription>List of exchanges supported by the system</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { name: "Bybit", types: ["Spot", "Futures", "Inverse"] },
+                      { name: "Binance", types: ["Spot", "Futures", "Margin"] },
+                      { name: "OKX", types: ["Spot", "Swap", "Futures"] },
+                      { name: "Bitget", types: ["Spot", "Futures"] },
+                      { name: "BingX", types: ["Spot", "Perpetual"] },
+                      { name: "MEXC", types: ["Spot", "Futures"] },
+                      { name: "Gate.io", types: ["Spot", "Perpetual"] }, // Explicitly listed as Gate.io
+                      { name: "KuCoin", types: ["Spot", "Futures"] },
+                      { name: "Kraken", types: ["Spot", "Futures"] },
+                      { name: "Bitfinex", types: ["Spot", "Margin"] },
+                      { name: "Coinbase", types: ["Spot"] },
+                    ].map((exchange) => (
+                      <div key={exchange.name} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="font-medium text-sm">{exchange.name}</div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {exchange.types.map((type) => (
+                            <Badge key={type} variant="secondary" className="text-xs">
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="indication" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Indication Settings
+                  </CardTitle>
+                  <CardDescription>Configure indication-based trading parameters and thresholds</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold border-b pb-2">Indication Parameters</h3>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Indication Min Profit Factor</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={settings.indicationMinProfitFactor || 0.7}
+                          onChange={(e) =>
+                            handleSettingChange("indicationMinProfitFactor", Number.parseFloat(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum profit factor for indication-based trading (default: 0.7)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg space-y-3">
+                    <h4 className="text-sm font-semibold">About Indication Trading</h4>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <p>
+                        Indication trading uses market signals and patterns to identify potential trading opportunities
+                        before they become full strategy triggers.
+                      </p>
+                      <p>
+                        The minimum profit factor threshold ensures that only high-quality indications are acted upon,
+                        filtering out weaker signals.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Strategy Tab */}
+            <TabsContent value="strategy" className="space-y-6">
+              {/* Step Relation Ratios */}
+              <Card className="border-2 border-primary">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Step Relation Ratios
+                  </CardTitle>
+                  <CardDescription>
+                    Configure minimal and maximal step relation ratios that control position scaling and risk management
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">Step Relation Range</Label>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-mono bg-muted px-3 py-1 rounded">
+                          Min: {settings.stepRelationMinRatio?.toFixed(1)}
+                        </span>
+                        <span className="text-sm font-mono bg-muted px-3 py-1 rounded">
+                          Max: {settings.stepRelationMaxRatio?.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Minimal Ratio (0.1 - 1.0)</Label>
+                      <Slider
+                        value={[settings.stepRelationMinRatio ?? 0.5]} // Provide default if undefined
+                        onValueChange={(value) => {
+                          const newMin = Number.parseFloat(value[0].toFixed(1))
+                          if (newMin < (settings.stepRelationMaxRatio ?? 2.0)) {
+                            // Use default if undefined
+                            handleSettingChange("stepRelationMinRatio", newMin)
+                          }
+                        }}
+                        min={0.1}
+                        max={1.0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Maximal Ratio (1.0 - 5.0)</Label>
+                      <Slider
+                        value={[settings.stepRelationMaxRatio ?? 2.0]} // Provide default if undefined
+                        onValueChange={(value) => {
+                          const newMax = Number.parseFloat(value[0].toFixed(1))
+                          if (newMax > (settings.stepRelationMinRatio ?? 0.5)) {
+                            // Use default if undefined
+                            handleSettingChange("stepRelationMaxRatio", newMax)
+                          }
+                        }}
+                        min={1.0}
+                        max={5.0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg space-y-3">
+                    <h4 className="text-sm font-semibold">How Step Relation Ratios Work</h4>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <p>
+                        <strong>Minimal Ratio:</strong> Controls the smallest position scaling factor. Lower values
+                        allow more aggressive position sizing in favorable conditions.
+                      </p>
+                      <p>
+                        <strong>Maximal Ratio:</strong> Controls the largest position scaling factor. Higher values
+                        enable larger position sizes for high-confidence trades.
+                      </p>
+                      <p>
+                        <strong>Range Impact:</strong> The spread between min and max ratios determines position scaling
+                        flexibility. Wider ranges provide more adaptation to market conditions.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div className="p-2 bg-background rounded border">
+                        <div className="text-xs font-semibold mb-1">Conservative</div>
+                        <div className="text-xs text-muted-foreground">Min: 0.7, Max: 1.5</div>
+                      </div>
+                      <div className="p-2 bg-background rounded border">
+                        <div className="text-xs font-semibold mb-1">Aggressive</div>
+                        <div className="text-xs text-muted-foreground">Min: 0.3, Max: 3.0</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Strategy Configuration</CardTitle>
+                  <CardDescription>Configure trading strategy parameters and thresholds</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold border-b pb-2">Profit Factor Thresholds</h3>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Minimum Profit Factor (Strategy)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={settings.strategyMinProfitFactor || 0.5}
+                          onChange={(e) =>
+                            handleSettingChange("strategyMinProfitFactor", Number.parseFloat(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum profit factor required for strategy execution (default: 0.5)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Indication Min Profit Factor</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={settings.indicationMinProfitFactor || 0.7}
+                          onChange={(e) =>
+                            handleSettingChange("indicationMinProfitFactor", Number.parseFloat(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum profit factor for indication-based trading (default: 0.7)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Profit Factor Multiplier</Label>
+                        <Input
+                          type="number"
+                          min="0.1"
+                          max="5"
+                          step="0.1"
+                          value={settings.profitFactorMultiplier || 1.0}
+                          onChange={(e) =>
+                            handleSettingChange("profitFactorMultiplier", Number.parseFloat(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Global multiplier for all profit factor calculations (default: 1.0)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Base Volume Factor</Label>
+                        <Input
+                          type="number"
+                          min="0.1"
+                          max="10"
+                          step="0.1"
+                          value={settings.baseVolumeFactor || 1.0}
+                          onChange={(e) => handleSettingChange("baseVolumeFactor", Number.parseFloat(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Base volume factor for position sizing (default: 1.0)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold border-b pb-2">Strategy Features</h3>
+
+                    <div className="grid gap-4">
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                        <div>
+                          <Label className="text-base">Trailing Stop Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Enable trailing stop loss for all positions
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.strategyTrailingEnabled !== false}
+                          onCheckedChange={(checked) => handleSettingChange("strategyTrailingEnabled", checked)}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                        <div>
+                          <Label className="text-base">Block Strategy Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Enable block trading strategy for high-success-rate configurations
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.strategyBlockEnabled !== false}
+                          onCheckedChange={(checked) => handleSettingChange("strategyBlockEnabled", checked)}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                        <div>
+                          <Label className="text-base">DCA Strategy Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Enable Dollar Cost Averaging for position management
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.strategyDcaEnabled !== false}
+                          onCheckedChange={(checked) => handleSettingChange("strategyDcaEnabled", checked)}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                        <div>
+                          <Label className="text-base">Block Auto-Disable Enabled</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Automatically disable block strategy when performance drops
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.blockAutoDisableEnabled !== false}
+                          onCheckedChange={(checked) => handleSettingChange("blockAutoDisableEnabled", checked)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold border-b pb-2">Block Strategy Configuration</h3>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Block Adjustment Ratio</Label>
+                        <Input
+                          type="number"
+                          min="0.1"
+                          max="5"
+                          step="0.1"
+                          value={settings.blockAdjustmentRatio || 1.0}
+                          onChange={(e) =>
+                            handleSettingChange("blockAdjustmentRatio", Number.parseFloat(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Position size multiplier for block strategy (default: 1.0)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Min Blocks for Auto-Disable</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={settings.blockAutoDisableMinBlocks || 2}
+                          onChange={(e) =>
+                            handleSettingChange("blockAutoDisableMinBlocks", Number.parseInt(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum blocks before auto-disable check (default: 2)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Comparison Window (positions)</Label>
+                        <Input
+                          type="number"
+                          min="10"
+                          max="200"
+                          value={settings.blockAutoDisableComparisonWindow || 50}
+                          onChange={(e) =>
+                            handleSettingChange("blockAutoDisableComparisonWindow", Number.parseInt(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Number of recent positions to compare performance (default: 50)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold border-b pb-2">Strategy Thresholds</h3>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Minimum Win Rate (%)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={settings.minWinRate || 45}
+                          onChange={(e) => handleSettingChange("minWinRate", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimum win rate percentage required for strategy activation (default: 45%)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Max Drawdown Hours</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={settings.maxDrawdownHours || 24}
+                          onChange={(e) => handleSettingChange("maxDrawdownHours", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Maximum allowed drawdown duration in hours (default: 24)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Adjust Strategy Drawdown Positions</Label>
+                        <Input
+                          type="number"
+                          min="10"
+                          max="200"
+                          value={settings.adjustStrategyDrawdownPositions || 80}
+                          onChange={(e) =>
+                            handleSettingChange("adjustStrategyDrawdownPositions", Number.parseInt(e.target.value))
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Number of positions in drawdown before adjustment (default: 80)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Average Positions Target</Label>
+                        <Input
+                          type="number"
+                          min="10"
+                          max="500"
+                          value={settings.positionsAverage || 50}
+                          onChange={(e) => handleSettingChange("positionsAverage", Number.parseInt(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Target average number of active positions (default: 50)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="system" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Default Engine Trade Intervals</CardTitle>
+                  <CardDescription>
+                    Configure default execution intervals for Main and Preset trading engines. Each active connection
+                    operates independently and inherits these defaults. Individual connections can override these values
+                    in Exchange settings.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Default Main Trade Interval</Label>
+                      <span className="text-sm font-medium">{settings.mainTradeInterval || 1} second(s)</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={[settings.mainTradeInterval || 1]}
+                      onValueChange={([value]) => handleSettingChange("mainTradeInterval", value)}
+                      className="flex-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Default execution interval for main trading strategy (1-10 seconds, default: 1). Each connection
+                      inherits this value and processes market data, executes trades, and manages its own database
+                      records independently.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Default Preset Trade Interval</Label>
+                      <span className="text-sm font-medium">{settings.presetTradeInterval || 2} second(s)</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={[settings.presetTradeInterval || 2]}
+                      onValueChange={([value]) => handleSettingChange("presetTradeInterval", value)}
+                      className="flex-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Default execution interval for preset trading strategy (1-10 seconds, default: 2). Each connection
+                      with preset trading enabled operates independently with its own calculations, database storage,
+                      and logging grouped by connection_id.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="text-sm font-semibold">Connection Independence</h4>
+                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Each active connection has its own trade engine instance</li>
+                      <li>Database records are grouped and isolated by connection_id</li>
+                      <li>Activity tracking and logging are per-connection</li>
+                      <li>Performance optimization uses connection-grouped data</li>
+                      <li>Limits apply individually to each connection</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Default Database Limits (Per Connection)</CardTitle>
+                  <CardDescription>
+                    Configure default database size limits. Each active connection maintains its own independent
+                    database records with these limits applied individually.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Max Pseudo Positions (Per Connection)</Label>
+                      <span className="text-sm font-medium">{settings.maxPseudoPositions || 250}</span>
+                    </div>
+                    <Slider
+                      min={50}
+                      max={500}
+                      step={50}
+                      value={[settings.maxPseudoPositions || 250]}
+                      onValueChange={([value]) => handleSettingChange("maxPseudoPositions", value)}
+                      className="flex-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Maximum number of pseudo positions per connection (50-500, default: 250). Each connection
+                      independently stores and manages its own positions.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Market Data Retention (Hours)</Label>
+                      <span className="text-sm font-medium">{settings.marketDataRetention || 24} hours</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={168}
+                      step={1}
+                      value={[settings.marketDataRetention || 24]}
+                      onValueChange={([value]) => handleSettingChange("marketDataRetention", value)}
+                      className="flex-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      How long to retain market data per connection (1-168 hours, default: 24). Data is grouped by
+                      connection_id for optimal performance.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Database Configuration</CardTitle>
+                  <CardDescription>Configure database type and connection</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Database Type</Label>
+                    <Select
+                      value={settings.database_type || "sqlite"}
+                      onValueChange={handleDatabaseTypeChange} // Use the new handler here
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sqlite">SQLite (Local)</SelectItem>
+                        <SelectItem value="postgresql">PostgreSQL (Local)</SelectItem>
+                        <SelectItem value="remote">PostgreSQL (Remote)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {databaseStatus && (
+                    <div className="space-y-2 p-4 bg-muted rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Status:</span>
+                        <Badge variant={databaseStatus.isConnected ? "default" : "destructive"}>
+                          {databaseStatus.isConnected ? "Connected" : "Disconnected"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Database:</span>
+                        <span className="text-sm">{databaseStatus.database || "N/A"}</span>
+                      </div>
+                      {databaseStatus.url && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Connection String:</span>
+                          <span className="text-sm font-mono truncate max-w-md">
+                            {databaseStatus.url.replace(/:[^:]*@/, ":****@")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button onClick={initializeDatabase} disabled={initializing} variant="outline">
+                      {initializing ? "Initializing..." : "Initialize Database"}
+                    </Button>
+                    <Button onClick={runMigrations} disabled={migrating} variant="outline">
+                      {migrating ? "Running..." : "Run Migrations"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Installation & Deployment</CardTitle>
+                  <CardDescription>Manage database setup and system deployment</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <InstallManager />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </AuthGuard>
+  )
+}
