@@ -4,7 +4,7 @@ import { SystemLogger } from "@/lib/system-logger"
 
 export const runtime = "nodejs"
 
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   try {
     const engine = getTradeEngine()
 
