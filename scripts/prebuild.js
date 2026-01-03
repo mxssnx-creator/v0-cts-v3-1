@@ -8,15 +8,17 @@
 const fs = require("fs")
 const path = require("path")
 
-console.log("🔧 CTS v3.1 Pre-build Validation...\n")
+const rootDir = process.cwd()
+
+console.log("CTS v3.1 Pre-build Validation...\n")
 
 const cacheDirs = [
-  path.join(__dirname, "..", ".next"),
-  path.join(__dirname, "..", "node_modules", ".cache"),
-  path.join(__dirname, "..", ".turbo"),
+  path.join(rootDir, ".next"),
+  path.join(rootDir, "node_modules", ".cache"),
+  path.join(rootDir, ".turbo"),
 ]
 
-console.log("  ✓ Clearing build caches...")
+console.log("  Clearing build caches...")
 for (const dir of cacheDirs) {
   if (fs.existsSync(dir)) {
     try {
@@ -28,13 +30,13 @@ for (const dir of cacheDirs) {
   }
 }
 
-const tsBuildInfo = path.join(__dirname, "..", "tsconfig.tsbuildinfo")
+const tsBuildInfo = path.join(rootDir, "tsconfig.tsbuildinfo")
 if (fs.existsSync(tsBuildInfo)) {
   fs.unlinkSync(tsBuildInfo)
-  console.log("  ✓ Cleared TypeScript build info")
+  console.log("  Cleared TypeScript build info")
 }
 
-console.log("\n  ✓ Validating critical files...")
+console.log("\n  Validating critical files...")
 const criticalFiles = [
   "lib/trade-engine.ts",
   "lib/trade-engine/index.ts",
@@ -46,54 +48,54 @@ const criticalFiles = [
 
 let hasErrors = false
 for (const file of criticalFiles) {
-  const filePath = path.join(__dirname, "..", file)
+  const filePath = path.join(rootDir, file)
   if (!fs.existsSync(filePath)) {
-    console.error(`  ✗ ERROR: Missing critical file: ${file}`)
+    console.error(`  ERROR: Missing critical file: ${file}`)
     hasErrors = true
   } else {
-    console.log(`    ✓ ${file}`)
+    console.log(`    ${file}`)
   }
 }
 
 const strayFiles = [
-  path.join(__dirname, "..", "lib", "configuration-set-manager.ts"),
-  path.join(__dirname, "..", "lib", "configuration-set-manager.tsx"),
+  path.join(rootDir, "lib", "configuration-set-manager.ts"),
+  path.join(rootDir, "lib", "configuration-set-manager.tsx"),
 ]
 
 for (const strayFile of strayFiles) {
   if (fs.existsSync(strayFile)) {
-    console.log(`  ✓ Removing stray file: ${path.basename(strayFile)}`)
+    console.log(`  Removing stray file: ${path.basename(strayFile)}`)
     fs.unlinkSync(strayFile)
   }
 }
 
-console.log("\n  ✓ Verifying module exports...")
+console.log("\n  Verifying module exports...")
 try {
-  const tradeEngineContent = fs.readFileSync(path.join(__dirname, "..", "lib", "trade-engine.ts"), "utf8")
+  const tradeEngineContent = fs.readFileSync(path.join(rootDir, "lib", "trade-engine.ts"), "utf8")
 
   if (!tradeEngineContent.includes("export function getTradeEngine")) {
-    console.error("  ✗ ERROR: lib/trade-engine.ts missing getTradeEngine export!")
+    console.error("  ERROR: lib/trade-engine.ts missing getTradeEngine export!")
     hasErrors = true
   } else {
-    console.log("    ✓ getTradeEngine export verified")
+    console.log("    getTradeEngine export verified")
   }
 
-  const useToastContent = fs.readFileSync(path.join(__dirname, "..", "hooks", "use-toast.ts"), "utf8")
+  const useToastContent = fs.readFileSync(path.join(rootDir, "hooks", "use-toast.ts"), "utf8")
 
   if (!useToastContent.includes("export") || useToastContent.trim().length < 100) {
-    console.error("  ✗ ERROR: hooks/use-toast.ts appears invalid!")
+    console.error("  ERROR: hooks/use-toast.ts appears invalid!")
     hasErrors = true
   } else {
-    console.log("    ✓ use-toast hook verified")
+    console.log("    use-toast hook verified")
   }
 } catch (err) {
-  console.error(`  ✗ ERROR: Failed to verify exports: ${err.message}`)
+  console.error(`  ERROR: Failed to verify exports: ${err.message}`)
   hasErrors = true
 }
 
 if (hasErrors) {
-  console.error("\n❌ Pre-build validation failed!\n")
+  console.error("\n Pre-build validation failed!\n")
   process.exit(1)
 }
 
-console.log("\n✅ Pre-build validation passed! Ready to build.\n")
+console.log("\n Pre-build validation passed! Ready to build.\n")
