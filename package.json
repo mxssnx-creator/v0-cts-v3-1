@@ -1,25 +1,54 @@
 {
   "name": "cts",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
+  "description": "Comprehensive Cryptocurrency Trading System - Multi-exchange automated trading platform",
+  "keywords": [
+    "cryptocurrency",
+    "trading",
+    "automated-trading",
+    "bybit",
+    "bingx",
+    "pionex",
+    "orangex",
+    "trading-bot",
+    "crypto-bot",
+    "algorithmic-trading",
+    "multi-exchange"
+  ],
+  "license": "UNLICENSED",
+  "author": "CTS Development Team",
   "bin": {
     "cts-download": "./scripts/quick-install.sh",
     "cts-install": "./scripts/install.sh",
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
+    "prebuild": "node scripts/prebuild.js",
     "build": "next build",
-    "db:migrate": "node -e \"require('./lib/db-migrations.ts').DatabaseMigrations.runPendingMigrations()\"",
-    "db:status": "node -e \"console.log('✅ Database: 54 migrations configured'); console.log('ℹ️  Migrations run automatically on app start'); console.log('📊 Run app to see migration status')\"",
+    "certbot:install": "sudo bash scripts/install-certbot.sh",
+    "clean": "bash scripts/clear-cache.sh",
+    "clean:all": "bash scripts/clear-cache.sh && rm -rf node_modules && npm install",
+    "db:backup": "node scripts/backup-database.js",
+    "db:migrate": "node scripts/run-migrations.js",
+    "db:reset": "node scripts/reset-database.js",
+    "db:status": "node scripts/check-db-status.js",
     "dev": "next dev -p ${PORT:-3000}",
-    "preinstall": "echo '📦 Installing CTS v3 dependencies...'",
+    "preinstall": "echo '📦 Installing CTS v3.1 dependencies...'",
     "postinstall": "npm rebuild better-sqlite3 sharp 2>/dev/null || true",
     "install:download": "bash scripts/quick-install.sh",
     "install:full": "bash scripts/install.sh",
     "install:quick": "bash scripts/install-continuous.sh",
     "lint": "next lint",
+    "nginx:logs": "sudo tail -f /var/log/nginx/error.log",
+    "nginx:restart": "sudo systemctl restart nginx",
+    "nginx:setup": "sudo bash scripts/setup-nginx.sh",
+    "nginx:status": "sudo systemctl status nginx",
+    "rebuild": "npm run clean && npm run build",
     "setup": "node scripts/setup.js",
     "start": "next start -p ${PORT:-3000}",
+    "system:check": "node scripts/system-check.js",
+    "system:health": "node scripts/health-check.js",
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
     "web-engine": "node services/web-engine.js"
@@ -111,6 +140,6 @@
     "typescript": "5.7.3"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=18.0.0 <=26.x"
   }
 }

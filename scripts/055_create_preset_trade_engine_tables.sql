@@ -1,5 +1,6 @@
 -- Migration 055: Create Preset Trade Engine Tables
 -- These tables support the preset coordination engine for automated trading
+-- FIXED: Removed PostgreSQL-specific syntax, made database-agnostic
 
 -- Preset Trade Engine State Table
 CREATE TABLE IF NOT EXISTS preset_trade_engine_state (
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS preset_trade_engine_state (
 
 -- Preset Trades Table (different from preset_real_trades, used for pseudo/simulation trades)
 CREATE TABLE IF NOT EXISTS preset_trades (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  id TEXT PRIMARY KEY, -- Removed gen_random_uuid(), will be generated in application
   preset_id TEXT NOT NULL,
   connection_id TEXT NOT NULL,
   symbol TEXT NOT NULL,
@@ -27,9 +28,9 @@ CREATE TABLE IF NOT EXISTS preset_trades (
   quantity DECIMAL(20, 8) NOT NULL,
   takeprofit DECIMAL(20, 8),
   stoploss DECIMAL(20, 8),
-  trailing_enabled BOOLEAN DEFAULT false,
+  trailing_enabled INTEGER DEFAULT 0, -- Changed BOOLEAN to INTEGER for SQLite
   indicator_type TEXT NOT NULL,
-  indicator_params JSONB NOT NULL DEFAULT '{}',
+  indicator_params TEXT NOT NULL DEFAULT '{}', -- Changed JSONB to TEXT
   profit_loss DECIMAL(20, 8),
   fees_paid DECIMAL(20, 8) DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'open', -- 'open', 'closed', 'cancelled'
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS preset_pseudo_positions (
   -- Position Configuration
   takeprofit_factor DECIMAL(10, 4),
   stoploss_ratio DECIMAL(10, 4),
-  trailing_enabled BOOLEAN DEFAULT false,
+  trailing_enabled INTEGER DEFAULT 0, -- Changed BOOLEAN to INTEGER
   trail_start DECIMAL(10, 4),
   trail_stop DECIMAL(10, 4),
   
@@ -78,6 +79,9 @@ CREATE TABLE IF NOT EXISTS preset_pseudo_positions (
   -- Status
   status TEXT DEFAULT 'active', -- 'active', 'closed', 'cancelled', 'evaluating'
   close_reason TEXT,
+  
+  -- Common indicators tracking (JSON array of indicator names)
+  common_indicators_used TEXT DEFAULT '[]', -- Added this column here for completeness
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -107,25 +111,6 @@ CREATE INDEX IF NOT EXISTS idx_preset_pseudo_positions_main ON preset_pseudo_pos
 CREATE INDEX IF NOT EXISTS idx_preset_pseudo_positions_base ON preset_pseudo_positions(base_position_id);
 
 -- Add preset_type_id column to exchange_connections if not exists
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'exchange_connections' 
-    AND column_name = 'preset_type_id'
-  ) THEN
-    ALTER TABLE exchange_connections ADD COLUMN preset_type_id TEXT;
-  END IF;
-END $$;
+ALTER TABLE exchange_connections ADD COLUMN IF NOT EXISTS preset_type_id TEXT;
 
--- Ensure system settings for preset trading exist
-INSERT INTO system_settings (key, value, description, category)
-VALUES 
-  ('presetIndicationInterval', '60', 'Indication check interval in seconds for preset trading', 'preset'),
-  ('presetRealInterval', '300', 'Real position check interval in seconds for preset trading', 'preset'),
-  ('presetIndicationCategory', 'common', 'Default indication category for preset trading (main or common)', 'preset'),
-  ('presetMaxPositionsPerSymbol', '3', 'Maximum open positions per symbol in preset trading', 'preset'),
-  ('presetDefaultLeverage', '1', 'Default leverage for preset trading', 'preset'),
-  ('presetMinProfitFactor', '1.1', 'Minimum profit factor required to open positions', 'preset'),
-  ('presetMaxDrawdownHours', '12', 'Maximum drawdown time in hours before closing position', 'preset')
-ON CONFLICT (key) DO NOTHING;
+-- Removed PostgreSQL DO $$ block, system_settings should be created by separate migration

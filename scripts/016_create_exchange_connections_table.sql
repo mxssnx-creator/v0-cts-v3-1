@@ -1,33 +1,37 @@
 -- Create exchange_connections table for managing exchange API connections
+-- FIXED: Standardized schema to match app expectations (TEXT primary key, no user FK)
+
 CREATE TABLE IF NOT EXISTS exchange_connections (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  name VARCHAR(100) NOT NULL,
-  exchange_id INTEGER REFERENCES exchanges(id) ON DELETE CASCADE,
-  api_type VARCHAR(50) NOT NULL, -- 'spot', 'perpetual_futures', 'delivery_futures', 'margin'
-  connection_method VARCHAR(20) CHECK (connection_method IN ('rest', 'websocket', 'library')),
-  library_package VARCHAR(100), -- Package name if using library method
-  api_key TEXT NOT NULL,
-  api_secret TEXT NOT NULL,
-  api_passphrase TEXT, -- For exchanges that require it
-  margin_type VARCHAR(20) DEFAULT 'cross' CHECK (margin_type IN ('cross', 'isolated')),
-  position_mode VARCHAR(20) DEFAULT 'hedge' CHECK (position_mode IN ('hedge', 'one_way')),
-  is_testnet BOOLEAN DEFAULT false,
-  is_enabled BOOLEAN DEFAULT false,
-  is_live_trade BOOLEAN DEFAULT false,
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  exchange TEXT NOT NULL,
+  api_type TEXT DEFAULT 'spot',
+  api_key TEXT,
+  api_secret TEXT,
+  testnet INTEGER DEFAULT 0,
+  is_enabled INTEGER DEFAULT 1,
+  margin_type TEXT DEFAULT 'cross',
+  position_mode TEXT DEFAULT 'hedge',
+  volume_factor REAL DEFAULT 1.0,
+  connection_library TEXT DEFAULT 'ccxt',
+  is_predefined INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  
+  -- Removed JSON columns for SQLite compatibility, will be added later if PostgreSQL
+  api_capabilities TEXT DEFAULT '{"spot": true, "futures": false, "margin": false}',
+  rate_limits TEXT DEFAULT '{"requests_per_second": 10, "requests_per_minute": 600}',
+  connection_settings TEXT DEFAULT '{}',
+  
+  connection_priority INTEGER DEFAULT 0,
   last_test_at TIMESTAMP,
-  last_test_status VARCHAR(20), -- 'success', 'failed'
-  last_test_balance DECIMAL(20, 8),
-  last_test_error TEXT,
+  last_test_status TEXT,
+  last_test_log TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, name)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_exchange_connections_user ON exchange_connections(user_id);
-CREATE INDEX idx_exchange_connections_exchange ON exchange_connections(exchange_id);
-CREATE INDEX idx_exchange_connections_enabled ON exchange_connections(is_enabled);
-
--- Add trigger for updated_at
-CREATE TRIGGER update_exchange_connections_updated_at BEFORE UPDATE ON exchange_connections
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_exchange_connections_exchange ON exchange_connections(exchange);
+CREATE INDEX IF NOT EXISTS idx_exchange_connections_is_predefined ON exchange_connections(is_predefined);
+CREATE INDEX IF NOT EXISTS idx_exchange_connections_is_active ON exchange_connections(is_active);
+CREATE INDEX IF NOT EXISTS idx_exchange_connections_priority ON exchange_connections(connection_priority);

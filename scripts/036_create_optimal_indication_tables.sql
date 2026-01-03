@@ -2,8 +2,8 @@
 -- Implements 250-limit base configuration layer with performance tracking
 
 CREATE TABLE IF NOT EXISTS base_pseudo_positions (
-  id SERIAL PRIMARY KEY,
-  connection_id INTEGER REFERENCES exchange_connections(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  connection_id TEXT NOT NULL, -- Changed from INTEGER to TEXT to match exchange_connections.id
   symbol VARCHAR(20) NOT NULL,
   indication_type VARCHAR(50) NOT NULL CHECK (indication_type = 'optimal'),
   indication_range INTEGER NOT NULL,
@@ -41,42 +41,44 @@ CREATE TABLE IF NOT EXISTS base_pseudo_positions (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_base_pseudo_positions_connection ON base_pseudo_positions(connection_id);
-CREATE INDEX idx_base_pseudo_positions_symbol ON base_pseudo_positions(symbol);
-CREATE INDEX idx_base_pseudo_positions_status ON base_pseudo_positions(status);
-CREATE INDEX idx_base_pseudo_positions_indication ON base_pseudo_positions(indication_type, indication_range);
+CREATE INDEX IF NOT EXISTS idx_base_pseudo_positions_connection ON base_pseudo_positions(connection_id);
+CREATE INDEX IF NOT EXISTS idx_base_pseudo_positions_symbol ON base_pseudo_positions(symbol);
+CREATE INDEX IF NOT EXISTS idx_base_pseudo_positions_status ON base_pseudo_positions(status);
+CREATE INDEX IF NOT EXISTS idx_base_pseudo_positions_indication ON base_pseudo_positions(indication_type, indication_range);
 
 -- Add base_position_id foreign key to pseudo_positions table
+-- Changed from INTEGER to TEXT
 ALTER TABLE pseudo_positions 
-  ADD COLUMN IF NOT EXISTS base_position_id INTEGER REFERENCES base_pseudo_positions(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS base_position_id TEXT;
 
 -- Add configuration columns to pseudo_positions for filtering
 ALTER TABLE pseudo_positions
-  ADD COLUMN IF NOT EXISTS drawdown_ratio DECIMAL(5, 2),
-  ADD COLUMN IF NOT EXISTS market_change_range INTEGER,
+  ADD COLUMN IF NOT EXISTS drawdown_ratio DECIMAL(5, 2);
+  
+ALTER TABLE pseudo_positions
+  ADD COLUMN IF NOT EXISTS market_change_range INTEGER;
+  
+ALTER TABLE pseudo_positions
   ADD COLUMN IF NOT EXISTS last_part_ratio DECIMAL(5, 2);
 
 -- Add direction column to pseudo_positions
 ALTER TABLE pseudo_positions
-  ADD COLUMN IF NOT EXISTS direction VARCHAR(10) CHECK (direction IN ('long', 'short'));
+  ADD COLUMN IF NOT EXISTS direction VARCHAR(10);
 
 -- Add indication_range column to pseudo_positions
 ALTER TABLE pseudo_positions
   ADD COLUMN IF NOT EXISTS indication_range INTEGER;
 
 -- Create index for base position lookup
-CREATE INDEX idx_pseudo_positions_base_position ON pseudo_positions(base_position_id);
+CREATE INDEX IF NOT EXISTS idx_pseudo_positions_base_position ON pseudo_positions(base_position_id);
 
 -- Create index for configuration filtering
-CREATE INDEX idx_pseudo_positions_config ON pseudo_positions(
+CREATE INDEX IF NOT EXISTS idx_pseudo_positions_config ON pseudo_positions(
   symbol, indication_type, direction, drawdown_ratio, market_change_range, last_part_ratio
 );
 
--- Add trigger for updated_at
-CREATE TRIGGER update_base_pseudo_positions_updated_at 
-  BEFORE UPDATE ON base_pseudo_positions
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+-- Removed trigger creation - function doesn't exist and will cause errors
+-- Triggers should be added separately if needed with proper function definitions
 
 -- Create view for base position performance summary
 CREATE OR REPLACE VIEW base_position_performance AS

@@ -10,6 +10,11 @@ const nextConfig = {
   transpilePackages: ['lucide-react'],
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    turbo: {
+      resolveAlias: {
+        '@/lib/trade-engine': './lib/trade-engine',
+      },
+    },
   },
   logging: {
     fetches: {

@@ -59,6 +59,12 @@ export class DatabaseMigrations {
       sql: "", // Will be loaded from file
       executed: false,
     },
+    {
+      id: 57,
+      name: "new_migration_example",
+      sql: "", // Will be loaded from file
+      executed: false,
+    },
   ]
 
   private static async loadMigrationSQL(migration: Migration): Promise<string> {
@@ -91,6 +97,8 @@ export class DatabaseMigrations {
         return this.getPresetTradeEngineTablesSQL()
       case 56:
         return this.getParabolicSarIndicatorSQL()
+      case 57:
+        return this.getNewMigrationExampleSQL()
       default:
         return migration.sql
     }
@@ -710,6 +718,28 @@ export class DatabaseMigrations {
     return `
       ALTER TABLE indicators ADD COLUMN parabolic_sar REAL;
       -- Additional common indicators can be added here
+    `
+  }
+
+  private static getNewMigrationExampleSQL(): string {
+    const dbType = getDatabaseType()
+
+    if (dbType === "postgresql") {
+      return `
+        CREATE TABLE IF NOT EXISTS new_migration_table (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+      `
+    }
+
+    return `
+      CREATE TABLE IF NOT EXISTS new_migration_table (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
     `
   }
 }
