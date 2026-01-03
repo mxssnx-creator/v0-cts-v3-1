@@ -25,3 +25,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Turbopack cache
+.turbo
+
+# Local database
+*.db
+*.db-shm
+*.db-wal
+
+# Backup files
+backups/*.tmp
+
+# System files
+.DS_Store
+Thumbs.db

@@ -29,6 +29,7 @@
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
     "clean:all": "bash scripts/clear-cache.sh && rm -rf node_modules && npm install",
+    "clean:vercel": "rm -rf .next .turbo node_modules/.cache",
     "db:backup": "node scripts/backup-database.js",
     "db:migrate": "node scripts/run-migrations.js",
     "db:reset": "node scripts/reset-database.js",
@@ -44,6 +45,7 @@
     "nginx:restart": "sudo systemctl restart nginx",
     "nginx:setup": "sudo bash scripts/setup-nginx.sh",
     "nginx:status": "sudo systemctl status nginx",
+    "predeploy": "npm run verify",
     "rebuild": "npm run clean && npm run build",
     "setup": "node scripts/setup.js",
     "start": "next start -p ${PORT:-3000}",
@@ -51,6 +53,8 @@
     "system:health": "node scripts/health-check.js",
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
+    "vercel-build": "npm run clean:vercel && npm run build",
+    "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
   "dependencies": {
