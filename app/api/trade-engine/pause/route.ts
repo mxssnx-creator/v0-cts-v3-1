@@ -5,7 +5,8 @@ import { SystemLogger } from "@/lib/system-logger"
 export const runtime = "nodejs"
 
 /**
- * Pause the Global Trade Engine
+ * Pause the Global Trade Engine Coordinator
+ * Pauses all trading operations across all connections
  */
 export async function POST(): Promise<NextResponse> {
   try {
@@ -16,15 +17,18 @@ export async function POST(): Promise<NextResponse> {
     }
 
     await engine.pause()
-    await SystemLogger.logTradeEngine("Global Trade Engine paused", "info")
+    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator paused", "info")
 
-    return NextResponse.json({ success: true, message: "Trade engine paused" })
+    return NextResponse.json({ success: true, message: "Trade engine coordinator paused" })
   } catch (error) {
-    console.error("[v0] Failed to pause trade engine:", error)
+    console.error("[v0] Failed to pause trade engine coordinator:", error)
     await SystemLogger.logError(error, "api", "POST /api/trade-engine/pause")
 
     return NextResponse.json(
-      { error: "Failed to pause trade engine", details: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Failed to pause trade engine coordinator",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     )
   }
