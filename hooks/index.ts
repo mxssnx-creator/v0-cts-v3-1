@@ -6,7 +6,7 @@
 
 export { useToast, toast } from "./use-toast"
 export { useApiWithToast } from "./use-api-with-toast"
-export { useMobile } from "./use-mobile"
+export { useIsMobile } from "./use-mobile"
 export { useRealTimePrices } from "./use-real-time-prices"
 export { useSiteLogger } from "./use-site-logger"
 export { useWebSocket } from "./use-websocket"
