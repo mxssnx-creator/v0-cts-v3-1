@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run vercel-build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "env": {
     "NODE_ENV": "production",
     "NODE_PG_FORCE_NATIVE": "false",
@@ -14,5 +14,11 @@
       "source": "/api/:path*",
       "destination": "/api/:path*"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }

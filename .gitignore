@@ -24,10 +24,15 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+*.build.tsbuildinfo
 next-env.d.ts
+.tsbuildinfo
 
 # Turbopack cache
 .turbo
+
+# TypeScript cache
+/node_modules/.cache/typescript
 
 # Local database
 *.db
@@ -40,3 +45,7 @@ backups/*.tmp
 # System files
 .DS_Store
 Thumbs.db
+
+# Cache directories
+.cache
+node_modules/.cache

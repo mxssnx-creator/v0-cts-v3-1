@@ -13,8 +13,6 @@
  *    - Runs continuously with three parallel loops
  *    - Use for individual exchange connection management
  *    - Service name: project_name-trade
- *
- * Note: This file re-exports all necessary trade engine components
  */
 
 export {

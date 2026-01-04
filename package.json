@@ -14,13 +14,24 @@
     "trading-bot",
     "crypto-bot",
     "algorithmic-trading",
-    "multi-exchange"
+    "multi-exchange",
+    "npx",
+    "cli"
   ],
+  "homepage": "https://github.com/your-username/cts-v3.1#readme",
+  "bugs": {
+    "url": "https://github.com/your-username/cts-v3.1/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cts-v3.1.git"
+  },
   "license": "UNLICENSED",
   "author": "CTS Development Team",
   "bin": {
     "cts-download": "./scripts/quick-install.sh",
     "cts-install": "./scripts/install.sh",
+    "cts-npx-install": "./scripts/npx-install.sh",
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
@@ -29,13 +40,13 @@
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
     "clean:all": "bash scripts/clear-cache.sh && rm -rf node_modules && npm install",
-    "clean:vercel": "rm -rf .next .turbo node_modules/.cache",
+    "clean:vercel": "rm -rf .next .turbo node_modules/.cache tsconfig.tsbuildinfo",
     "db:backup": "node scripts/backup-database.js",
     "db:migrate": "node scripts/run-migrations.js",
     "db:reset": "node scripts/reset-database.js",
     "db:status": "node scripts/check-db-status.js",
     "dev": "next dev -p ${PORT:-3000}",
-    "preinstall": "echo '📦 Installing CTS v3.1 dependencies...'",
+    "preinstall": "rm -rf .next .turbo tsconfig.tsbuildinfo node_modules/.cache 2>/dev/null || true",
     "postinstall": "npm rebuild better-sqlite3 sharp 2>/dev/null || true",
     "install:download": "bash scripts/quick-install.sh",
     "install:full": "bash scripts/install.sh",
@@ -53,7 +64,7 @@
     "system:health": "node scripts/health-check.js",
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
-    "vercel-build": "npm run clean:vercel && npm run build",
+    "vercel-build": "npm run prebuild && npm run type-check && npm run build",
     "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
@@ -144,6 +155,7 @@
     "typescript": "5.7.3"
   },
   "engines": {
-    "node": ">=18.0.0 <=26.x"
+    "node": ">=18.0.0 <=26.x",
+    "npm": ">=8.0.0"
   }
 }
