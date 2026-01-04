@@ -9,28 +9,25 @@ export const dynamic = "force-dynamic"
  * Resume the Global Trade Engine Coordinator
  * Resumes all trading operations across all connections
  */
-export async function POST(): Promise<NextResponse> {
+export async function POST() {
   try {
-    const engine = getTradeEngine()
+    const coordinator = getTradeEngine()
 
-    if (!engine) {
-      return NextResponse.json({ error: "Trade engine not initialized" }, { status: 400 })
+    if (!coordinator) {
+      return NextResponse.json({ success: false, error: "Trade engine coordinator not initialized" }, { status: 503 })
     }
 
-    await engine.resume()
-    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator resumed", "info")
+    await coordinator.resume()
+    SystemLogger.info("Global Trade Engine Coordinator resumed via API")
 
-    return NextResponse.json({ success: true, message: "Trade engine coordinator resumed" })
+    return NextResponse.json({
+      success: true,
+      message: "Trade engine resumed successfully",
+    })
   } catch (error) {
-    console.error("[v0] Failed to resume trade engine coordinator:", error)
-    await SystemLogger.logError(error, "api", "POST /api/trade-engine/resume")
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    SystemLogger.error("Failed to resume trade engine", error)
 
-    return NextResponse.json(
-      {
-        error: "Failed to resume trade engine coordinator",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }

@@ -9,28 +9,25 @@ export const dynamic = "force-dynamic"
  * Pause the Global Trade Engine Coordinator
  * Pauses all trading operations across all connections
  */
-export async function POST(): Promise<NextResponse> {
+export async function POST() {
   try {
-    const engine = getTradeEngine()
+    const coordinator = getTradeEngine()
 
-    if (!engine) {
-      return NextResponse.json({ error: "Trade engine not initialized" }, { status: 400 })
+    if (!coordinator) {
+      return NextResponse.json({ success: false, error: "Trade engine coordinator not initialized" }, { status: 503 })
     }
 
-    await engine.pause()
-    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator paused", "info")
+    await coordinator.pause()
+    SystemLogger.info("Global Trade Engine Coordinator paused via API")
 
-    return NextResponse.json({ success: true, message: "Trade engine coordinator paused" })
+    return NextResponse.json({
+      success: true,
+      message: "Trade engine paused successfully",
+    })
   } catch (error) {
-    console.error("[v0] Failed to pause trade engine coordinator:", error)
-    await SystemLogger.logError(error, "api", "POST /api/trade-engine/pause")
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    SystemLogger.error("Failed to pause trade engine", error)
 
-    return NextResponse.json(
-      {
-        error: "Failed to pause trade engine coordinator",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
