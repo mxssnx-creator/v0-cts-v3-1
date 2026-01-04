@@ -18,7 +18,7 @@
  */
 
 import { type ExchangeConfig, createExchangeAPI } from "./exchanges"
-import type { StrategyConfig } from "./strategies"
+import type { StrategyConfig } from "./types"
 import { SystemLogger } from "./system-logger"
 import DatabaseManager from "./database"
 
