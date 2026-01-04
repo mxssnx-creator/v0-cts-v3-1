@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
 import InstallManager from "@/components/settings/install-manager"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Save, Download, Upload, RefreshCw, Activity, Layers, X, Plus, Info } from "lucide-react"
 import type { ExchangeConnection } from "@/lib/types"
 import { LogsViewer } from "@/components/settings/logs-viewer"
@@ -653,8 +653,7 @@ const initialSettings: Settings = {
 }
 
 export default function SettingsPage() {
-  const { toast } = useToast()
-
+  // useToast hook removed, toast from sonner imported and used.
   const [newMainSymbol, setNewMainSymbol] = useState("")
   const [newForcedSymbol, setNewForcedSymbol] = useState("")
   const [databaseType, setDatabaseType] = useState<"sqlite" | "postgresql" | "remote">("sqlite")
@@ -811,23 +810,18 @@ export default function SettingsPage() {
       setRestartHistory((prev) => [historyEntry, ...prev.slice(0, 9)])
 
       if (data.success) {
-        toast({
-          title: "Engine Restarted",
+        toast.success("Engine Restarted", {
           description: "Trade engine restarted successfully",
         })
       } else {
-        toast({
-          title: "Restart Failed",
+        toast.error("Restart Failed", {
           description: data.error || "Failed to restart engine",
-          variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error restarting engine:", error)
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to restart trade engine",
-        variant: "destructive",
       })
     } finally {
       setIsRestarting(false)
@@ -1202,8 +1196,7 @@ export default function SettingsPage() {
 
     try {
       console.log("[v0] Starting settings save operation...")
-      toast({
-        title: "Saving settings...",
+      toast.info("Saving settings...", {
         description: "Please wait while we save your configuration.",
       })
 
@@ -1234,13 +1227,11 @@ export default function SettingsPage() {
         console.log("[v0] Critical changes detected, pausing engine...")
 
         if (databaseTypeChanged) {
-          toast({
-            title: "Database type changed",
+          toast.info("Database type changed", {
             description: "Switching database requires system restart. Pausing engine...",
           })
         } else {
-          toast({
-            title: "Pausing trade engine...",
+          toast.info("Pausing trade engine...", {
             description: "Applying critical configuration changes requires pausing the engine.",
           })
         }
@@ -1270,16 +1261,14 @@ export default function SettingsPage() {
       }
       console.log("[v0] Settings saved to database successfully")
 
-      toast({
-        title: "Settings saved!",
+      toast.success("Settings saved!", {
         description: "All changes have been applied successfully.",
       })
 
       // Step 5: If database sizes changed, reorganize database
       if (databaseSizesChanged) {
         console.log("[v0] Database sizes changed, reorganizing...")
-        toast({
-          title: "Reorganizing database with new size limits...",
+        toast.info("Reorganizing database with new size limits...", {
           description: "Applying new database size configurations.",
         })
 
@@ -1297,16 +1286,13 @@ export default function SettingsPage() {
         if (!reorganizeResponse.ok) {
           const errorData = await reorganizeResponse.json()
           console.error("[v0] Database reorganization failed:", errorData)
-          toast({
-            title: "Database reorganization failed",
+          toast.error("Database reorganization failed", {
             description: "Settings saved but limits not applied. Please check logs.",
-            variant: "destructive",
           })
         } else {
           const reorganizeData = await reorganizeResponse.json()
           console.log("[v0] Database reorganized successfully:", reorganizeData)
-          toast({
-            title: "Database reorganized successfully",
+          toast.success("Database reorganized successfully", {
             description: "New size limits have been applied.",
           })
         }
@@ -1314,8 +1300,7 @@ export default function SettingsPage() {
 
       if (databaseTypeChanged) {
         console.log("[v0] Database type changed, applying configuration...")
-        toast({
-          title: "Switching database type...",
+        toast.info("Switching database type...", {
           description: `Changing from ${originalDatabaseType} to ${settings.database_type}`,
         })
 
@@ -1331,10 +1316,8 @@ export default function SettingsPage() {
         if (!dbChangeResponse.ok) {
           const errorData = await dbChangeResponse.json()
           console.error("[v0] Database type change failed:", errorData)
-          toast({
-            title: "Database change failed",
+          toast.error("Database change failed", {
             description: errorData.error || "Failed to change database type",
-            variant: "destructive",
           })
           throw new Error("Database type change failed")
         }
@@ -1343,8 +1326,7 @@ export default function SettingsPage() {
         setOriginalDatabaseType(settings.database_type)
         setDatabaseChanged(false)
 
-        toast({
-          title: "Database type changed!",
+        toast.success("Database type changed!", {
           description: "System will restart automatically to apply changes.",
         })
 
@@ -1359,8 +1341,7 @@ export default function SettingsPage() {
       // Step 6: If critical settings changed, resume engine
       if (databaseSizesChanged || engineIntervalsChanged) {
         console.log("[v0] Resuming trade engine with new settings...")
-        toast({
-          title: "Resuming trade engine...",
+        toast.info("Resuming trade engine...", {
           description: "Trade engine will restart with updated configuration.",
         })
 
@@ -1370,22 +1351,18 @@ export default function SettingsPage() {
         const resumeResponse = await fetch("/api/trade-engine/resume", { method: "POST" })
         if (!resumeResponse.ok) {
           console.error("[v0] Failed to resume trade engine")
-          toast({
-            title: "Failed to resume trade engine",
+          toast.error("Failed to resume trade engine", {
             description: "Please check System status to ensure it is running.",
-            variant: "destructive",
           })
         } else {
           console.log("[v0] Trade engine resumed successfully")
-          toast({
-            title: "Trade engine resumed",
+          toast.success("Trade engine resumed", {
             description: "Engine is now running with the new settings.",
           })
         }
 
         // Step 7: Reload page to refresh all components with new settings
-        toast({
-          title: "Applying all changes...",
+        toast.info("Applying all changes...", {
           description: "The page will reload to fully apply all updated settings.",
         })
         setTimeout(() => {
@@ -1394,10 +1371,8 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("[v0] Error saving settings:", error)
-      toast({
-        title: "Error saving settings",
+      toast.error("Error saving settings", {
         description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
       })
 
       // Try to resume engine if it was paused
@@ -1426,16 +1401,13 @@ export default function SettingsPage() {
       a.click()
       URL.revokeObjectURL(url)
 
-      toast({
-        title: "Settings exported",
+      toast.success("Settings exported", {
         description: "Your configuration has been successfully exported.",
       })
     } catch (error) {
       console.error("[v0] Failed to export settings:", error)
-      toast({
-        title: "Export Failed",
+      toast.error("Export Failed", {
         description: "Could not export settings. Please try again.",
-        variant: "destructive",
       })
     } finally {
       setExporting(false)
@@ -1463,16 +1435,13 @@ export default function SettingsPage() {
         if (!response.ok) throw new Error("Failed to import settings")
 
         await loadSettings()
-        toast({
-          title: "Settings Imported",
+        toast.success("Settings Imported", {
           description: "Configuration has been successfully imported and applied.",
         })
       } catch (error) {
         console.error("[v0] Failed to import settings:", error)
-        toast({
-          title: "Import Failed",
+        toast.error("Import Failed", {
           description: "Could not import settings. Please check the file format and try again.",
-          variant: "destructive",
         })
       } finally {
         setImporting(false)
@@ -1524,8 +1493,7 @@ export default function SettingsPage() {
     if (!confirm("Changing database type requires system restart. Continue?")) return
 
     try {
-      toast({
-        title: "Changing database type...",
+      toast.info("Changing database type...", {
         description: "This may take a moment.",
       })
 
@@ -1539,8 +1507,7 @@ export default function SettingsPage() {
         throw new Error("Failed to change database type")
       }
 
-      toast({
-        title: "Database type changed",
+      toast.info("Database type changed", {
         description: "The page will reload to apply changes.",
       })
 
@@ -1549,10 +1516,8 @@ export default function SettingsPage() {
       }, 2000)
     } catch (error) {
       console.error("[v0] Failed to change database type:", error)
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: error instanceof Error ? error.message : "Failed to change database type",
-        variant: "destructive",
       })
     }
   }
@@ -1739,6 +1704,7 @@ export default function SettingsPage() {
               updatedSettings.rsiOverboughtFrom = data.settings.rsiOverboughtFrom ?? initialSettings.rsiOverboughtFrom
               updatedSettings.rsiOverboughtTo = data.settings.rsiOverboughtTo ?? initialSettings.rsiOverboughtTo
               updatedSettings.rsiOverboughtStep = data.settings.rsiOverboughtStep ?? initialSettings.rsiOverboughtStep
+
               updatedSettings.macdFastPeriodFrom =
                 data.settings.macdFastPeriodFrom ?? initialSettings.macdFastPeriodFrom
               updatedSettings.macdFastPeriodTo = data.settings.macdFastPeriodTo ?? initialSettings.macdFastPeriodTo
@@ -1755,6 +1721,7 @@ export default function SettingsPage() {
                 data.settings.macdSignalPeriodTo ?? initialSettings.macdSignalPeriodTo
               updatedSettings.macdSignalPeriodStep =
                 data.settings.macdSignalPeriodStep ?? initialSettings.macdSignalPeriodStep
+
               updatedSettings.bollingerPeriodFrom =
                 data.settings.bollingerPeriodFrom ?? initialSettings.bollingerPeriodFrom
               updatedSettings.bollingerPeriodTo = data.settings.bollingerPeriodTo ?? initialSettings.bollingerPeriodTo
@@ -1765,6 +1732,7 @@ export default function SettingsPage() {
               updatedSettings.bollingerStdDevTo = data.settings.bollingerStdDevTo ?? initialSettings.bollingerStdDevTo
               updatedSettings.bollingerStdDevStep =
                 data.settings.bollingerStdDevStep ?? initialSettings.bollingerStdDevStep
+
               updatedSettings.emaShortPeriodFrom =
                 data.settings.emaShortPeriodFrom ?? initialSettings.emaShortPeriodFrom
               updatedSettings.emaShortPeriodTo = data.settings.emaShortPeriodTo ?? initialSettings.emaShortPeriodTo
@@ -1773,6 +1741,7 @@ export default function SettingsPage() {
               updatedSettings.emaLongPeriodFrom = data.settings.emaLongPeriodFrom ?? initialSettings.emaLongPeriodFrom
               updatedSettings.emaLongPeriodTo = data.settings.emaLongPeriodTo ?? initialSettings.emaLongPeriodTo
               updatedSettings.emaLongPeriodStep = data.settings.emaLongPeriodStep ?? initialSettings.emaLongPeriodStep
+
               updatedSettings.smaShortPeriodFrom =
                 data.settings.smaShortPeriodFrom ?? initialSettings.smaShortPeriodFrom
               updatedSettings.smaShortPeriodTo = data.settings.smaShortPeriodTo ?? initialSettings.smaShortPeriodTo
@@ -1781,6 +1750,7 @@ export default function SettingsPage() {
               updatedSettings.smaLongPeriodFrom = data.settings.smaLongPeriodFrom ?? initialSettings.smaLongPeriodFrom
               updatedSettings.smaLongPeriodTo = data.settings.smaLongPeriodTo ?? initialSettings.smaLongPeriodTo
               updatedSettings.smaLongPeriodStep = data.settings.smaLongPeriodStep ?? initialSettings.smaLongPeriodStep
+
               updatedSettings.stochasticKPeriodFrom =
                 data.settings.stochasticKPeriodFrom ?? initialSettings.stochasticKPeriodFrom
               updatedSettings.stochasticKPeriodTo =
@@ -1799,19 +1769,22 @@ export default function SettingsPage() {
                 data.settings.stochasticSlowingTo ?? initialSettings.stochasticSlowingTo
               updatedSettings.stochasticSlowingStep =
                 data.settings.stochasticSlowingStep ?? initialSettings.stochasticSlowingStep
+
               updatedSettings.adxPeriodFrom = data.settings.adxPeriodFrom ?? initialSettings.adxPeriodFrom
               updatedSettings.adxPeriodTo = data.settings.adxPeriodTo ?? initialSettings.adxPeriodTo
               updatedSettings.adxPeriodStep = data.settings.adxPeriodStep ?? initialSettings.adxPeriodStep
               updatedSettings.adxThresholdFrom = data.settings.adxThresholdFrom ?? initialSettings.adxThresholdFrom
               updatedSettings.adxThresholdTo = data.settings.adxThresholdTo ?? initialSettings.adxThresholdTo
               updatedSettings.adxThresholdStep = data.settings.adxThresholdStep ?? initialSettings.adxThresholdStep
+
               updatedSettings.atrPeriodFrom = data.settings.atrPeriodFrom ?? initialSettings.atrPeriodFrom
               updatedSettings.atrPeriodTo = data.settings.atrPeriodTo ?? initialSettings.atrPeriodTo
               updatedSettings.atrPeriodStep = data.settings.atrPeriodStep ?? initialSettings.atrPeriodStep
               updatedSettings.atrMultiplierFrom = data.settings.atrMultiplierFrom ?? initialSettings.atrMultiplierFrom
               updatedSettings.atrMultiplierTo = data.settings.atrMultiplierTo ?? initialSettings.atrMultiplierTo
               updatedSettings.atrMultiplierStep = data.settings.atrMultiplierStep ?? initialSettings.atrMultiplierStep
-              // Add Parabolic SAR defaults
+
+              // Add Parabolic SAR defaults if missing
               updatedSettings.parabolicSAREnabled =
                 data.settings.parabolicSAREnabled ?? initialSettings.parabolicSAREnabled
               updatedSettings.parabolicSARAcceleration =
@@ -2593,8 +2566,7 @@ export default function SettingsPage() {
                     onValueChange={(value) => {
                       setSelectedExchangeConnection(value)
                       localStorage.setItem("activeExchangeConnection", value)
-                      toast({
-                        title: "Connection selected",
+                      toast.info("Connection selected", {
                         description: "Active connection updated and synchronized with Dashboard.",
                       })
                     }}

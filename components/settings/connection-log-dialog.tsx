@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, RefreshCw } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface ConnectionLogDialogProps {
   open: boolean
@@ -39,10 +39,8 @@ export function ConnectionLogDialog({ open, onOpenChange, connectionId, connecti
       setSummary(data.summary || {})
     } catch (error) {
       console.error("[v0] Failed to load connection logs:", error)
-      toast({
-        title: "Error loading logs",
+      toast.error("Error loading logs", {
         description: error instanceof Error ? error.message : "Failed to load logs",
-        variant: "destructive",
       })
     } finally {
       setLoading(false)

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Loader2 } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface ConnectionInfoDialogProps {
   open: boolean
@@ -46,10 +46,8 @@ export function ConnectionInfoDialog({ open, onOpenChange, connectionId, connect
       })
     } catch (error) {
       console.error("[v0] Failed to load connection info:", error)
-      toast({
-        title: "Error loading information",
+      toast.error("Error loading information", {
         description: error instanceof Error ? error.message : "Failed to load information",
-        variant: "destructive",
       })
     } finally {
       setLoading(false)

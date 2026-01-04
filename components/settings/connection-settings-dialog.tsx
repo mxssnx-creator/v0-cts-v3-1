@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Save } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface ConnectionSettingsDialogProps {
   open: boolean
@@ -75,10 +75,8 @@ export function ConnectionSettingsDialog({
       }
     } catch (error) {
       console.error("[v0] Failed to load connection settings:", error)
-      toast({
-        title: "Error loading settings",
+      toast.error("Error loading settings", {
         description: error instanceof Error ? error.message : "Failed to load settings",
-        variant: "destructive",
       })
     } finally {
       setLoading(false)
@@ -111,18 +109,15 @@ export function ConnectionSettingsDialog({
         body: JSON.stringify({ strategies }),
       })
 
-      toast({
-        title: "Settings saved",
+      toast.success("Settings saved", {
         description: "Connection settings have been updated successfully",
       })
 
       onOpenChange(false)
     } catch (error) {
       console.error("[v0] Failed to save settings:", error)
-      toast({
-        title: "Save failed",
+      toast.error("Save failed", {
         description: error instanceof Error ? error.message : "Failed to save settings",
-        variant: "destructive",
       })
     } finally {
       setSaving(false)
