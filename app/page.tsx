@@ -25,13 +25,27 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
+  const [systemStats, setSystemStats] = useState({
+    activeSymbols: 0,
+    indicationsActive: 0,
+    indicationsTotal: 0,
+    livePositions: 0,
+    pseudoPositions: 0,
+    activeConnections: 0,
+    totalConnections: 0,
+    systemHealth: 0,
+    cpuUsage: 0,
+    memoryUsage: 0,
+    diskUsage: 0,
+    uptime: 0,
+    lastUpdate: new Date().toISOString(),
+  })
 
   useEffect(() => {
     const initialize = async () => {
       console.log("[v0] Dashboard initializing...")
 
-      const predefinedConnections = getPredefinedConnectionsAsStatic()
-      setActiveConnections(predefinedConnections)
+      setActiveConnections([])
 
       await loadConnections()
       await loadSystemStats()
@@ -45,6 +59,13 @@ export default function Dashboard() {
     initialize().catch((error) => {
       console.error("[v0] Dashboard initialization error:", error)
     })
+
+    const interval = setInterval(() => {
+      loadConnections()
+      loadSystemStats()
+    }, 10000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const loadConnections = async () => {
@@ -53,14 +74,18 @@ export default function Dashboard() {
       const response = await fetch("/api/settings/connections")
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error, keeping predefined connections")
+        console.log("[v0] Connections API returned error")
+        const predefinedConnections = getPredefinedConnectionsAsStatic()
+        setAvailableConnections(predefinedConnections)
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, keeping predefined")
+        console.log("[v0] No connections from API, showing predefined")
+        const predefinedConnections = getPredefinedConnectionsAsStatic()
+        setAvailableConnections(predefinedConnections)
         return
       }
 
@@ -72,7 +97,7 @@ export default function Dashboard() {
       setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 
-      const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled)
+      const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
       setHasRealConnections(enabledConnections.length > 0)
 
       if (activeConns.length > 0 && !selectedConnection) {
@@ -108,18 +133,15 @@ export default function Dashboard() {
       const response = await fetch(`/api/settings/connections/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          is_enabled: enabled,
-          is_live_trade: enabled ? false : false, // Disable live trade when disabling connection
-          is_preset_trade: enabled ? false : false, // Disable preset trade when disabling connection
-        }),
+        body: JSON.stringify({ is_enabled: enabled }),
       })
 
-      if (!response.ok) throw new Error("Failed to toggle connection")
+      if (!response.ok) {
+        throw new Error("Failed to toggle connection")
+      }
 
-      toast.success(`Connection ${enabled ? "enabled" : "disabled"}`)
       await loadConnections()
-      await loadSystemStats()
+      toast.success(enabled ? "Connection enabled" : "Connection disabled")
     } catch (error) {
       console.error("[v0] Failed to toggle connection:", error)
       toast.error("Failed to toggle connection")
@@ -130,80 +152,66 @@ export default function Dashboard() {
     try {
       console.log("[v0] Toggling live trade:", id, "enabled:", enabled)
 
-      const response = await fetch(`/api/settings/connections/${id}/toggle`, {
+      const response = await fetch(`/api/settings/connections/${id}/live-trade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          is_enabled: true, // Keep connection enabled
-          is_live_trade: enabled,
-          is_preset_trade: false, // Optionally preserve preset state
-        }),
+        body: JSON.stringify({ is_live_trade: enabled }),
       })
 
-      if (!response.ok) throw new Error("Failed to toggle live trade")
+      if (!response.ok) {
+        throw new Error("Failed to toggle live trade")
+      }
 
-      toast.success(`Live trading ${enabled ? "enabled" : "disabled"}`)
       await loadConnections()
-      await loadSystemStats()
+      toast.success(enabled ? "Live trading enabled" : "Live trading disabled")
     } catch (error) {
       console.error("[v0] Failed to toggle live trade:", error)
       toast.error("Failed to toggle live trade")
     }
   }
 
-  const handleAddAsActive = async () => {
-    if (!selectedToAdd) {
-      toast.error("Please select a connection")
-      return
+  const handleRemoveFromActive = async (id: string) => {
+    try {
+      console.log("[v0] Removing from active:", id)
+
+      const response = await fetch(`/api/settings/connections/${id}/active`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to remove from active")
+      }
+
+      await loadConnections()
+      toast.success("Connection removed from active")
+    } catch (error) {
+      console.error("[v0] Failed to remove from active:", error)
+      toast.error("Failed to remove from active")
     }
+  }
+
+  const handleAddAsActive = async () => {
+    if (!selectedToAdd) return
 
     try {
-      console.log("[v0] Adding connection as active:", selectedToAdd)
+      console.log("[v0] Adding as active:", selectedToAdd)
 
       const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: true }),
       })
 
-      if (!response.ok) throw new Error("Failed to add connection as active")
+      if (!response.ok) {
+        throw new Error("Failed to add as active")
+      }
 
-      toast.success("Connection added as active")
+      await loadConnections()
       setShowAddDialog(false)
       setSelectedToAdd("")
-      await loadConnections()
-      await loadSystemStats()
+      toast.success("Connection added to active")
     } catch (error) {
-      console.error("[v0] Failed to add connection as active:", error)
-      toast.error("Failed to add connection as active")
+      console.error("[v0] Failed to add as active:", error)
+      toast.error("Failed to add as active")
     }
-  }
-
-  const handleRemoveFromActive = async (id: string) => {
-    try {
-      console.log("[v0] Removing connection from active:", id)
-
-      const response = await fetch(`/api/settings/connections/${id}/active`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: false }),
-      })
-
-      if (!response.ok) throw new Error("Failed to remove connection from active")
-
-      toast.success("Connection removed from active")
-      await loadConnections()
-      await loadSystemStats()
-    } catch (error) {
-      console.error("[v0] Failed to remove connection from active:", error)
-      toast.error("Failed to remove connection from active")
-    }
-  }
-
-  const handleDeleteConnection = async (id: string) => {
-    if (!confirm("Remove this connection from active connections?")) return
-
-    await handleRemoveFromActive(id)
   }
 
   const getConnectionStatus = (connection: ExchangeConnection) => {
@@ -214,98 +222,31 @@ export default function Dashboard() {
 
   const getConnectionProgress = (connection: ExchangeConnection) => {
     if (!connection.is_enabled) return 0
-    return connection.is_live_trade ? 100 : 50
+    if (connection.is_live_trade) return 100
+    return 50
   }
-
-  const handleRefresh = async () => {
-    await Promise.all([loadConnections(), loadSystemStats()])
-    toast.success("Dashboard refreshed")
-  }
-
-  const handleExchangeChange = (value: string) => {
-    setSelectedConnection(value)
-    localStorage.setItem("selectedExchange", value)
-  }
-
-  const [systemStats, setSystemStats] = useState({
-    activeConnections: 0,
-    totalPositions: 0,
-    dailyPnL: 0,
-    totalBalance: 0,
-    indicationsActive: 0,
-    indicationsTotal: 0,
-    strategiesActive: 0,
-    strategiesTotal: 0,
-    systemLoad: 25,
-    databaseSize: 45,
-    activeSymbols: 0,
-    realPositions: 0,
-    pseudoPositionsBase: 0,
-    pseudoPositionsMain: 0,
-    pseudoPositionsReal: 0,
-    pseudoPositionsActive: 0,
-    profitFactorLast20h: 0,
-    profitFactorLast50: 0,
-    profitFactorLast25: 0,
-    livePositions: 0,
-    pseudoBasePF20h: 0,
-    pseudoBasePF25: 0,
-    pseudoMainPF20h: 0,
-    pseudoMainPF25: 0,
-    pseudoRealPF20h: 0,
-    pseudoRealPF25: 0,
-    pseudoActivePF20h: 0,
-    pseudoActivePF25: 0,
-  })
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-        <div className="container mx-auto py-2 px-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="md:hidden" />
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  CTS v3
-                </h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Crypto Trading System - Welcome, {user?.username || "Guest"}
-                </p>
-              </div>
-            </div>
-            <Button onClick={handleRefresh} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4" /> Refresh
+      <div className="flex flex-col w-full min-h-screen bg-background">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
+          <SidebarTrigger />
+          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                loadConnections()
+                loadSystemStats()
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
+        </header>
 
-          <Card>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-base">Exchange Selection</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-1">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Select value={selectedConnection} onValueChange={handleExchangeChange}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select active exchange connection" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeConnections.map((connection) => (
-                        <SelectItem key={connection.id} value={connection.id}>
-                          {connection.name} ({connection.exchange})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <p className="text-xs text-muted-foreground whitespace-nowrap">
-                  {activeConnections.filter((c) => c.is_enabled).length} enabled
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="flex-1 p-4 sm:p-6 space-y-4">
           <RealTimeTicker />
 
           <GlobalTradeEngineControls />
@@ -327,119 +268,17 @@ export default function Dashboard() {
                   <p className="text-2xl font-bold">
                     {systemStats.indicationsActive}/{systemStats.indicationsTotal}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {systemStats.indicationsTotal > 0
-                      ? `${Math.round((systemStats.indicationsActive / systemStats.indicationsTotal) * 100)}% active`
-                      : "0% active"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Strategies</p>
-                  <p className="text-2xl font-bold">
-                    {systemStats.strategiesActive}/{systemStats.strategiesTotal}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {systemStats.strategiesTotal > 0
-                      ? `${Math.round((systemStats.strategiesActive / systemStats.strategiesTotal) * 100)}% active`
-                      : "0% active"}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Active/Total</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Live Positions</p>
                   <p className="text-2xl font-bold">{systemStats.livePositions || 0}</p>
-                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                    <div>PF 20h: {systemStats.profitFactorLast20h?.toFixed(2) || "0.00"}</div>
-                    <div>PF 25 trades: {systemStats.profitFactorLast25?.toFixed(2) || "0.00"}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <p className="text-sm font-medium mb-3">Pseudo Positions</p>
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Base</p>
-                    <p className="text-lg font-bold">{systemStats.pseudoPositionsBase || 0}</p>
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      <div>
-                        {systemStats.totalPositions > 0
-                          ? `${Math.round((systemStats.pseudoPositionsBase / systemStats.totalPositions) * 100)}%`
-                          : "0%"}
-                      </div>
-                      <div>PF 20h: {systemStats.pseudoBasePF20h?.toFixed(2) || "0.00"}</div>
-                      <div>PF 25: {systemStats.pseudoBasePF25?.toFixed(2) || "0.00"}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Main</p>
-                    <p className="text-lg font-bold">{systemStats.pseudoPositionsMain || 0}</p>
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      <div>
-                        {systemStats.totalPositions > 0
-                          ? `${Math.round((systemStats.pseudoPositionsMain / systemStats.totalPositions) * 100)}%`
-                          : "0%"}
-                      </div>
-                      <div>PF 20h: {systemStats.pseudoMainPF20h?.toFixed(2) || "0.00"}</div>
-                      <div>PF 25: {systemStats.pseudoMainPF25?.toFixed(2) || "0.00"}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Real</p>
-                    <p className="text-lg font-bold">{systemStats.pseudoPositionsReal || 0}</p>
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      <div>
-                        {systemStats.totalPositions > 0
-                          ? `${Math.round((systemStats.pseudoPositionsReal / systemStats.totalPositions) * 100)}%`
-                          : "0%"}
-                      </div>
-                      <div>PF 20h: {systemStats.pseudoRealPF20h?.toFixed(2) || "0.00"}</div>
-                      <div>PF 25: {systemStats.pseudoRealPF25?.toFixed(2) || "0.00"}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Active</p>
-                    <p className="text-lg font-bold">{systemStats.pseudoPositionsActive || 0}</p>
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      <div>
-                        {systemStats.totalPositions > 0
-                          ? `${Math.round((systemStats.pseudoPositionsActive / systemStats.totalPositions) * 100)}%`
-                          : "0%"}
-                      </div>
-                      <div>PF 20h: {systemStats.pseudoActivePF20h?.toFixed(2) || "0.00"}</div>
-                      <div>PF 25: {systemStats.pseudoActivePF25?.toFixed(2) || "0.00"}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <p className="text-sm font-medium mb-3">Profit Factor</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Last 20 Hours</p>
-                    <p className="text-lg font-bold">{systemStats.profitFactorLast20h?.toFixed(2) || "0.00"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Average performance</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Last 50 Positions</p>
-                    <p className="text-lg font-bold">{systemStats.profitFactorLast50?.toFixed(2) || "0.00"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Average performance</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Trade Interval</p>
-                  <p className="text-sm font-medium">1.0s</p>
+                  <p className="text-xs text-muted-foreground mt-1">Open trades</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Position Cooldown</p>
-                  <p className="text-sm font-medium">20s</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Max Concurrent</p>
-                  <p className="text-sm font-medium">10</p>
+                  <p className="text-sm text-muted-foreground">Pseudo Positions</p>
+                  <p className="text-2xl font-bold">{systemStats.pseudoPositions || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Test trades</p>
                 </div>
               </div>
             </CardContent>

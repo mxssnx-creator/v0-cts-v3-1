@@ -1,38 +1,97 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown } from "lucide-react"
 
+interface PriceData {
+  price: number
+  change_24h: number
+}
+
 export function RealTimeTicker() {
   const symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"]
+  const [prices, setPrices] = useState<Map<string, PriceData>>(new Map())
+  const [isLoading, setIsLoading] = useState(true)
+  const [isConnected, setIsConnected] = useState(false)
 
-  // Mock price data for now
-  const mockPrices = new Map([
-    ["BTCUSDT", { price: 43250.5, change_24h: 2.45 }],
-    ["ETHUSDT", { price: 2280.75, change_24h: -1.23 }],
-    ["BNBUSDT", { price: 315.2, change_24h: 0.85 }],
-    ["SOLUSDT", { price: 98.45, change_24h: 3.12 }],
-  ])
+  useEffect(() => {
+    const loadRealPrices = async () => {
+      try {
+        const response = await fetch("/api/market/prices")
+
+        if (response.ok) {
+          const data = await response.json()
+          const priceMap = new Map<string, PriceData>()
+
+          symbols.forEach((symbol) => {
+            if (data[symbol]) {
+              priceMap.set(symbol, {
+                price: data[symbol].price,
+                change_24h: data[symbol].change_24h,
+              })
+            }
+          })
+
+          setPrices(priceMap)
+          setIsConnected(true)
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load real prices:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadRealPrices()
+
+    const interval = setInterval(loadRealPrices, 5000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-2 px-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Live Market Prices</h3>
+            <Badge variant="outline" className="text-xs">
+              Loading...
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {symbols.map((symbol) => (
+              <div key={symbol} className="space-y-1">
+                <p className="text-xs text-muted-foreground">{symbol}</p>
+                <p className="text-sm font-mono">Loading...</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
       <CardContent className="py-2 px-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Live Market Prices</h3>
-          <Badge variant="default" className="text-xs">
-            Live
+          <Badge variant={isConnected ? "default" : "outline"} className="text-xs">
+            {isConnected ? "Live" : "Disconnected"}
           </Badge>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {symbols.map((symbol) => {
-            const priceData = mockPrices.get(symbol)
+            const priceData = prices.get(symbol)
             if (!priceData) {
               return (
                 <div key={symbol} className="space-y-1">
                   <p className="text-xs text-muted-foreground">{symbol}</p>
-                  <p className="text-sm font-mono">Loading...</p>
+                  <p className="text-sm font-mono">No data</p>
                 </div>
               )
             }
