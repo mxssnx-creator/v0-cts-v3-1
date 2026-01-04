@@ -4,7 +4,7 @@ export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine
 /**
  * GlobalTradeEngineCoordinator class definition
  */
-class GlobalTradeEngineCoordinator {
+export class GlobalTradeEngineCoordinator {
   // Coordinator implementation details here
 }
 
@@ -31,6 +31,16 @@ export function initializeGlobalCoordinator(): GlobalTradeEngineCoordinator {
   }
   return globalCoordinator
 }
+
+export function getGlobalCoordinator(): GlobalTradeEngineCoordinator | null {
+  return getTradeEngine()
+}
+
+export function initializeTradeEngine(): GlobalTradeEngineCoordinator {
+  return initializeGlobalCoordinator()
+}
+
+export type TradeEngineInterface = GlobalTradeEngineCoordinator
 
 export interface EngineStatus {
   status: "idle" | "running" | "stopped" | "paused" | "error"
