@@ -753,7 +753,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
     const activeConnections = Array.from(this.exchanges.keys())
 
     const strategyPromises = this.strategies
-      .filter((strategy) => (strategy as any).type !== "preset")
+      .filter((strategy) => (strategy as any).type === "main")
       .flatMap((strategy) =>
         activeConnections.map(async (connectionId) => {
           try {
@@ -762,7 +762,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
               await this.executeStrategy(strategy, connectionId)
             }
           } catch (error) {
-            console.error(`[v0] Error executing main strategy ${strategy.id} on ${connectionId}:`, error)
+            console.error(`[v0] Error executing main strategy on ${connectionId}:`, error)
           }
         }),
       )
@@ -783,7 +783,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
               await this.executeStrategy(strategy, connectionId)
             }
           } catch (error) {
-            console.error(`[v0] Error executing preset strategy ${strategy.id} on ${connectionId}:`, error)
+            console.error(`[v0] Error executing preset strategy on ${connectionId}:`, error)
           }
         }),
       )
@@ -1013,7 +1013,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
   }
 
   private async executeStrategy(strategy: StrategyConfig, connectionId: string): Promise<void> {
-    console.log(`[v0] Executing strategy: ${strategy.name} on connection: ${connectionId}`)
+    console.log(`[v0] Executing strategy on connection: ${connectionId}`)
   }
 
   private async checkPositionConditions(position: any, connectionId: string): Promise<void> {
