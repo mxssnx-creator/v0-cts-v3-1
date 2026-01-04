@@ -155,12 +155,12 @@ export async function isTradeEngineTypeEnabled(engineType: "main" | "preset"): P
     const settingKey = engineType === "main" ? "mainTradeEngineEnabled" : "presetTradeEngineEnabled"
     const result = await query("SELECT value FROM system_settings WHERE key = $1", [settingKey])
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       // Default to enabled if not found
       return true
     }
 
-    return result.rows[0].value === true || result.rows[0].value === "true"
+    return result[0].value === true || result[0].value === "true"
   } catch (error) {
     console.error(`[v0] Failed to check ${engineType} trade engine status:`, error)
     // Default to enabled on error to avoid blocking trading

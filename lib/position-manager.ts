@@ -83,13 +83,30 @@ export class PositionManager {
       // Calculate realized PnL
       const realizedPnl = this.calculateRealizedPnL(position)
 
-      // Execute closing order
+      // Get the connection_id from the position's exchange connection
+      const connectionQuery = await query(
+        `SELECT ec.id as connection_id 
+         FROM positions p
+         JOIN trading_pairs tp ON p.trading_pair_id = tp.id
+         JOIN exchange_connections ec ON tp.exchange = ec.exchange
+         WHERE p.id = $1 AND ec.is_active = true
+         LIMIT 1`,
+        [positionId],
+      )
+
+      if (connectionQuery.length === 0) {
+        console.error("[v0] No active connection found for position")
+        return false
+      }
+
+      const connectionId = connectionQuery[0].connection_id
+
+      // Execute closing order with correct OrderParams interface
       const closeSide = position.position_type === "long" ? "sell" : "buy"
 
       const executionResult = await this.orderExecutor.executeOrder({
-        user_id: userId,
-        portfolio_id: position.portfolio_id,
-        trading_pair_id: position.trading_pair_id,
+        connection_id: connectionId,
+        symbol: position.symbol || "UNKNOWN",
         order_type: "market",
         side: closeSide,
         quantity: position.quantity,
