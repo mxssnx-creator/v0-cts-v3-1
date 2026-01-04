@@ -5,30 +5,25 @@ import { SystemLogger } from "@/lib/system-logger"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-/**
- * POST /api/trade-engine/pause
- * Pause the Global Trade Engine Coordinator
- * Pauses all trading operations across all connections
- */
+// Import cache bust to force rebuild
+import "@/.turbopack-cache-bust"
+
 export async function POST() {
   try {
-    const coordinator = getTradeEngine()
+    const engine = getTradeEngine()
 
-    if (!coordinator) {
-      return NextResponse.json({ success: false, error: "Trade engine coordinator not initialized" }, { status: 503 })
+    if (!engine) {
+      SystemLogger.logError("trade-engine", "GlobalTradeEngineCoordinator not initialized")
+      return NextResponse.json({ success: false, error: "Trade engine not initialized" }, { status: 503 })
     }
 
-    await coordinator.pause()
-    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator paused via API", "info")
+    await engine.pause()
+    SystemLogger.logTradeEngine("Global trade engine paused successfully", { action: "pause" })
 
-    return NextResponse.json({
-      success: true,
-      message: "Trade engine paused successfully",
-    })
+    return NextResponse.json({ success: true, message: "Trade engine paused" })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    await SystemLogger.logError(error, "trade-engine", "Pause API")
-
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    SystemLogger.logError("trade-engine", `Failed to pause trade engine: ${errorMessage}`)
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
