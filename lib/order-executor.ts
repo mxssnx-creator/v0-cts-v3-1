@@ -94,7 +94,7 @@ export class OrderExecutor {
 
       // Execute with retry logic
       let lastError: Error | null = null
-      let exchangeOrderId: string | null = null
+      let exchangeOrderId: string | undefined = undefined
       let filledQuantity = 0
       let averagePrice = 0
 
@@ -118,7 +118,7 @@ export class OrderExecutor {
               UPDATE orders
               SET 
                 status = ${result.status},
-                exchange_order_id = ${exchangeOrderId ?? null},
+                exchange_order_id = ${exchangeOrderId || null},
                 filled_quantity = ${filledQuantity},
                 average_fill_price = ${averagePrice},
                 executed_at = CURRENT_TIMESTAMP,
@@ -166,7 +166,7 @@ export class OrderExecutor {
         UPDATE orders
         SET 
           status = 'failed',
-          error_message = ${lastError?.message ?? null},
+          error_message = ${lastError?.message || null},
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${orderId}
       `
