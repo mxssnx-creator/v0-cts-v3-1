@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine"
+import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine/"
 import { SystemLogger } from "@/lib/system-logger"
 
 const activeEngines = new Map<string, TradeEngine>()
