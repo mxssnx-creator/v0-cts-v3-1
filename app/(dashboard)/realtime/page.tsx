@@ -1,9 +1,28 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import MarketDataMonitor from "@/components/realtime/market-data-monitor"
 import PositionMonitor from "@/components/realtime/position-monitor"
 
 export default function RealtimePage() {
-  // TODO: Get connection ID from user session or context
-  const connectionId = "default-connection"
+  const [connectionId, setConnectionId] = useState<string>("default-connection")
+
+  useEffect(() => {
+    const savedConnectionId = sessionStorage.getItem("last_active_connection")
+    if (savedConnectionId) {
+      setConnectionId(savedConnectionId)
+    } else {
+      fetch("/api/connections/active")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.connections && data.connections.length > 0) {
+            setConnectionId(data.connections[0].id)
+            sessionStorage.setItem("last_active_connection", data.connections[0].id)
+          }
+        })
+        .catch((err) => console.error("Failed to fetch connections:", err))
+    }
+  }, [])
 
   return (
     <div className="space-y-6">

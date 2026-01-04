@@ -1,5 +1,6 @@
 // Re-export TradeEngine class and config from subdirectory for convenient imports
 export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine"
+export { EngineManager } from "./trade-engine/engine-manager"
 
 /**
  * GlobalTradeEngineCoordinator class definition
@@ -7,28 +8,44 @@ export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine
 export class GlobalTradeEngineCoordinator {
   private isPaused = false
   private engines: Map<string, any> = new Map()
+  private isInitialized = false
 
-  // Coordinator implementation details here
+  constructor() {
+    this.isInitialized = true
+    console.log("[v0] GlobalTradeEngineCoordinator initialized")
+  }
 
   /**
    * Pause all trading operations
    * Stops all active connections from executing trades
    */
   public async pause(): Promise<void> {
-    this.isPaused = true
-    console.log("[v0] Global Trade Engine Coordinator paused - stopping all engines")
+    if (this.isPaused) {
+      console.log("[v0] GlobalTradeEngineCoordinator already paused")
+      return
+    }
 
-    // Stop all active engines
+    this.isPaused = true
+    console.log("[v0] Pausing all registered engines:", this.engines.size)
+
+    const pausePromises: Promise<void>[] = []
+
     for (const [connectionId, engine] of this.engines.entries()) {
       try {
         if (engine && typeof engine.stop === "function") {
-          await engine.stop()
-          console.log(`[v0] Stopped engine for connection: ${connectionId}`)
+          pausePromises.push(
+            engine.stop().then(() => {
+              console.log(`[v0] Paused engine for connection: ${connectionId}`)
+            }),
+          )
         }
       } catch (error) {
-        console.error(`[v0] Error stopping engine ${connectionId}:`, error)
+        console.error(`[v0] Error pausing engine ${connectionId}:`, error)
       }
     }
+
+    await Promise.allSettled(pausePromises)
+    console.log("[v0] All engines paused successfully")
   }
 
   /**
@@ -36,20 +53,32 @@ export class GlobalTradeEngineCoordinator {
    * Resumes all active connections to execute trades
    */
   public async resume(): Promise<void> {
-    this.isPaused = false
-    console.log("[v0] Global Trade Engine Coordinator resumed - restarting all engines")
+    if (!this.isPaused) {
+      console.log("[v0] GlobalTradeEngineCoordinator not paused, nothing to resume")
+      return
+    }
 
-    // Restart all previously active engines
+    this.isPaused = false
+    console.log("[v0] Resuming all registered engines:", this.engines.size)
+
+    const resumePromises: Promise<void>[] = []
+
     for (const [connectionId, engine] of this.engines.entries()) {
       try {
         if (engine && typeof engine.start === "function") {
-          await engine.start()
-          console.log(`[v0] Restarted engine for connection: ${connectionId}`)
+          resumePromises.push(
+            engine.start().then(() => {
+              console.log(`[v0] Resumed engine for connection: ${connectionId}`)
+            }),
+          )
         }
       } catch (error) {
-        console.error(`[v0] Error restarting engine ${connectionId}:`, error)
+        console.error(`[v0] Error resuming engine ${connectionId}:`, error)
       }
     }
+
+    await Promise.allSettled(resumePromises)
+    console.log("[v0] All engines resumed successfully")
   }
 
   /**

@@ -1,46 +1,68 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-let globalTradeEngine: any = null
-
-export function setGlobalTradeEngine(engine: any) {
-  globalTradeEngine = engine
-}
+import { sql } from "@/lib/db"
+import { SystemLogger } from "@/lib/system-logger"
 
 export async function POST(request: NextRequest) {
   try {
-    if (!globalTradeEngine) {
-      return NextResponse.json({ success: false, error: "Trade engine not initialized" }, { status: 503 })
-    }
-
     const body = await request.json()
-    const { force = false, clearCache = false } = body
+    const { connectionId, force = false, clearCache = false } = body
 
-    console.log("[v0] Restarting trade engine...", { force, clearCache })
-
-    // Stop the engine first
-    await globalTradeEngine.stop()
-
-    // Optional: Clear cache if requested
-    if (clearCache) {
-      console.log("[v0] Clearing engine cache...")
-      // Clear any cached data if needed
+    if (!connectionId) {
+      return NextResponse.json({ success: false, error: "Connection ID required" }, { status: 400 })
     }
 
-    // Wait a moment before restart
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    console.log("[v0] [Trade Engine] Restarting trade engine for connection:", connectionId, {
+      force,
+      clearCache,
+    })
+    await SystemLogger.logTradeEngine(`Restarting trade engine for connection: ${connectionId}`, "info", {
+      connectionId,
+      force,
+      clearCache,
+    })
 
-    // Start the engine again
-    await globalTradeEngine.start()
+    await sql`
+      UPDATE trade_engine_state
+      SET state = 'stopped', updated_at = CURRENT_TIMESTAMP
+      WHERE connection_id = ${connectionId}
+    `
 
-    console.log("[v0] Trade engine restarted successfully")
+    console.log("[v0] [Trade Engine] Stop signal sent, waiting for engine to stop...")
+
+    // Wait for engine to stop (give it time to complete current cycle)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    await sql`
+      UPDATE trade_engine_state
+      SET state = 'running', updated_at = CURRENT_TIMESTAMP
+      WHERE connection_id = ${connectionId}
+    `
+
+    console.log("[v0] [Trade Engine] Restart signal sent successfully")
+    await SystemLogger.logTradeEngine(`Trade engine restart signal sent for connection: ${connectionId}`, "info", {
+      connectionId,
+    })
 
     return NextResponse.json({
       success: true,
-      message: "Trade engine restarted successfully",
+      message: "Trade engine restart initiated",
+      note: "Engine will restart on next cycle check",
       timestamp: new Date().toISOString(),
     })
-  } catch (error: any) {
-    console.error("[v0] Error restarting trade engine:", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error("[v0] [Trade Engine] Error restarting trade engine:", error)
+    await SystemLogger.logError(
+      error instanceof Error ? error : new Error(String(error)),
+      "trade-engine",
+      "POST /api/trade-engine/restart",
+    )
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

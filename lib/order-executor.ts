@@ -287,34 +287,199 @@ export class OrderExecutor {
   }
 
   private async placeBinanceOrder(connector: any, params: OrderParams): Promise<any> {
-    // Implement Binance order placement
+    const endpoint = connector.credentials.isTestnet ? "https://testnet.binancefuture.com" : "https://fapi.binance.com"
+
+    const timestamp = Date.now()
+    const queryString = `symbol=${params.symbol}&side=${params.side.toUpperCase()}&type=${params.order_type.toUpperCase()}&quantity=${params.quantity}&timestamp=${timestamp}`
+
+    const signature = connector.generateSignature(queryString)
+
+    const payload: Record<string, any> = {
+      symbol: params.symbol,
+      side: params.side.toUpperCase(),
+      type: params.order_type.toUpperCase(),
+      quantity: params.quantity,
+      timestamp,
+      signature,
+    }
+
+    if (params.price) {
+      payload.price = params.price
+    }
+    if (params.time_in_force) {
+      payload.timeInForce = params.time_in_force
+    }
+    if (params.reduce_only) {
+      payload.reduceOnly = params.reduce_only
+    }
+
+    const response = await fetch(`${endpoint}/fapi/v1/order?${queryString}&signature=${signature}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MBX-APIKEY": connector.credentials.apiKey,
+      },
+    })
+
+    const data = await response.json()
+
+    if (data.orderId) {
+      return {
+        success: true,
+        orderId: data.orderId.toString(),
+        status: data.status === "FILLED" ? "filled" : "open",
+        filledQty: Number.parseFloat(data.executedQty || "0"),
+        avgPrice: Number.parseFloat(data.avgPrice || params.price?.toString() || "0"),
+      }
+    }
+
     return {
       success: false,
-      error: "Binance implementation pending",
+      error: data.msg || "Binance order failed",
     }
   }
 
   private async placeBingXOrder(connector: any, params: OrderParams): Promise<any> {
-    // Implement BingX order placement
+    const endpoint = "https://open-api.bingx.com"
+
+    const timestamp = Date.now()
+    const payload = {
+      symbol: params.symbol,
+      side: params.side.toUpperCase(),
+      type: params.order_type.toUpperCase(),
+      quantity: params.quantity,
+      timestamp,
+    }
+
+    if (params.price) {
+      payload.price = params.price
+    }
+
+    const queryString = Object.entries(payload)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&")
+
+    const signature = connector.generateSignature(queryString)
+
+    const response = await fetch(`${endpoint}/openApi/swap/v2/trade/order?${queryString}&signature=${signature}`, {
+      method: "POST",
+      headers: {
+        "X-BX-APIKEY": connector.credentials.apiKey,
+      },
+    })
+
+    const data = await response.json()
+
+    if (data.code === 0 && data.data.order) {
+      return {
+        success: true,
+        orderId: data.data.order.orderId,
+        status: data.data.order.status === "FILLED" ? "filled" : "open",
+        filledQty: Number.parseFloat(data.data.order.executedQty || "0"),
+        avgPrice: Number.parseFloat(data.data.order.avgPrice || params.price?.toString() || "0"),
+      }
+    }
+
     return {
       success: false,
-      error: "BingX implementation pending",
+      error: data.msg || "BingX order failed",
     }
   }
 
   private async placePionexOrder(connector: any, params: OrderParams): Promise<any> {
-    // Implement Pionex order placement
+    const endpoint = "https://api.pionex.com"
+
+    const timestamp = Date.now()
+    const payload = {
+      symbol: params.symbol,
+      side: params.side.toUpperCase(),
+      type: params.order_type.toUpperCase(),
+      amount: params.quantity,
+      timestamp,
+    }
+
+    if (params.price) {
+      payload.price = params.price
+    }
+
+    const queryString = Object.entries(payload)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&")
+
+    const signature = connector.generateSignature(queryString)
+
+    const response = await fetch(`${endpoint}/api/v1/perp/order?${queryString}&signature=${signature}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "PIONEX-KEY": connector.credentials.apiKey,
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await response.json()
+
+    if (data.result && data.result.orderId) {
+      return {
+        success: true,
+        orderId: data.result.orderId,
+        status: data.result.status === "FILLED" ? "filled" : "open",
+        filledQty: Number.parseFloat(data.result.filledAmount || "0"),
+        avgPrice: Number.parseFloat(data.result.avgPrice || params.price?.toString() || "0"),
+      }
+    }
+
     return {
       success: false,
-      error: "Pionex implementation pending",
+      error: data.message || "Pionex order failed",
     }
   }
 
   private async placeOrangeXOrder(connector: any, params: OrderParams): Promise<any> {
-    // Implement OrangeX order placement
+    const endpoint = "https://api.orangex.com"
+
+    const timestamp = Date.now()
+    const payload = {
+      symbol: params.symbol,
+      side: params.side.toUpperCase(),
+      orderType: params.order_type.toUpperCase(),
+      quantity: params.quantity,
+      timestamp,
+    }
+
+    if (params.price) {
+      payload.price = params.price
+    }
+
+    const signature = connector.generateSignature(JSON.stringify(payload))
+
+    const response = await fetch(`${endpoint}/v1/order/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "OX-ACCESS-KEY": connector.credentials.apiKey,
+        "OX-ACCESS-SIGN": signature,
+        "OX-ACCESS-TIMESTAMP": timestamp.toString(),
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await response.json()
+
+    if (data.success && data.data.orderId) {
+      return {
+        success: true,
+        orderId: data.data.orderId,
+        status: data.data.status === "FILLED" ? "filled" : "open",
+        filledQty: Number.parseFloat(data.data.filledQty || "0"),
+        avgPrice: Number.parseFloat(data.data.avgPrice || params.price?.toString() || "0"),
+      }
+    }
+
     return {
       success: false,
-      error: "OrangeX implementation pending",
+      error: data.message || "OrangeX order failed",
     }
   }
 

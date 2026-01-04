@@ -867,8 +867,8 @@ export class PresetCoordinationEngine {
       losingTrades,
       avgProfit,
       avgLoss,
-      maxDrawdown: 0, // TODO: Calculate
-      drawdownTimeHours: 0, // TODO: Calculate
+      maxDrawdown: this.calculateMaxDrawdown(trades),
+      drawdownTimeHours: this.calculateDrawdownTime(trades),
       profitFactorLast25,
       profitFactorLast50,
       positionsPer24h,
@@ -981,6 +981,56 @@ export class PresetCoordinationEngine {
 
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  private calculateMaxDrawdown(positions: any[]): number {
+    if (positions.length === 0) return 0
+
+    let peak = 0
+    let maxDrawdown = 0
+    let cumulativePnL = 0
+
+    for (const position of positions) {
+      cumulativePnL += Number.parseFloat(position.profit_loss || position.pnl || "0")
+
+      if (cumulativePnL > peak) {
+        peak = cumulativePnL
+      }
+
+      const drawdown = peak - cumulativePnL
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown
+      }
+    }
+
+    return maxDrawdown
+  }
+
+  private calculateDrawdownTime(positions: any[]): number {
+    if (positions.length === 0) return 0
+
+    let peak = 0
+    let peakTime = 0
+    let maxDrawdownTime = 0
+    let cumulativePnL = 0
+
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i]
+      cumulativePnL += Number.parseFloat(position.profit_loss || position.pnl || "0")
+
+      if (cumulativePnL > peak) {
+        peak = cumulativePnL
+        peakTime = i
+      } else {
+        const drawdownTime = i - peakTime
+        if (drawdownTime > maxDrawdownTime) {
+          maxDrawdownTime = drawdownTime
+        }
+      }
+    }
+
+    // Convert to hours (assuming each position is roughly 1 hour apart on average)
+    return maxDrawdownTime
   }
 }
 
