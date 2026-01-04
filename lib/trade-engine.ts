@@ -5,7 +5,36 @@ export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine
  * GlobalTradeEngineCoordinator class definition
  */
 export class GlobalTradeEngineCoordinator {
+  private isPaused = false
+
   // Coordinator implementation details here
+
+  /**
+   * Pause all trading operations
+   * Stops all active connections from executing trades
+   */
+  public async pause(): Promise<void> {
+    this.isPaused = true
+    console.log("[v0] Global Trade Engine Coordinator paused")
+    // TODO: Implement actual pause logic to stop all active engines
+  }
+
+  /**
+   * Resume all trading operations
+   * Resumes all active connections to execute trades
+   */
+  public async resume(): Promise<void> {
+    this.isPaused = false
+    console.log("[v0] Global Trade Engine Coordinator resumed")
+    // TODO: Implement actual resume logic to restart all active engines
+  }
+
+  /**
+   * Check if the coordinator is currently paused
+   */
+  public isPausedState(): boolean {
+    return this.isPaused
+  }
 }
 
 /**
