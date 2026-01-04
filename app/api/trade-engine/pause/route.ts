@@ -13,17 +13,25 @@ export async function POST() {
     const engine = getTradeEngine()
 
     if (!engine) {
-      SystemLogger.logError("trade-engine", "GlobalTradeEngineCoordinator not initialized")
+      await SystemLogger.logError(
+        new Error("GlobalTradeEngineCoordinator not initialized"),
+        "trade-engine",
+        "pause-endpoint",
+      )
       return NextResponse.json({ success: false, error: "Trade engine not initialized" }, { status: 503 })
     }
 
     await engine.pause()
-    SystemLogger.logTradeEngine("Global trade engine paused successfully", { action: "pause" })
+    await SystemLogger.logTradeEngine("Global trade engine paused successfully", "info", { action: "pause" })
 
     return NextResponse.json({ success: true, message: "Trade engine paused" })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    SystemLogger.logError("trade-engine", `Failed to pause trade engine: ${errorMessage}`)
+    await SystemLogger.logError(
+      error instanceof Error ? error : new Error(errorMessage),
+      "trade-engine",
+      "pause-endpoint",
+    )
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
