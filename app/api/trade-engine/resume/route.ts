@@ -5,9 +5,6 @@ import { SystemLogger } from "@/lib/system-logger"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-// Import cache bust to force rebuild
-import "@/.turbopack-cache-bust"
-
 export async function POST() {
   try {
     const engine = getTradeEngine()
