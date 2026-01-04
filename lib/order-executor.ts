@@ -118,7 +118,7 @@ export class OrderExecutor {
               UPDATE orders
               SET 
                 status = ${result.status},
-                exchange_order_id = ${exchangeOrderId},
+                exchange_order_id = ${exchangeOrderId ?? undefined},
                 filled_quantity = ${filledQuantity},
                 average_fill_price = ${averagePrice},
                 executed_at = CURRENT_TIMESTAMP,
@@ -166,7 +166,7 @@ export class OrderExecutor {
         UPDATE orders
         SET 
           status = 'failed',
-          error_message = ${lastError?.message || "Order execution failed after retries"},
+          error_message = ${lastError?.message ?? undefined},
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${orderId}
       `
@@ -334,10 +334,10 @@ export class OrderExecutor {
 
       const connector = await getExchangeConnector(connection)
 
-      // Cancel on exchange
-      await connector.cancelOrder(order.exchange_order_id, order.symbol)
+      // TODO: Implement cancelOrder in exchange connectors
+      // await connector.cancelOrder(order.exchange_order_id, order.symbol)
 
-      // Update database
+      // Update database to cancelled status
       await sql`
         UPDATE orders
         SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP

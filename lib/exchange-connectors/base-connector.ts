@@ -75,4 +75,12 @@ export abstract class BaseExchangeConnector {
   abstract testConnection(): Promise<ExchangeConnectorResult>
   abstract getBalance(): Promise<ExchangeConnectorResult>
   abstract getCapabilities(): string[]
+
+  async cancelOrder(orderId: string, symbol: string): Promise<boolean> {
+    throw new Error("cancelOrder not implemented for this exchange")
+  }
+
+  async getPositions(): Promise<any[]> {
+    throw new Error("getPositions not implemented for this exchange")
+  }
 }
