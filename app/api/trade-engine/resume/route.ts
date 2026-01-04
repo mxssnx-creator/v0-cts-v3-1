@@ -18,7 +18,7 @@ export async function POST() {
     }
 
     await coordinator.resume()
-    SystemLogger.info("Global Trade Engine Coordinator resumed via API")
+    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator resumed via API", "info")
 
     return NextResponse.json({
       success: true,
@@ -26,7 +26,7 @@ export async function POST() {
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    SystemLogger.error("Failed to resume trade engine", error)
+    await SystemLogger.logError(error, "trade-engine", "Resume API")
 
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
