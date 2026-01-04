@@ -30,7 +30,8 @@ import { PresetTradeStats } from "@/components/statistics/preset-trade-stats"
 import { StatisticsOverview } from "@/components/settings/statistics-overview"
 
 const updateAnalytics = (analyticsEngine: AnalyticsEngine, filter: AnalyticsFilter) => {
-  analyticsEngine.update(filter)
+  // The AnalyticsEngine doesn't have an update method
+  // Analytics are regenerated on each fetch
 }
 
 export default function StatisticsPage() {
@@ -80,7 +81,7 @@ export default function StatisticsPage() {
 
           const analytics = new AnalyticsEngine(positionsData.data || [])
           setAnalyticsEngine(analytics)
-          setStrategyAnalytics(analytics.getStrategyAnalytics(filter))
+          setStrategyAnalytics(analytics.generateStrategyAnalytics(filter))
           setSymbolAnalytics(analytics.generateSymbolAnalytics(filter))
           setTimeSeriesData(analytics.generateTimeSeriesData(filter))
         }

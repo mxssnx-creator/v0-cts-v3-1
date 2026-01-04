@@ -386,7 +386,8 @@ export default function ConnectionSettingsPage() {
         <ConnectionInfoDialog
           open={true}
           onOpenChange={(open) => !open && setInfoConnection(null)}
-          connection={infoConnection}
+          connectionId={infoConnection.id}
+          connectionName={infoConnection.name}
         />
       )}
 
