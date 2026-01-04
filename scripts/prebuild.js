@@ -64,9 +64,13 @@ const problematicFiles = [
   path.join(rootDir, ".turbopack-cache-bust.ts"),
   path.join(rootDir, "lib", "configuration-set-manager.ts"),
   path.join(rootDir, "lib", "configuration-set-manager.tsx"),
+  path.join(rootDir, "hooks", "use-toast.ts"), // Deprecated, using Sonner now
+  path.join(rootDir, "components", "ui", "use-toast.ts"), // Deprecated duplicate
+  path.join(rootDir, "components", "ui", "toast.tsx"), // Deprecated
+  path.join(rootDir, "components", "ui", "toaster.tsx"), // Deprecated
 ]
 
-console.log("\n  Removing problematic files...")
+console.log("\n  Removing deprecated/problematic files...")
 for (const file of problematicFiles) {
   if (fs.existsSync(file)) {
     try {
@@ -80,9 +84,9 @@ for (const file of problematicFiles) {
 
 console.log("\n  Validating critical modules...")
 const criticalFiles = [
-  { path: "hooks/use-toast.ts", exports: ["useToast", "toast"] },
-  { path: "lib/trade-engine.ts", exports: ["getTradeEngine"] },
+  { path: "lib/trade-engine.ts", exports: ["getTradeEngine", "GlobalTradeEngineCoordinator"] },
   { path: "lib/trade-engine/index.ts", exports: ["getTradeEngine"] },
+  { path: "components/ui/sonner.tsx", exports: ["Toaster"] },
 ]
 
 let allValid = true
