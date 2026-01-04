@@ -74,9 +74,9 @@ export default function IndicationsPage() {
       return false
     if (filters.activeOnly && !indication.isActive) return false
 
-    const hasTrailing = indication.subConfigurations?.some((sub) => sub.trailingEnabled)
-    const hasBlock = indication.subConfigurations?.some((sub) => sub.blockEnabled)
-    const hasDca = indication.subConfigurations?.some((sub) => sub.dcaEnabled)
+    const hasTrailing = indication.subConfigurations?.some((sub: { trailingEnabled: boolean }) => sub.trailingEnabled)
+    const hasBlock = indication.subConfigurations?.some((sub: { blockEnabled: boolean }) => sub.blockEnabled)
+    const hasDca = indication.subConfigurations?.some((sub: { dcaEnabled: boolean }) => sub.dcaEnabled)
 
     if (filters.trailingFilter === "only" && !hasTrailing) return false
     if (filters.trailingFilter === "yes" && hasTrailing) return true
