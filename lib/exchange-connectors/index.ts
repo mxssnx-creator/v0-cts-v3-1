@@ -32,5 +32,16 @@ export function createExchangeConnector(exchange: string, credentials: ExchangeC
   }
 }
 
+export function getExchangeConnector(connection: any): BaseExchangeConnector {
+  const credentials: ExchangeCredentials = {
+    apiKey: connection.api_key,
+    apiSecret: connection.api_secret,
+    apiPassphrase: connection.passphrase,
+    isTestnet: connection.testnet || false,
+  }
+
+  return createExchangeConnector(connection.exchange, credentials)
+}
+
 export type { ExchangeConnectorResult, ExchangeCredentials } from "./base-connector"
 export { BaseExchangeConnector } from "./base-connector"

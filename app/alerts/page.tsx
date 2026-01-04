@@ -35,7 +35,6 @@ import type { PriceAlert, PositionAlert, SystemAlert, AlertHistory } from "@/lib
 
 export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState("price")
-  const [hasRealConnections, setHasRealConnections] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([])
   const [positionAlerts, setPositionAlerts] = useState<PositionAlert[]>([])
@@ -44,167 +43,122 @@ export default function AlertsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   useEffect(() => {
-    const checkConnections = async () => {
+    const loadAlerts = async () => {
       try {
-        const response = await fetch("/api/settings/connections")
-        const data = await response.json()
-        const activeConnections = data.connections?.filter((c: any) => c.is_enabled) || []
-        setHasRealConnections(activeConnections.length > 0)
+        const [priceRes, positionRes, systemRes, historyRes] = await Promise.all([
+          fetch("/api/alerts/price"),
+          fetch("/api/alerts/position"),
+          fetch("/api/alerts/system"),
+          fetch("/api/alerts/history"),
+        ])
 
-        if (activeConnections.length === 0) {
-          setPriceAlerts([
-            {
-              id: "pa-1",
-              symbol: "BTCUSDT",
-              condition: "above",
-              price: 95000,
-              current_price: 92450,
-              is_enabled: true,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-            {
-              id: "pa-2",
-              symbol: "ETHUSDT",
-              condition: "below",
-              price: 3200,
-              current_price: 3450,
-              is_enabled: true,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-            {
-              id: "pa-3",
-              symbol: "SOLUSDT",
-              condition: "above",
-              price: 200,
-              current_price: 185,
-              is_enabled: false,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-          ])
+        if (priceRes.ok) {
+          const priceData = await priceRes.json()
+          setPriceAlerts(priceData.alerts || [])
+        }
 
-          setPositionAlerts([
-            {
-              id: "poa-1",
-              position_id: "pos-123",
-              symbol: "BTCUSDT",
-              alert_type: "profit_target",
-              threshold: 5.0,
-              current_value: 3.2,
-              is_enabled: true,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-            {
-              id: "poa-2",
-              position_id: "pos-456",
-              symbol: "ETHUSDT",
-              alert_type: "stop_loss",
-              threshold: -2.0,
-              current_value: -1.5,
-              is_enabled: true,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-            {
-              id: "poa-3",
-              position_id: "pos-789",
-              symbol: "BNBUSDT",
-              alert_type: "time_limit",
-              threshold: 24,
-              current_value: 18,
-              is_enabled: true,
-              created_at: new Date().toISOString(),
-              triggered_at: null,
-            },
-          ])
+        if (positionRes.ok) {
+          const positionData = await positionRes.json()
+          setPositionAlerts(positionData.alerts || [])
+        }
 
-          setSystemAlerts([
-            {
-              id: "sa-1",
-              alert_type: "connection_lost",
-              exchange: "Bybit",
-              connection_id: "bybit-x03",
-              severity: "high",
-              message: "Connection to Bybit X03 lost",
-              is_resolved: false,
-              created_at: new Date(Date.now() - 3600000).toISOString(),
-              resolved_at: null,
-            },
-            {
-              id: "sa-2",
-              alert_type: "high_drawdown",
-              exchange: "BingX",
-              connection_id: "bingx-x01",
-              severity: "medium",
-              message: "Portfolio drawdown exceeded 15%",
-              is_resolved: true,
-              created_at: new Date(Date.now() - 7200000).toISOString(),
-              resolved_at: new Date(Date.now() - 3600000).toISOString(),
-            },
-          ])
+        if (systemRes.ok) {
+          const systemData = await systemRes.json()
+          setSystemAlerts(systemData.alerts || [])
+        }
 
-          setAlertHistory([
-            {
-              id: "ah-1",
-              alert_type: "price",
-              symbol: "BTCUSDT",
-              message: "BTC price reached $94,500 (above $94,000)",
-              triggered_at: new Date(Date.now() - 1800000).toISOString(),
-              acknowledged: true,
-            },
-            {
-              id: "ah-2",
-              alert_type: "position",
-              symbol: "ETHUSDT",
-              message: "Position profit reached 5% target",
-              triggered_at: new Date(Date.now() - 3600000).toISOString(),
-              acknowledged: true,
-            },
-            {
-              id: "ah-3",
-              alert_type: "system",
-              symbol: null,
-              message: "Trade engine started successfully",
-              triggered_at: new Date(Date.now() - 7200000).toISOString(),
-              acknowledged: false,
-            },
-          ])
+        if (historyRes.ok) {
+          const historyData = await historyRes.json()
+          setAlertHistory(historyData.history || [])
         }
       } catch (error) {
-        console.error("Failed to check connections:", error)
+        console.error("[v0] Failed to load alerts:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkConnections()
+    loadAlerts()
   }, [])
 
-  const handleTogglePriceAlert = (id: string, enabled: boolean) => {
-    setPriceAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, is_enabled: enabled } : alert)))
+  const handleTogglePriceAlert = async (id: string, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/alerts/price/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_enabled: enabled }),
+      })
+
+      if (response.ok) {
+        setPriceAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, is_enabled: enabled } : alert)))
+      }
+    } catch (error) {
+      console.error("[v0] Failed to toggle price alert:", error)
+    }
   }
 
-  const handleDeletePriceAlert = (id: string) => {
-    setPriceAlerts((prev) => prev.filter((alert) => alert.id !== id))
+  const handleDeletePriceAlert = async (id: string) => {
+    try {
+      const response = await fetch(`/api/alerts/price/${id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setPriceAlerts((prev) => prev.filter((alert) => alert.id !== id))
+      }
+    } catch (error) {
+      console.error("[v0] Failed to delete price alert:", error)
+    }
   }
 
-  const handleTogglePositionAlert = (id: string, enabled: boolean) => {
-    setPositionAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, is_enabled: enabled } : alert)))
+  const handleTogglePositionAlert = async (id: string, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/alerts/position/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_enabled: enabled }),
+      })
+
+      if (response.ok) {
+        setPositionAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, is_enabled: enabled } : alert)))
+      }
+    } catch (error) {
+      console.error("[v0] Failed to toggle position alert:", error)
+    }
   }
 
-  const handleDeletePositionAlert = (id: string) => {
-    setPositionAlerts((prev) => prev.filter((alert) => alert.id !== id))
+  const handleDeletePositionAlert = async (id: string) => {
+    try {
+      const response = await fetch(`/api/alerts/position/${id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setPositionAlerts((prev) => prev.filter((alert) => alert.id !== id))
+      }
+    } catch (error) {
+      console.error("[v0] Failed to delete position alert:", error)
+    }
   }
 
-  const handleResolveSystemAlert = (id: string) => {
-    setSystemAlerts((prev) =>
-      prev.map((alert) =>
-        alert.id === id ? { ...alert, is_resolved: true, resolved_at: new Date().toISOString() } : alert,
-      ),
-    )
+  const handleResolveSystemAlert = async (id: string) => {
+    try {
+      const response = await fetch(`/api/alerts/system/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_resolved: true }),
+      })
+
+      if (response.ok) {
+        setSystemAlerts((prev) =>
+          prev.map((alert) =>
+            alert.id === id ? { ...alert, is_resolved: true, resolved_at: new Date().toISOString() } : alert,
+          ),
+        )
+      }
+    } catch (error) {
+      console.error("[v0] Failed to resolve system alert:", error)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -248,20 +202,6 @@ export default function AlertsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <div className="container mx-auto p-6 space-y-6">
-        {!hasRealConnections && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              <div>
-                <div className="font-semibold text-yellow-700 dark:text-yellow-400">Using Mock Data</div>
-                <div className="text-sm text-yellow-600 dark:text-yellow-500">
-                  No active exchange connections found. Enable a connection in Settings to see real alerts.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">

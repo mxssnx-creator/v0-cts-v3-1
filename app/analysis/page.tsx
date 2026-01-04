@@ -67,10 +67,10 @@ export default function AnalysisPage() {
 
   const fetchConnections = async () => {
     try {
-      const res = await fetch("/api/settings/connections")
+      const res = await fetch("/api/connections/active")
       if (res.ok) {
         const data = await res.json()
-        setConnections(data.connections || [])
+        setConnections(data || [])
       }
     } catch (error) {
       console.error("[v0] Failed to fetch connections:", error)

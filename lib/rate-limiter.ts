@@ -28,34 +28,59 @@ export class RateLimiter {
   // Exchange-specific rate limits
   private static readonly EXCHANGE_LIMITS: Record<string, RateLimitConfig> = {
     bybit: {
-      requestsPerSecond: 10,
-      requestsPerMinute: 120,
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
       maxConcurrent: 5,
     },
     bingx: {
-      requestsPerSecond: 5,
-      requestsPerMinute: 100,
-      maxConcurrent: 3,
+      requestsPerSecond: 8,
+      requestsPerMinute: 450,
+      maxConcurrent: 5,
     },
     binance: {
-      requestsPerSecond: 10,
-      requestsPerMinute: 1200,
+      requestsPerSecond: 15,
+      requestsPerMinute: 900,
       maxConcurrent: 10,
     },
     okx: {
-      requestsPerSecond: 20,
-      requestsPerMinute: 600,
+      requestsPerSecond: 15,
+      requestsPerMinute: 800,
       maxConcurrent: 10,
     },
     pionex: {
-      requestsPerSecond: 5,
-      requestsPerMinute: 100,
-      maxConcurrent: 3,
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
+      maxConcurrent: 5,
     },
     orangex: {
       requestsPerSecond: 5,
-      requestsPerMinute: 100,
+      requestsPerMinute: 250,
       maxConcurrent: 3,
+    },
+    gateio: {
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
+      maxConcurrent: 5,
+    },
+    kucoin: {
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
+      maxConcurrent: 5,
+    },
+    mexc: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 500,
+      maxConcurrent: 8,
+    },
+    bitget: {
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
+      maxConcurrent: 5,
+    },
+    huobi: {
+      requestsPerSecond: 8,
+      requestsPerMinute: 400,
+      maxConcurrent: 5,
     },
   }
 

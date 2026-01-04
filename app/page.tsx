@@ -15,7 +15,6 @@ import { toast } from "sonner"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/lib/auth-context"
-import { getPredefinedConnectionsAsStatic } from "@/lib/connection-predefinitions"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -71,30 +70,33 @@ export default function Dashboard() {
 
       if (!response.ok) {
         console.log("[v0] Connections API returned error")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] No connections from API")
         return
       }
 
       console.log("[v0] Loaded connections:", data.length)
 
-      const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
-      const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
+      const enabledConnections = data.filter((c: ExchangeConnection) => c?.is_enabled === true)
+
+      const activeConns = enabledConnections.filter((c: ExchangeConnection) => c?.is_active === true)
+
+      const notActive = enabledConnections.filter((c: ExchangeConnection) => c?.is_active !== true)
+
+      console.log("[v0] Enabled connections:", enabledConnections.length)
+      console.log("[v0] Active connections:", activeConns.length)
+      console.log("[v0] Available to add:", notActive.length)
 
       setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 
-      const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
-      setHasRealConnections(enabledConnections.length > 0)
+      const realConnections = activeConns.filter((c: ExchangeConnection) => !c?.is_predefined)
+      setHasRealConnections(realConnections.length > 0)
 
       if (activeConns.length > 0 && !selectedConnection) {
         const savedSelection = localStorage.getItem("selectedExchange")
@@ -327,7 +329,10 @@ export default function Dashboard() {
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Active Connections</h2>
+              <div>
+                <h2 className="text-lg font-semibold">Active Connections</h2>
+                <p className="text-xs text-muted-foreground mt-1">Only showing connections enabled in Settings</p>
+              </div>
               <div className="flex gap-2">
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                   <DialogTrigger asChild>
@@ -342,7 +347,8 @@ export default function Dashboard() {
                     </DialogHeader>
                     <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        Select a connection from Settings to add as active. Each connection can only be added once.
+                        Select an enabled connection from Settings to add as active. Only connections with
+                        is_enabled=true appear here.
                       </p>
                       <Select value={selectedToAdd} onValueChange={setSelectedToAdd}>
                         <SelectTrigger>
@@ -351,7 +357,7 @@ export default function Dashboard() {
                         <SelectContent>
                           {availableConnections.length === 0 ? (
                             <div className="p-2 text-xs text-muted-foreground text-center">
-                              No available connections. Add connections in Settings first.
+                              No enabled connections available. Enable connections in Settings first.
                             </div>
                           ) : (
                             availableConnections.map((connection) => (
@@ -386,9 +392,16 @@ export default function Dashboard() {
             {activeConnections.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground mb-4">No active connections</p>
+                  <p className="text-muted-foreground mb-2">No active connections</p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {availableConnections.length > 0
+                      ? `${availableConnections.length} enabled connection(s) available to add`
+                      : "Enable connections in Settings first"}
+                  </p>
                   <div className="flex gap-2 justify-center">
-                    <Button onClick={() => setShowAddDialog(true)}>Add Connection</Button>
+                    {availableConnections.length > 0 && (
+                      <Button onClick={() => setShowAddDialog(true)}>Add Connection</Button>
+                    )}
                     <Button variant="outline" onClick={() => (window.location.href = "/settings")}>
                       Go to Settings
                     </Button>

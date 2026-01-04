@@ -20,6 +20,16 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import AutoIndicationSettings from "@/components/settings/auto-indication-settings"
 import { StatisticsOverview } from "@/components/settings/statistics-overview"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const EXCHANGE_MAX_POSITIONS: Record<string, number> = {
   bybit: 500,
@@ -99,6 +109,8 @@ interface Settings {
   metricsRetentionDays: number
   mainEngineEnabled: boolean
   presetEngineEnabled: boolean
+  mainTradeEngineEnabled?: boolean // Added new field
+  presetTradeEngineEnabled?: boolean // Added new field
   maxPositionsPerExchange: Record<string, number>
   mainSymbols: string[]
   forcedSymbols: string[]
@@ -759,10 +771,23 @@ export default function SettingsPage() {
     atrMultiplierFrom: initialSettings.atrMultiplierFrom ?? 1.0,
     atrMultiplierTo: initialSettings.atrMultiplierTo ?? 3.0,
     atrMultiplierStep: initialSettings.atrMultiplierStep ?? 0.1,
+    // Initialize Trade Engine Type Controls
+    mainTradeEngineEnabled: initialSettings.mainTradeEngineEnabled ?? true,
+    presetTradeEngineEnabled: initialSettings.presetTradeEngineEnabled ?? true,
   })
 
   const [originalDatabaseType, setOriginalDatabaseType] = useState<string>("sqlite")
   const [databaseChanged, setDatabaseChanged] = useState(false)
+
+  const [engineConfirmDialog, setEngineConfirmDialog] = useState<{
+    open: boolean
+    engineType: "main" | "preset" | null
+    newState: boolean
+  }>({
+    open: false,
+    engineType: null,
+    newState: false,
+  })
 
   const [activeTab, setActiveTab] = useState("overall")
   const [overallSubTab, setOverallSubTab] = useState("main")
@@ -1804,6 +1829,12 @@ export default function SettingsPage() {
               updatedSettings.parabolicSARMaximumStep =
                 data.settings.parabolicSARMaximumStep ?? initialSettings.parabolicSARMaximumStep
 
+              // Load Trade Engine Type Controls defaults
+              updatedSettings.mainTradeEngineEnabled =
+                data.settings.mainTradeEngineEnabled ?? initialSettings.mainTradeEngineEnabled
+              updatedSettings.presetTradeEngineEnabled =
+                data.settings.presetTradeEngineEnabled ?? initialSettings.presetTradeEngineEnabled
+
               return updatedSettings
             })
           }
@@ -1854,6 +1885,23 @@ export default function SettingsPage() {
   const getMinActiveIndicationInterval = () => {
     // Active indication is part of main trade engine, uses main engine interval as minimum
     return Math.max(settings.mainEngineIntervalMs || 100, 50)
+  }
+
+  const handleEngineToggle = (engineType: "main" | "preset", newState: boolean) => {
+    setEngineConfirmDialog({
+      open: true,
+      engineType,
+      newState,
+    })
+  }
+
+  const confirmEngineToggle = () => {
+    if (engineConfirmDialog.engineType === "main") {
+      handleSettingChange("mainTradeEngineEnabled", engineConfirmDialog.newState)
+    } else if (engineConfirmDialog.engineType === "preset") {
+      handleSettingChange("presetTradeEngineEnabled", engineConfirmDialog.newState)
+    }
+    setEngineConfirmDialog({ open: false, engineType: null, newState: false })
   }
 
   return (
@@ -2206,7 +2254,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Main Symbols Configuration */}
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
                         <div className="flex items-center justify-between">
                           <div>
                             <Label className="text-base">Main Symbols</Label>
@@ -2241,7 +2289,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Forced Symbols Configuration */}
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
                         <div className="flex items-center justify-between">
                           <div>
                             <Label className="text-base">Forced Symbols</Label>
@@ -2576,7 +2624,7 @@ export default function SettingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {connections
-                        .filter((conn) => conn.is_enabled)
+                        .filter((conn) => conn.is_enabled && conn.is_active)
                         .map((conn) => (
                           <SelectItem key={conn.id} value={conn.id}>
                             <div className="flex items-center gap-2">
@@ -2587,13 +2635,16 @@ export default function SettingsPage() {
                             </div>
                           </SelectItem>
                         ))}
-                      {connections.filter((conn) => conn.is_enabled).length === 0 && (
-                        <div className="p-2 text-sm text-muted-foreground">No enabled connections available</div>
+                      {connections.filter((conn) => conn.is_enabled && conn.is_active).length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No active connections. Add connections from Dashboard first.
+                        </div>
                       )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Select the exchange connection to configure. Synchronized with Dashboard selection.
+                    Shows only Active Connections from Dashboard. Enable connections in Base Settings, then add them as
+                    Active on Dashboard.
                   </p>
                 </div>
 
@@ -3123,7 +3174,7 @@ export default function SettingsPage() {
                   <h4 className="font-semibold">Trade Settings</h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Profit Factor Minimum</Label>
+                      <Label>Minimum Profit Factor</Label>
                       <div className="flex items-center gap-4">
                         <Slider
                           min={0.1}
@@ -5225,7 +5276,7 @@ export default function SettingsPage() {
 
                     {/* Configuration Ranges */}
                     <div className="space-y-4">
-                      <h4 className="text-sm font-semibold">Configuration Ranges (50% variation)</h4>
+                      <h4 className="text-sm font-semibold">Configuration Ranges (50% variation</h4>
 
                       <div className="space-y-2">
                         <Label className="text-sm">Period Range</Label>
@@ -5935,6 +5986,55 @@ export default function SettingsPage() {
           <TabsContent value="system" className="space-y-4">
             <Card>
               <CardHeader>
+                <CardTitle>Trade Engine Types</CardTitle>
+                <CardDescription>Enable or disable different trade engine execution modes</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <Label htmlFor="mainTradeEngineEnabled" className="text-base font-semibold">
+                        Main Trade Engine
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Executes trades based on primary trading strategies and market conditions
+                      </p>
+                    </div>
+                    <Switch
+                      id="mainTradeEngineEnabled"
+                      checked={settings.mainTradeEngineEnabled ?? true}
+                      onCheckedChange={(checked) => handleEngineToggle("main", checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <Label htmlFor="presetTradeEngineEnabled" className="text-base font-semibold">
+                        Preset Trade Engine
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Executes trades based on predefined preset configurations and coordination
+                      </p>
+                    </div>
+                    <Switch
+                      id="presetTradeEngineEnabled"
+                      checked={settings.presetTradeEngineEnabled ?? true}
+                      onCheckedChange={(checked) => handleEngineToggle("preset", checked)}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 border rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Note:</strong> Disabling trade engines will stop all related trading operations. Changes
+                    take effect immediately for new operations.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>System Configuration</CardTitle>
                 <CardDescription>Core system settings, database management, and application logs</CardDescription>
               </CardHeader>
@@ -6334,6 +6434,38 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog
+        open={engineConfirmDialog.open}
+        onOpenChange={(open) => setEngineConfirmDialog({ ...engineConfirmDialog, open })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Trade Engine Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {engineConfirmDialog.newState ? "enable" : "disable"} the{" "}
+              <strong>{engineConfirmDialog.engineType === "main" ? "Main Trade Engine" : "Preset Trade Engine"}</strong>
+              ?
+              <br />
+              <br />
+              {engineConfirmDialog.newState ? (
+                <>This will allow the engine to start executing trades based on configured strategies.</>
+              ) : (
+                <>
+                  This will <strong>immediately stop</strong> all trading operations for this engine. Any pending orders
+                  will need to be managed manually.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmEngineToggle}>
+              {engineConfirmDialog.newState ? "Enable" : "Disable"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthGuard>
   )
 }

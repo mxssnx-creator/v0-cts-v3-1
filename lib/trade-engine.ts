@@ -120,6 +120,8 @@ export interface EngineStatus {
   startedAt?: Date
   stoppedAt?: Date
   errorMessage?: string
+  engineType?: "main" | "preset"
+  isEnabled?: boolean
 }
 
 export interface ConnectionStatus {
@@ -140,4 +142,28 @@ export interface ComponentHealth {
   lastCycleDuration: number
   errorCount: number
   successRate: number
+}
+
+/**
+ * Check if a specific trade engine type is enabled
+ * @param engineType - The type of engine to check ('main' or 'preset')
+ * @returns Promise resolving to true if enabled, false otherwise
+ */
+export async function isTradeEngineTypeEnabled(engineType: "main" | "preset"): Promise<boolean> {
+  try {
+    const { query } = await import("./db")
+    const settingKey = engineType === "main" ? "mainTradeEngineEnabled" : "presetTradeEngineEnabled"
+    const result = await query("SELECT value FROM system_settings WHERE key = $1", [settingKey])
+
+    if (result.rows.length === 0) {
+      // Default to enabled if not found
+      return true
+    }
+
+    return result.rows[0].value === true || result.rows[0].value === "true"
+  } catch (error) {
+    console.error(`[v0] Failed to check ${engineType} trade engine status:`, error)
+    // Default to enabled on error to avoid blocking trading
+    return true
+  }
 }

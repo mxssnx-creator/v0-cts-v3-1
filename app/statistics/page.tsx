@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { AnalyticsFilters } from "@/components/statistics/analytics-filters"
 import { StrategyPerformanceTable } from "@/components/statistics/strategy-performance-table"
 import { AnalyticsEngine } from "@/lib/analytics"
-import { TradingEngine } from "@/lib/trading"
 import type { AnalyticsFilter, StrategyAnalytics, SymbolAnalytics, TimeSeriesData } from "@/lib/analytics"
 import type { TradingPosition } from "@/lib/trading"
 import {
@@ -29,6 +28,10 @@ import { AdjustStrategyStats } from "@/components/statistics/adjust-strategy-sta
 import { BlockStrategyStats } from "@/components/statistics/block-strategy-stats"
 import { PresetTradeStats } from "@/components/statistics/preset-trade-stats"
 import { StatisticsOverview } from "@/components/settings/statistics-overview"
+
+const updateAnalytics = (analyticsEngine: AnalyticsEngine, filter: AnalyticsFilter) => {
+  analyticsEngine.update(filter)
+}
 
 export default function StatisticsPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -70,48 +73,26 @@ export default function StatisticsPage() {
           setSettings(settingsData.settings || {})
         }
 
-        if (activeConnections.length === 0) {
-          const tradingEngine = new TradingEngine()
-          const connections = ["bybit-x03", "bingx-x01", "pionex-x01"]
-          const positions: TradingPosition[] = []
+        if (activeConnections.length > 0) {
+          const positionsRes = await fetch("/api/positions?status=all")
+          const positionsData = await positionsRes.json()
+          setMockPositions(positionsData.data || [])
 
-          connections.forEach((connectionId) => {
-            tradingEngine.generateMockPositions(connectionId, 50)
-            positions.push(...tradingEngine.getOpenPositions(connectionId))
-            positions.push(...tradingEngine.getClosedPositions(connectionId, 100))
-          })
-
-          setMockPositions(positions)
-          const engine = new AnalyticsEngine(positions)
-          setAnalyticsEngine(engine)
-          updateAnalytics(engine, filter)
+          const analytics = new AnalyticsEngine(positionsData.data || [])
+          setAnalyticsEngine(analytics)
+          setStrategyAnalytics(analytics.getStrategyAnalytics(filter))
+          setSymbolAnalytics(analytics.getSymbolAnalytics(filter))
+          setTimeSeriesData(analytics.getTimeSeriesData(filter))
         }
       } catch (error) {
-        console.error("Failed to check connections:", error)
+        console.error("[v0] Failed to load statistics:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
     initialize()
-  }, [])
-
-  const updateAnalytics = (engine: AnalyticsEngine, currentFilter: AnalyticsFilter) => {
-    const strategies = engine.generateStrategyAnalytics(currentFilter)
-    const symbols = engine.generateSymbolAnalytics(currentFilter)
-    const timeSeries = engine.generateTimeSeriesData(currentFilter)
-
-    setStrategyAnalytics(strategies)
-    setSymbolAnalytics(symbols)
-    setTimeSeriesData(timeSeries)
-  }
-
-  const handleFilterChange = (newFilter: AnalyticsFilter) => {
-    setFilter(newFilter)
-    if (analyticsEngine) {
-      updateAnalytics(analyticsEngine, newFilter)
-    }
-  }
+  }, [filter])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -145,33 +126,26 @@ export default function StatisticsPage() {
     )
   }
 
-  if (hasRealConnections) {
+  if (!hasRealConnections) {
     return (
       <div className="container mx-auto p-6">
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">Real Trading Data</h2>
-          <p className="text-muted-foreground">
-            Statistics will be populated with real trading data from your active connections.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+              <p className="text-lg font-semibold mb-2">No Active Connections</p>
+              <p className="text-sm text-muted-foreground">
+                Enable exchange connections in Settings to view real trading statistics
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-yellow-500" />
-          <div>
-            <div className="font-semibold text-yellow-700 dark:text-yellow-400">Using Mock Data</div>
-            <div className="text-sm text-yellow-600 dark:text-yellow-500">
-              No active exchange connections found. Enable a connection in Settings to see real statistics.
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Statistics & Analytics</h1>
@@ -263,7 +237,7 @@ export default function StatisticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
-          <AnalyticsFilters filter={filter} onFilterChange={handleFilterChange} />
+          <AnalyticsFilters filter={filter} onFilterChange={setFilter} />
         </div>
 
         <div className="lg:col-span-3">

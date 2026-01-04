@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const exchangeNames = [...new Set(CONNECTION_PREDEFINITIONS.map(p => p.id.split('-')[0]))]
-    
+    const exchangeNames = [...new Set(CONNECTION_PREDEFINITIONS.map((p) => p.id.split("-")[0]))]
+
     for (const exchangeName of exchangeNames) {
       await sql`
         INSERT INTO exchanges (name, display_name, supports_spot, supports_futures, supports_margin, is_active, api_endpoint, websocket_endpoint)
@@ -51,18 +51,20 @@ export async function POST(request: NextRequest) {
 
     const exchangeMap = Object.fromEntries(exchanges.map((e: any) => [e.name, e.id]))
 
-    console.log("[v0] Creating all predefined connections as inactive by default")
+    console.log("[v0] Creating all predefined connections")
 
     const createdConnections = []
-    
+
     for (const pred of CONNECTION_PREDEFINITIONS) {
-      const exchangeName = pred.id.split('-')[0]
+      const exchangeName = pred.id.split("-")[0]
       const exchangeId = exchangeMap[exchangeName]
-      
+
       if (!exchangeId) {
         console.warn(`[v0] Exchange ${exchangeName} not found, skipping ${pred.id}`)
         continue
       }
+
+      const isDefaultEnabled = exchangeName === "bybit" || exchangeName === "bingx"
 
       await sql`
         INSERT INTO exchange_connections (
@@ -79,13 +81,13 @@ export async function POST(request: NextRequest) {
           ${exchangeName},
           ${pred.apiType},
           ${pred.connectionMethod},
-          ${exchangeName === 'bybit' ? 'bybit-api' : exchangeName === 'bingx' ? 'bingx-api' : 'ccxt'},
-          ${pred.apiKey || '00998877009988770099887700998877'},
-          ${pred.apiSecret || '00998877009988770099887700998877'},
+          ${exchangeName === "bybit" ? "bybit-api" : exchangeName === "bingx" ? "bingx-api" : "ccxt"},
+          ${pred.apiKey || "00998877009988770099887700998877"},
+          ${pred.apiSecret || "00998877009988770099887700998877"},
           ${pred.marginType},
           ${pred.positionMode},
           false,
-          false,
+          ${isDefaultEnabled},
           true,
           true,
           '[]'::jsonb,
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
         ON CONFLICT (id) DO UPDATE SET
           is_predefined = true,
           is_active = true,
-          is_enabled = false
+          is_enabled = ${isDefaultEnabled}
       `
 
       // Initialize volume configuration
@@ -110,14 +112,15 @@ export async function POST(request: NextRequest) {
         VALUES (${pred.id}, 'stopped')
         ON CONFLICT (connection_id) DO NOTHING
       `
-      
+
       createdConnections.push(pred.name)
     }
 
     console.log("[v0] All predefined connections initialized successfully:", createdConnections.length)
+    console.log("[v0] Bybit and BingX are enabled by default in base settings")
     return NextResponse.json({
       success: true,
-      message: `All ${createdConnections.length} predefined connections initialized - active in Settings but disabled on Dashboard`,
+      message: `All ${createdConnections.length} predefined connections initialized. Bybit and BingX enabled by default.`,
       connections: createdConnections,
       count: createdConnections.length,
     })
