@@ -38,17 +38,34 @@ export class DatabaseInitializer {
         console.log(`[v0] Database initialization attempt ${attempt}/${retries}`)
 
         if (attempt > 1) {
-          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+          const waitTime = Math.min(2000 * attempt, 10000) // Increased wait time for better retry logic
           console.log(`[v0] Waiting ${waitTime}ms before retry...`)
           await new Promise((resolve) => setTimeout(resolve, waitTime))
         }
 
         try {
           console.log("[v0] Testing database connection...")
-          await query("SELECT 1 as test")
-          console.log(`[v0] ${dbType} database connection established`)
+          const testPromise = query("SELECT 1 as test")
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Connection test timed out")), 10000),
+          )
+          await Promise.race([testPromise, timeoutPromise])
+          console.log(`[v0] ${dbType} database connection established successfully`)
         } catch (error) {
-          throw new Error("Database connection failed: " + (error instanceof Error ? error.message : String(error)))
+          const errorMessage = error instanceof Error ? error.message : String(error)
+
+          if (errorMessage.includes("password authentication failed")) {
+            console.error("[v0] Authentication failed - please check your database credentials")
+            console.error("[v0] Ensure DATABASE_URL has the correct username and password")
+            console.error("[v0] Example: postgresql://username:password@host:port/database")
+          } else if (errorMessage.includes("ECONNREFUSED")) {
+            console.error("[v0] Connection refused - database server may not be running")
+            console.error("[v0] Check that your database server is accessible")
+          } else if (errorMessage.includes("getaddrinfo")) {
+            console.error("[v0] Could not resolve database host - check your DATABASE_URL")
+          }
+
+          throw new Error("Database connection failed: " + errorMessage)
         }
 
         await this.runMigrations(timeout)
@@ -60,6 +77,7 @@ export class DatabaseInitializer {
 
         if (attempt === retries) {
           console.error("[v0] All initialization attempts exhausted")
+          console.error("[v0] Please check your database configuration and credentials")
           return false
         }
       }

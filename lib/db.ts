@@ -7,7 +7,22 @@ import fs from "fs"
 process.env.NODE_PG_FORCE_NATIVE = "false"
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.REMOTE_POSTGRES_URL
+
+function getDatabaseURL(): string | undefined {
+  const possibleUrls = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.REMOTE_POSTGRES_URL].filter(
+    Boolean,
+  )
+
+  for (const url of possibleUrls) {
+    if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {
+      return url
+    }
+  }
+
+  return undefined
+}
+
+const DATABASE_URL = getDatabaseURL()
 
 let sqlClient: Pool | null = null
 let sqliteClient: Database.Database | null = null
@@ -19,9 +34,9 @@ function getDatabaseTypeFromSettings(): string {
     return process.env.DATABASE_TYPE
   }
 
-  // Check if DATABASE_URL is set
   if (DATABASE_URL) {
-    console.log("[v0] DATABASE_URL detected, using PostgreSQL")
+    console.log("[v0] Valid PostgreSQL DATABASE_URL detected, using PostgreSQL")
+    console.log("[v0] Database URL:", DATABASE_URL.replace(/:[^:@]+@/, ":****@")) // Hide password
     return "postgresql"
   }
 
@@ -76,26 +91,36 @@ function getClient(): Database.Database | Pool {
     }
     return sqliteClient
   } else if (DATABASE_TYPE === "postgresql" || DATABASE_TYPE === "remote") {
-    // PostgreSQL logic
     if (!DATABASE_URL) {
-      console.warn("[v0] PostgreSQL selected but DATABASE_URL not set, check environment variables")
-      // For local PostgreSQL, use default connection
-      const localDbUrl = process.env.POSTGRES_LOCAL_URL || "postgresql://postgres:postgres@localhost:5432/cts"
-      console.log("[v0] Using local PostgreSQL connection:", localDbUrl.replace(/:[^:]*@/, ":****@"))
-      // Set for this session
-      process.env.DATABASE_URL = localDbUrl
+      throw new Error(
+        "[v0] PostgreSQL selected but no valid DATABASE_URL found. " +
+          "Please set DATABASE_URL with a valid PostgreSQL connection string " +
+          "(postgresql://username:password@host:port/database)",
+      )
     }
 
     if (!sqlClient) {
       console.log(`[v0] Initializing PostgreSQL database client...`)
-      const connectionString = process.env.DATABASE_URL!
-      console.log("[v0] PostgreSQL connection string:", connectionString.replace(/:[^:]*@/, ":****@"))
+      const connectionString = DATABASE_URL
+
+      try {
+        const url = new URL(connectionString)
+        console.log("[v0] PostgreSQL connection details:")
+        console.log(`  - Host: ${url.hostname}`)
+        console.log(`  - Port: ${url.port || 5432}`)
+        console.log(`  - Database: ${url.pathname.slice(1)}`)
+        console.log(`  - User: ${url.username}`)
+        console.log(`  - SSL: ${process.env.NODE_ENV === "production" ? "enabled" : "disabled"}`)
+      } catch (err) {
+        console.error("[v0] Invalid PostgreSQL connection string format")
+        throw new Error("Invalid DATABASE_URL format. Expected: postgresql://username:password@host:port/database")
+      }
 
       sqlClient = new Pool({
         connectionString,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000,
         ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
         native: false,
       })
@@ -121,7 +146,8 @@ export function resetDatabaseClients() {
 
 export async function query<T = any>(queryText: string, params: any[] = []): Promise<T[]> {
   try {
-    console.log("[v0] Executing query:", { query: queryText.substring(0, 100), paramCount: params.length })
+    const queryPreview = queryText.substring(0, 80).replace(/\s+/g, " ")
+    console.log("[v0] Query:", queryPreview, `(${params.length} params)`)
 
     if (DATABASE_TYPE === "sqlite") {
       const client = getClient() as Database.Database
@@ -135,8 +161,10 @@ export async function query<T = any>(queryText: string, params: any[] = []): Pro
     }
   } catch (error) {
     console.error("[v0] Database query error:", error)
-    console.error("[v0] Query:", queryText)
-    console.error("[v0] Params:", params)
+    console.error("[v0] Query:", queryText.substring(0, 100))
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[v0] Params:", params)
+    }
     throw error
   }
 }
@@ -164,7 +192,8 @@ export async function execute(
   params: any[] = [],
 ): Promise<{ rowCount: number; lastInsertRowid?: number }> {
   try {
-    console.log("[v0] Executing command:", { query: queryText.substring(0, 100), paramCount: params.length })
+    const queryPreview = queryText.substring(0, 80).replace(/\s+/g, " ")
+    console.log("[v0] Execute:", queryPreview, `(${params.length} params)`)
 
     if (DATABASE_TYPE === "sqlite") {
       const client = getClient() as Database.Database
@@ -181,8 +210,10 @@ export async function execute(
     }
   } catch (error) {
     console.error("[v0] Database execute error:", error)
-    console.error("[v0] Query:", queryText)
-    console.error("[v0] Params:", params)
+    console.error("[v0] Query:", queryText.substring(0, 100))
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[v0] Params:", params)
+    }
     throw error
   }
 }

@@ -66,7 +66,7 @@ async function main() {
   if (majorVersion < 18 || majorVersion > 26) {
     console.error(`❌ Node.js version ${nodeVersion} is not supported`)
     console.error("   Please use Node.js 18.x - 26.x")
-    console.error("   Current version: ${nodeVersion}")
+    console.error(`   Current version: ${nodeVersion}`)
     process.exit(1)
   }
 
@@ -266,12 +266,19 @@ WS_MAX_RECONNECT_ATTEMPTS=10
     console.log("   This may take a few moments...\n")
 
     try {
-      // Load environment from .env.local
-      require("dotenv").config({ path: envPath })
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, "utf8")
+        envContent.split("\n").forEach((line) => {
+          const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/)
+          if (match) {
+            process.env[match[1]] = match[2].replace(/^["']|["']$/g, "")
+          }
+        })
+      }
 
       // Run the database initialization
       console.log("   → Initializing database schema...")
-      const { DatabaseInitializer } = require(path.join(process.cwd(), "lib/db-initializer.ts"))
+      const { DatabaseInitializer } = require(path.join(process.cwd(), "lib/db-initializer"))
       const initResult = await DatabaseInitializer.initialize(3, 60000)
 
       if (initResult) {
@@ -279,13 +286,13 @@ WS_MAX_RECONNECT_ATTEMPTS=10
 
         // Run migrations
         console.log("   → Running migrations...")
-        const { DatabaseMigrations } = require(path.join(process.cwd(), "lib/db-migrations.ts"))
+        const { DatabaseMigrations } = require(path.join(process.cwd(), "lib/db-migrations"))
         await DatabaseMigrations.runPendingMigrations()
         console.log("   ✅ Migrations completed")
 
         // Run auto-migrations
         console.log("   → Running auto-migrations...")
-        const { runAutoMigrations } = require(path.join(process.cwd(), "lib/auto-migrate.ts"))
+        const { runAutoMigrations } = require(path.join(process.cwd(), "lib/auto-migrate"))
         await runAutoMigrations()
         console.log("   ✅ Auto-migrations completed")
 

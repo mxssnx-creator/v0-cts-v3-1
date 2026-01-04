@@ -113,6 +113,7 @@
     "cmdk": "1.0.4",
     "crypto": "1.0.1",
     "date-fns": "4.1.0",
+    "dotenv": "16.4.7",
     "embla-carousel-react": "8.5.2",
     "fs": "0.0.1-security",
     "input-otp": "1.4.1",

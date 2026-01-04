@@ -14,10 +14,15 @@ console.log()
 
 async function main() {
   try {
-    // Load environment variables
     const envPath = path.join(process.cwd(), ".env.local")
     if (fs.existsSync(envPath)) {
-      require("dotenv").config({ path: envPath })
+      const envContent = fs.readFileSync(envPath, "utf8")
+      envContent.split("\n").forEach((line) => {
+        const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/)
+        if (match) {
+          process.env[match[1]] = match[2].replace(/^["']|["']$/g, "")
+        }
+      })
       console.log("✅ Loaded environment from .env.local")
     } else {
       console.log("⚠️  No .env.local found, using environment variables")
