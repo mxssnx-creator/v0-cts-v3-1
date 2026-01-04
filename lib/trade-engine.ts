@@ -1,6 +1,6 @@
 // Re-export TradeEngine class and config from subdirectory for convenient imports
 export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine"
-export { EngineManager } from "./trade-engine/engine-manager"
+export { TradeEngineManager } from "./trade-engine/engine-manager"
 
 /**
  * GlobalTradeEngineCoordinator class definition

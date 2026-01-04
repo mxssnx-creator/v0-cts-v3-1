@@ -53,12 +53,12 @@ export class PositionThresholdManager {
    */
   public async startMonitoring(intervalMs = 60000): Promise<void> {
     if (this.isRunning) {
-      SystemLogger.info("Position threshold monitoring already running")
+      await SystemLogger.logSystem("Position threshold monitoring already running", "info")
       return
     }
 
     this.isRunning = true
-    SystemLogger.info("Starting position threshold monitoring")
+    await SystemLogger.logSystem("Starting position threshold monitoring", "info")
 
     // Run initial check
     await this.checkAndCleanupAllConfigurations()
@@ -78,7 +78,7 @@ export class PositionThresholdManager {
       this.monitorInterval = null
     }
     this.isRunning = false
-    SystemLogger.info("Position threshold monitoring stopped")
+    SystemLogger.logSystem("Position threshold monitoring stopped", "info")
   }
 
   /**
@@ -103,7 +103,7 @@ export class PositionThresholdManager {
       // Check overall database size
       await this.checkDatabaseSize(config.maxDatabaseSizeGB)
     } catch (error) {
-      SystemLogger.error("Error in position threshold check", { error })
+      await SystemLogger.logError(error, "system", "Position threshold check")
     }
   }
 
@@ -131,7 +131,7 @@ export class PositionThresholdManager {
       return
     }
 
-    SystemLogger.info(`Threshold exceeded for ${tableName}`, {
+    await SystemLogger.logSystem(`Threshold exceeded for ${tableName}`, "info", {
       affectedConnections: connections.length,
       storageLimit,
       positionLimit,
@@ -156,7 +156,7 @@ export class PositionThresholdManager {
     currentLimit: number,
   ): Promise<void> {
     try {
-      SystemLogger.info(`Reorganizing ${tableName} for connection ${connectionId}`, {
+      await SystemLogger.logSystem(`Reorganizing ${tableName} for connection ${connectionId}`, "info", {
         targetLimit,
         currentLimit,
       })
@@ -197,7 +197,7 @@ export class PositionThresholdManager {
         [connectionId, targetLimit],
       )
 
-      SystemLogger.info(`Reorganization complete for ${tableName}`, {
+      await SystemLogger.logSystem(`Reorganization complete for ${tableName}`, "info", {
         connectionId,
         deletedCount: deleted.rowCount || 0,
         remainingLimit: targetLimit,
@@ -212,7 +212,7 @@ export class PositionThresholdManager {
         ["threshold_reorganization", tableName, connectionId, deleted.rowCount || 0, deleted.rowCount || 0, "success"],
       )
     } catch (error) {
-      SystemLogger.error(`Failed to reorganize ${tableName} for connection ${connectionId}`, { error })
+      await SystemLogger.logError(error, "database", `Reorganize ${tableName} for ${connectionId}`)
 
       // Log failure
       await execute(
@@ -240,14 +240,14 @@ export class PositionThresholdManager {
       const currentSizeGB = currentSizeMB / 1024
       const maxSizeMB = maxSizeGB * 1024
 
-      SystemLogger.info("Database size check", {
+      await SystemLogger.logSystem("Database size check", "info", {
         currentSizeMB: currentSizeMB.toFixed(2),
         maxSizeMB: maxSizeMB.toFixed(2),
         utilizationPercent: ((currentSizeMB / maxSizeMB) * 100).toFixed(2),
       })
 
       if (currentSizeMB > maxSizeMB * 0.9) {
-        SystemLogger.warn("Database approaching size limit", {
+        await SystemLogger.logSystem("Database approaching size limit", "warn", {
           currentSizeGB: currentSizeGB.toFixed(2),
           maxSizeGB,
         })
@@ -256,7 +256,7 @@ export class PositionThresholdManager {
         await this.aggressiveCleanup()
       }
     } catch (error) {
-      SystemLogger.error("Failed to check database size", { error })
+      await SystemLogger.logError(error, "database", "Database size check")
     }
   }
 
@@ -264,7 +264,7 @@ export class PositionThresholdManager {
    * Aggressive cleanup when database size limit is approached
    */
   private async aggressiveCleanup(): Promise<void> {
-    SystemLogger.warn("Starting aggressive database cleanup")
+    await SystemLogger.logSystem("Starting aggressive database cleanup", "warn")
 
     try {
       // Archive and delete very old archived positions (>90 days)
@@ -294,9 +294,9 @@ export class PositionThresholdManager {
       // Vacuum database to reclaim space
       await execute(`VACUUM ANALYZE`)
 
-      SystemLogger.info("Aggressive cleanup completed")
+      await SystemLogger.logSystem("Aggressive cleanup completed", "info")
     } catch (error) {
-      SystemLogger.error("Aggressive cleanup failed", { error })
+      await SystemLogger.logError(error, "database", "Aggressive cleanup")
     }
   }
 
