@@ -1,5 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/db"
+import type { LogRow } from "@/lib/types"
+
+interface LogStats {
+  total: number
+  byLevel: Record<string, number>
+  byCategory: Record<string, number>
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +21,7 @@ export async function GET(request: NextRequest) {
     const isPostgreSQL = databaseUrl.startsWith("postgresql://")
 
     let sql = "SELECT * FROM site_logs WHERE 1=1"
-    const params: any[] = []
+    const params: (string | number)[] = []
     let paramIndex = 1
 
     if (level) {
@@ -44,18 +51,26 @@ export async function GET(request: NextRequest) {
     params.push(limit)
     sql += isPostgreSQL ? ` ORDER BY timestamp DESC LIMIT $${paramIndex}` : ` ORDER BY timestamp DESC LIMIT ?`
 
-    const logs = await query(sql, params)
+    const logs = await query<LogRow>(sql, params)
 
-    const stats = {
+    const stats: LogStats = {
       total: logs.length,
-      byLevel: logs.reduce((acc: any, log: any) => {
-        acc[log.level] = (acc[log.level] || 0) + 1
-        return acc
-      }, {}),
-      byCategory: logs.reduce((acc: any, log: any) => {
-        acc[log.category || "unknown"] = (acc[log.category || "unknown"] || 0) + 1
-        return acc
-      }, {}),
+      byLevel: logs.reduce(
+        (acc, log) => {
+          const level = log.level || "unknown"
+          acc[level] = (acc[level] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      ),
+      byCategory: logs.reduce(
+        (acc, log) => {
+          const category = log.category || "unknown"
+          acc[category] = (acc[category] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      ),
     }
 
     return NextResponse.json({ logs, stats })

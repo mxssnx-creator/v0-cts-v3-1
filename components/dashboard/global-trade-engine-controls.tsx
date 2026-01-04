@@ -15,6 +15,9 @@ interface EngineStatus {
   totalProfit: number
   uptime: number
   lastUpdate: Date
+  testing_progress?: number
+  error?: string
+  message?: string
   cycleStats?: {
     mainEngineCycleCount: number
     presetEngineCycleCount: number
@@ -43,7 +46,7 @@ export function GlobalTradeEngineControls() {
     try {
       const response = await fetch("/api/trade-engine/status")
       if (response.ok) {
-        const data = await response.json()
+        const data: EngineStatus = await response.json()
         setStatus(data)
       }
     } catch (error) {

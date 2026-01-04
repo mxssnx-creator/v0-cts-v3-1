@@ -253,3 +253,5 @@ export function IndicationFilters({ filters, onFiltersChange }: IndicationFilter
     </Card>
   )
 }
+
+export { IndicationFilters as IndicationFiltersComponent }

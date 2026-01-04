@@ -9,6 +9,8 @@ import { ConnectionCard } from "@/components/dashboard/connection-card"
 import { SystemOverview } from "@/components/dashboard/system-overview"
 import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
+import { SystemDiagnostics } from "@/components/dashboard/system-diagnostics"
+import { SystemHealthPanel } from "@/components/dashboard/system-health-panel"
 import type { ExchangeConnection } from "@/lib/types"
 import { RefreshCw, Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -427,6 +429,10 @@ export default function Dashboard() {
           </div>
 
           <SystemOverview stats={systemStats} />
+
+          <SystemDiagnostics />
+
+          <SystemHealthPanel />
         </div>
       </div>
     </AuthGuard>

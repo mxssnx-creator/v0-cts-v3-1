@@ -1,5 +1,10 @@
 import crypto from "crypto"
-import { BaseExchangeConnector, type ExchangeConnectorResult } from "./base-connector"
+import {
+  BaseExchangeConnector,
+  type ExchangeConnectorResult,
+  type OrderParams,
+  type OrderResult,
+} from "./base-connector"
 
 export class BinanceConnector extends BaseExchangeConnector {
   private getBaseUrl(): string {
@@ -78,6 +83,62 @@ export class BinanceConnector extends BaseExchangeConnector {
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
       throw error
+    }
+  }
+
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    this.resetLogs()
+    this.log("Placing order on Binance...")
+    this.log(`Symbol: ${params.symbol}, Side: ${params.side}, Type: ${params.type}, Qty: ${params.quantity}`)
+
+    const timestamp = Date.now()
+    const baseUrl = this.getBaseUrl()
+
+    try {
+      let queryString = `symbol=${params.symbol}&side=${params.side.toUpperCase()}&type=${params.type.toUpperCase()}&quantity=${params.quantity}&timestamp=${timestamp}`
+
+      if (params.type === "limit" && params.price) {
+        queryString += `&price=${params.price}&timeInForce=${params.timeInForce || "GTC"}`
+      }
+
+      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+      queryString += `&signature=${signature}`
+
+      this.log("Sending order request...")
+
+      const response = await this.rateLimitedFetch(`${baseUrl}/fapi/v1/order?${queryString}`, {
+        method: "POST",
+        headers: {
+          "X-MBX-APIKEY": this.credentials.apiKey,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        this.logError(`Order failed: ${data.msg || "Unknown error"}`)
+        return {
+          success: false,
+          error: data.msg || "Order placement failed",
+          logs: this.logs,
+        }
+      }
+
+      this.log(`Order placed successfully: ${data.orderId}`)
+
+      return {
+        success: true,
+        orderId: data.orderId.toString(),
+        clientOrderId: data.clientOrderId,
+        logs: this.logs,
+      }
+    } catch (error) {
+      this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Order placement failed",
+        logs: this.logs,
+      }
     }
   }
 }

@@ -1,5 +1,10 @@
 import crypto from "crypto"
-import { BaseExchangeConnector, type ExchangeConnectorResult } from "./base-connector"
+import {
+  BaseExchangeConnector,
+  type ExchangeConnectorResult,
+  type OrderParams,
+  type OrderResult,
+} from "./base-connector"
 
 export class PionexConnector extends BaseExchangeConnector {
   private getBaseUrl(): string {
@@ -81,6 +86,75 @@ export class PionexConnector extends BaseExchangeConnector {
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
       throw error
+    }
+  }
+
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    this.resetLogs()
+    this.log("Placing order on Pionex...")
+    this.log(`Symbol: ${params.symbol}, Side: ${params.side}, Type: ${params.type}, Qty: ${params.quantity}`)
+
+    const timestamp = Date.now()
+    const baseUrl = this.getBaseUrl()
+
+    try {
+      const orderData: any = {
+        symbol: params.symbol,
+        side: params.side.toUpperCase(),
+        type: params.type.toUpperCase(),
+        quantity: params.quantity.toString(),
+        timestamp,
+      }
+
+      if (params.type === "limit" && params.price) {
+        orderData.price = params.price.toString()
+        orderData.timeInForce = params.timeInForce || "GTC"
+      }
+
+      const queryString = Object.keys(orderData)
+        .sort()
+        .map((key) => `${key}=${orderData[key]}`)
+        .join("&")
+      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+
+      this.log("Sending order request...")
+
+      const response = await this.rateLimitedFetch(
+        `${baseUrl}/api/v1/trade/order?${queryString}&signature=${signature}`,
+        {
+          method: "POST",
+          headers: {
+            "PIONEX-KEY": this.credentials.apiKey,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+
+      const data = await response.json()
+
+      if (!response.ok || !data.result) {
+        this.logError(`Order failed: ${data.message || "Unknown error"}`)
+        return {
+          success: false,
+          error: data.message || "Order placement failed",
+          logs: this.logs,
+        }
+      }
+
+      this.log(`Order placed successfully: ${data.data.orderId}`)
+
+      return {
+        success: true,
+        orderId: data.data.orderId.toString(),
+        logs: this.logs,
+      }
+    } catch (error) {
+      this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Order placement failed",
+        logs: this.logs,
+      }
     }
   }
 }

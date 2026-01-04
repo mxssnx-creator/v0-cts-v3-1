@@ -29,6 +29,14 @@ export async function register() {
         console.log("[v0] Initialization completed in", duration, "ms")
         console.log("[v0] System is ready to accept requests")
         console.log("=".repeat(60))
+
+        try {
+          const { positionThresholdManager } = await import("./lib/position-threshold-manager")
+          await positionThresholdManager.startMonitoring(60000) // Check every minute
+          console.log("[v0] ✅ Position threshold monitoring started")
+        } catch (error) {
+          console.error("[v0] ⚠️  Failed to start position threshold monitoring:", error)
+        }
       } else {
         console.log("=".repeat(60))
         console.error("[v0] ❌ DEPLOYMENT INITIALIZATION FAILED")

@@ -199,3 +199,5 @@ export class PositionManager {
     }
   }
 }
+
+export const positionManager = new PositionManager()

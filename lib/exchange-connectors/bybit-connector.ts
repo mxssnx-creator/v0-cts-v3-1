@@ -1,5 +1,10 @@
 import crypto from "crypto"
-import { BaseExchangeConnector, type ExchangeConnectorResult } from "./base-connector"
+import {
+  BaseExchangeConnector,
+  type ExchangeConnectorResult,
+  type OrderParams,
+  type OrderResult,
+} from "./base-connector"
 
 export class BybitConnector extends BaseExchangeConnector {
   private getBaseUrl(): string {
@@ -94,6 +99,76 @@ export class BybitConnector extends BaseExchangeConnector {
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
       throw error
+    }
+  }
+
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    this.resetLogs()
+    this.log("Placing order on Bybit...")
+    this.log(`Symbol: ${params.symbol}, Side: ${params.side}, Type: ${params.type}, Qty: ${params.quantity}`)
+
+    const timestamp = Date.now()
+    const baseUrl = this.getBaseUrl()
+
+    try {
+      const orderParams: any = {
+        category: "linear",
+        symbol: params.symbol,
+        side: params.side.toUpperCase(),
+        orderType: params.type.toUpperCase(),
+        qty: params.quantity.toString(),
+      }
+
+      if (params.type === "limit" && params.price) {
+        orderParams.price = params.price.toString()
+        orderParams.timeInForce = params.timeInForce || "GTC"
+      }
+
+      const paramsString = JSON.stringify(orderParams)
+      const recvWindow = "5000"
+      const signString = timestamp + this.credentials.apiKey + recvWindow + paramsString
+      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(signString).digest("hex")
+
+      this.log("Sending order request...")
+
+      const response = await this.rateLimitedFetch(`${baseUrl}/v5/order/create`, {
+        method: "POST",
+        headers: {
+          "X-BAPI-API-KEY": this.credentials.apiKey,
+          "X-BAPI-SIGN": signature,
+          "X-BAPI-TIMESTAMP": timestamp.toString(),
+          "X-BAPI-RECV-WINDOW": recvWindow,
+          "Content-Type": "application/json",
+        },
+        body: paramsString,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.retCode !== 0) {
+        this.logError(`Order failed: ${data.retMsg || "Unknown error"}`)
+        return {
+          success: false,
+          error: data.retMsg || "Order placement failed",
+          logs: this.logs,
+        }
+      }
+
+      this.log(`Order placed successfully: ${data.result.orderId}`)
+
+      return {
+        success: true,
+        orderId: data.result.orderId,
+        clientOrderId: data.result.orderLinkId,
+        logs: this.logs,
+      }
+    } catch (error) {
+      this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Order placement failed",
+        logs: this.logs,
+      }
     }
   }
 }

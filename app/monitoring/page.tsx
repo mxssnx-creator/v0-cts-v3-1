@@ -18,7 +18,9 @@ import {
   Globe,
   RefreshCw,
   MessageSquare,
+  Heart,
 } from "lucide-react"
+import { SystemHealthPanel } from "@/components/dashboard/system-health-panel"
 import type { JSX } from "react/jsx-runtime"
 
 type LogLevel = "info" | "warning" | "error" | "debug"
@@ -361,8 +363,9 @@ export default function MonitoringPage() {
       </div>
 
       <Tabs defaultValue="states" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="states">System States</TabsTrigger>
+          <TabsTrigger value="health">Health Monitor</TabsTrigger>
           <TabsTrigger value="site">Site Logs</TabsTrigger>
           <TabsTrigger value="toasts">Toast Messages</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
@@ -443,6 +446,25 @@ export default function MonitoringPage() {
                   <div className="text-2xl font-bold">{toastLogs.length}</div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="health" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Heart className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle>System Health Monitor</CardTitle>
+                  <CardDescription>
+                    Real-time health checks for all critical system components with actionable diagnostics
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <SystemHealthPanel />
             </CardContent>
           </Card>
         </TabsContent>

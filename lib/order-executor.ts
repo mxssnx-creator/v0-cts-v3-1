@@ -2,6 +2,7 @@ import { sql } from "./db"
 import { getExchangeConnector } from "./exchange-connectors"
 import { SystemLogger } from "./system-logger"
 import { getRateLimiter } from "./rate-limiter"
+import type { BaseExchangeConnector, OrderResult, OrderRow } from "./exchange-connector-types"
 
 export interface OrderParams {
   connection_id: string
@@ -200,17 +201,10 @@ export class OrderExecutor {
   }
 
   private async placeOrderOnExchange(
-    connector: any,
+    connector: BaseExchangeConnector,
     exchange: string,
     params: OrderParams,
-  ): Promise<{
-    success: boolean
-    orderId?: string
-    status?: string
-    filledQty?: number
-    avgPrice?: number
-    error?: string
-  }> {
+  ): Promise<OrderResult> {
     try {
       const rateLimiter = getRateLimiter(exchange)
 
@@ -239,7 +233,7 @@ export class OrderExecutor {
     }
   }
 
-  private async placeBybitOrder(connector: any, params: OrderParams): Promise<any> {
+  private async placeBybitOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = connector.credentials.isTestnet ? "https://api-testnet.bybit.com" : "https://api.bybit.com"
 
     const payload = {
@@ -286,7 +280,7 @@ export class OrderExecutor {
     }
   }
 
-  private async placeBinanceOrder(connector: any, params: OrderParams): Promise<any> {
+  private async placeBinanceOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = connector.credentials.isTestnet ? "https://testnet.binancefuture.com" : "https://fapi.binance.com"
 
     const timestamp = Date.now()
@@ -339,7 +333,7 @@ export class OrderExecutor {
     }
   }
 
-  private async placeBingXOrder(connector: any, params: OrderParams): Promise<any> {
+  private async placeBingXOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = "https://open-api.bingx.com"
 
     const timestamp = Date.now()
@@ -386,7 +380,7 @@ export class OrderExecutor {
     }
   }
 
-  private async placePionexOrder(connector: any, params: OrderParams): Promise<any> {
+  private async placePionexOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = "https://api.pionex.com"
 
     const timestamp = Date.now()
@@ -436,7 +430,7 @@ export class OrderExecutor {
     }
   }
 
-  private async placeOrangeXOrder(connector: any, params: OrderParams): Promise<any> {
+  private async placeOrangeXOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = "https://api.orangex.com"
 
     const timestamp = Date.now()
@@ -517,7 +511,7 @@ export class OrderExecutor {
     }
   }
 
-  async getOrderStatus(orderId: string, connectionId: string): Promise<any> {
+  async getOrderStatus(orderId: string, connectionId: string): Promise<OrderRow | null> {
     try {
       const [order] = await sql`
         SELECT o.*, ec.exchange, ec.api_key, ec.api_secret, ec.testnet
@@ -533,3 +527,5 @@ export class OrderExecutor {
     }
   }
 }
+
+export const orderExecutor = new OrderExecutor()

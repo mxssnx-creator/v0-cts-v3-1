@@ -21,7 +21,8 @@ export {
   getGlobalCoordinator,
   initializeTradeEngine,
   initializeGlobalCoordinator,
-  type GlobalTradeEngineCoordinator,
+  isTradeEngineTypeEnabled,
+  GlobalTradeEngineCoordinator,
   type TradeEngineInterface,
   type EngineStatus,
   type ConnectionStatus,
@@ -41,6 +42,11 @@ export {
   TradeEngineManager,
   type EngineConfig,
 } from "./engine-manager"
+
+export { PseudoPositionManager } from "./pseudo-position-manager"
+export { IndicationProcessor } from "./indication-processor"
+export { StrategyProcessor } from "./strategy-processor"
+export { RealtimeProcessor } from "./realtime-processor"
 
 // Re-export for compatibility
 export { getTradeEngine as getGlobalTradeEngine } from "../trade-engine"

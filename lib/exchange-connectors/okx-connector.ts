@@ -1,5 +1,10 @@
 import crypto from "crypto"
-import { BaseExchangeConnector, type ExchangeConnectorResult } from "./base-connector"
+import {
+  BaseExchangeConnector,
+  type ExchangeConnectorResult,
+  type OrderParams,
+  type OrderResult,
+} from "./base-connector"
 
 export class OKXConnector extends BaseExchangeConnector {
   private getBaseUrl(): string {
@@ -87,6 +92,77 @@ export class OKXConnector extends BaseExchangeConnector {
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
       throw error
+    }
+  }
+
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    this.resetLogs()
+    this.log("Placing order on OKX...")
+    this.log(`Symbol: ${params.symbol}, Side: ${params.side}, Type: ${params.type}, Qty: ${params.quantity}`)
+
+    const timestamp = new Date().toISOString()
+    const baseUrl = this.getBaseUrl()
+
+    try {
+      const orderData: any = {
+        instId: params.symbol,
+        tdMode: "cross",
+        side: params.side,
+        ordType: params.type,
+        sz: params.quantity.toString(),
+      }
+
+      if (params.type === "limit" && params.price) {
+        orderData.px = params.price.toString()
+      }
+
+      const requestBody = JSON.stringify([orderData])
+      const method = "POST"
+      const requestPath = "/api/v5/trade/order"
+      const prehash = timestamp + method + requestPath + requestBody
+      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(prehash).digest("base64")
+
+      this.log("Sending order request...")
+
+      const response = await this.rateLimitedFetch(`${baseUrl}${requestPath}`, {
+        method: "POST",
+        headers: {
+          "OK-ACCESS-KEY": this.credentials.apiKey,
+          "OK-ACCESS-SIGN": signature,
+          "OK-ACCESS-TIMESTAMP": timestamp,
+          "OK-ACCESS-PASSPHRASE": this.credentials.apiPassphrase || "",
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.code !== "0") {
+        this.logError(`Order failed: ${data.msg || "Unknown error"}`)
+        return {
+          success: false,
+          error: data.msg || "Order placement failed",
+          logs: this.logs,
+        }
+      }
+
+      const orderResult = data.data[0]
+      this.log(`Order placed successfully: ${orderResult.ordId}`)
+
+      return {
+        success: true,
+        orderId: orderResult.ordId,
+        clientOrderId: orderResult.clOrdId,
+        logs: this.logs,
+      }
+    } catch (error) {
+      this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Order placement failed",
+        logs: this.logs,
+      }
     }
   }
 }

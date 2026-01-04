@@ -251,4 +251,7 @@ class ConnectionStateManager extends EventEmitter {
   }
 }
 
-export const connectionStateManager = new ConnectionStateManager()
+const connectionStateManager = new ConnectionStateManager()
+
+export { ConnectionStateManager }
+export default connectionStateManager

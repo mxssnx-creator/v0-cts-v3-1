@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ExchangeConnectionSettingsDialog } from "@/components/settings/exchange-connection-settings-dialog"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import type { ExchangeConnection } from "@/lib/types"
+import type { ExchangeConnection, PresetCoordinationStatus, ConnectionSettingsResponse } from "@/lib/types"
 import { Activity, AlertCircle, CheckCircle, Trash2, Settings, BarChart3, Info } from "lucide-react"
 
 interface ConnectionCardProps {
@@ -34,6 +34,15 @@ interface ConnectionCardProps {
 }
 
 interface PresetType {
+  id: string
+  name: string
+  description?: string
+  is_active: boolean
+  preset_trade_type: string
+}
+
+// Assuming PresetTypeResponse is similar to PresetType but might have more fields or a different structure for API responses
+interface PresetTypeResponse {
   id: string
   name: string
   description?: string
@@ -100,7 +109,7 @@ export function ConnectionCard({
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   const [selectedPresetType, setSelectedPresetType] = useState<string>(connection.preset_type_id || "")
   const [availablePresetTypes, setAvailablePresetTypes] = useState<PresetType[]>([])
-  const [engineStatus, setEngineStatus] = useState<any>(null)
+  const [engineStatus, setEngineStatus] = useState<PresetCoordinationStatus | null>(null)
   const [testingProgress, setTestingProgress] = useState(0)
   const [volumeFactorLive, setVolumeFactorLive] = useState(1.0)
   const [volumeFactorPreset, setVolumeFactorPreset] = useState(1.0)
@@ -124,11 +133,12 @@ export function ConnectionCard({
       try {
         const response = await fetch("/api/preset-types")
         if (response.ok) {
-          const data = await response.json()
-          setAvailablePresetTypes(data.filter((p: PresetType) => p.is_active))
+          const data: PresetTypeResponse[] = await response.json()
+          setAvailablePresetTypes(data.filter((p) => p.is_active))
         }
       } catch (error) {
         console.error("[v0] Failed to load preset types:", error)
+        toast.error("Failed to load preset types")
       }
     }
 
@@ -167,13 +177,14 @@ export function ConnectionCard({
         }
       } catch (error) {
         console.error("[v0] Failed to load connection info:", error)
+        toast.error("Failed to load connection info")
       }
     }
 
     if (showInfo) {
       loadConnectionInfo()
     }
-  }, [showInfo])
+  }, [showInfo, connection.id])
 
   useEffect(() => {
     const loadPresetConfig = async () => {
@@ -207,7 +218,7 @@ export function ConnectionCard({
       try {
         const response = await fetch(`/api/settings/connections/${connection.id}/settings`)
         if (response.ok) {
-          const settings = await response.json()
+          const settings: ConnectionSettingsResponse = await response.json()
           setVolumeFactorLive(settings.baseVolumeFactorLive || 1.0)
           setVolumeFactorPreset(settings.baseVolumeFactorPreset || 1.0)
         }
@@ -496,6 +507,38 @@ export function ConnectionCard({
     setEngineStatus(null)
   }
 
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null
+
+    const startStatusPolling = () => {
+      if (!selectedPresetType) return
+
+      intervalId = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/preset-coordination-engine/${connection.id}/${selectedPresetType}/status`)
+
+          if (response.ok) {
+            const status: PresetCoordinationStatus = await response.json()
+            setEngineStatus(status)
+            setTestingProgress(status.testing_progress || 0)
+          }
+        } catch (error) {
+          console.error("[v0] Error fetching engine status:", error)
+        }
+      }, 2000)
+    }
+
+    if (presetTradeEnabled && selectedPresetType) {
+      startStatusPolling()
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    }
+  }, [presetTradeEnabled, selectedPresetType, connection.id])
+
   const updateVolumeFactor = async (type: "live" | "preset", value: number) => {
     try {
       // Validate value range
@@ -504,7 +547,7 @@ export function ConnectionCard({
       const response = await fetch(`/api/settings/connections/${connection.id}/settings`)
       if (!response.ok) throw new Error("Failed to load settings")
 
-      const currentSettings = await response.json()
+      const currentSettings: ConnectionSettingsResponse = await response.json()
       const settingKey = type === "live" ? "baseVolumeFactorLive" : "baseVolumeFactorPreset"
 
       const updatedSettings = {
@@ -529,7 +572,7 @@ export function ConnectionCard({
       toast.success(`${type === "live" ? "Live" : "Preset"} volume factor updated to ${validatedValue.toFixed(1)}`)
     } catch (error) {
       console.error("[v0] Failed to update volume factor:", error)
-      toast.error("Failed to update volume factor")
+      toast.error(error instanceof Error ? error.message : "Failed to update volume factor")
     }
   }
 

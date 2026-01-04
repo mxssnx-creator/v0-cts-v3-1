@@ -4,9 +4,62 @@ import DatabaseManager from "@/lib/database"
 import { EntityTypes, ConfigSubTypes } from "@/lib/core/entity-types"
 import { sql } from "slonik"
 
+interface AutoOptimalConfig {
+  symbol_mode: string
+  exchange_order_by: string
+  symbol_limit: number
+  indication_type: string
+  indication_params: Record<string, unknown>
+  takeprofit_min: number
+  takeprofit_max: number
+  stoploss_min: number
+  stoploss_max: number
+  trailing_enabled: boolean
+  trailing_only: boolean
+  min_profit_factor: number
+  min_profit_factor_positions: number
+  max_drawdown_time_hours: number
+  use_block: boolean
+  use_dca: boolean
+  additional_strategies_only: boolean
+  calculation_days: number
+  max_positions_per_direction: number
+  max_positions_per_symbol: number
+}
+
+interface ParameterCombination {
+  takeprofit: number
+  stoploss: number
+  trailing_enabled: boolean
+  use_block: boolean
+  use_dca: boolean
+}
+
+interface HistoricalPosition {
+  id: string
+  entry_price: string
+  max_price?: string
+  min_price?: string
+  side: "buy" | "sell"
+  pnl?: string
+  created_at: string
+  closed_at?: string
+  status: string
+}
+
+interface SimulationResult extends ParameterCombination {
+  profitFactor: number
+  winRate: number
+  totalPnL: number
+  totalPositions: number
+  winningTrades: number
+  losingTrades: number
+  drawdownTimeHours: number
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const config = await request.json()
+    const config: AutoOptimalConfig = await request.json()
 
     const dbManager = DatabaseManager.getInstance()
 
@@ -39,11 +92,9 @@ export async function POST(request: NextRequest) {
     })
 
     console.log(`[v0] Auto-optimal config created using dynamic operations: ${configId}`)
-
     console.log(`[v0] Starting auto-optimal calculation for config: ${configId}`)
 
-    // Fetch historical positions for analysis
-    const historicalPositions = await sql`
+    const historicalPositions = await sql<HistoricalPosition>`
       SELECT * FROM pseudo_positions
       WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '${config.calculation_days} days'
       AND status = 'closed'
@@ -56,7 +107,7 @@ export async function POST(request: NextRequest) {
     const testCombinations = generateParameterCombinations(config)
 
     // Run simulations for each combination
-    const simulationResults = []
+    const simulationResults: SimulationResult[] = []
     for (const combination of testCombinations) {
       const result = await simulateConfiguration(combination, historicalPositions)
 
@@ -97,8 +148,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateParameterCombinations(config: any): any[] {
-  const combinations = []
+function generateParameterCombinations(config: AutoOptimalConfig): ParameterCombination[] {
+  const combinations: ParameterCombination[] = []
 
   // Generate TP/SL combinations
   const tpStep = (config.takeprofit_max - config.takeprofit_min) / 5
@@ -119,7 +170,10 @@ function generateParameterCombinations(config: any): any[] {
   return combinations
 }
 
-async function simulateConfiguration(combination: any, positions: any[]): Promise<any> {
+async function simulateConfiguration(
+  combination: ParameterCombination,
+  positions: HistoricalPosition[],
+): Promise<SimulationResult> {
   // Simulate how positions would have performed with this configuration
   let totalPnL = 0
   let winningTrades = 0
@@ -155,7 +209,7 @@ async function simulateConfiguration(combination: any, positions: any[]): Promis
   }
 }
 
-function calculateSimulatedPnL(position: any, config: any): number {
+function calculateSimulatedPnL(position: HistoricalPosition, config: ParameterCombination): number {
   // Simplified simulation - in reality would need more complex logic
   const entryPrice = Number.parseFloat(position.entry_price || "0")
   const maxPrice = Number.parseFloat(position.max_price || entryPrice.toString())

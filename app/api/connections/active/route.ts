@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { query } from "@/lib/db"
+import type { ConnectionRow } from "@/lib/types"
 
 export async function GET() {
   try {
-    const connections = await query(
+    const connections = await query<ConnectionRow>(
       `SELECT 
         id, 
         name, 
@@ -20,8 +21,9 @@ export async function GET() {
     )
 
     return NextResponse.json(connections)
-  } catch (error: any) {
+  } catch (error) {
     console.error("[API] Error fetching active connections:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

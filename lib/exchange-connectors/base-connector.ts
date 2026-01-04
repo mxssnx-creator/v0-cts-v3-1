@@ -1,8 +1,3 @@
-/**
- * Base Exchange Connector Interface
- * All exchange connectors must implement this interface for consistency
- */
-
 import { getRateLimiter } from "@/lib/rate-limiter"
 
 export interface ExchangeCredentials {
@@ -28,14 +23,33 @@ export interface ExchangeConnectorResult {
   logs: string[]
 }
 
+export interface OrderResult {
+  success: boolean
+  orderId?: string
+  clientOrderId?: string
+  error?: string
+  logs: string[]
+}
+
+export interface OrderParams {
+  symbol: string
+  side: "buy" | "sell"
+  type: "market" | "limit"
+  quantity: number
+  price?: number
+  timeInForce?: "GTC" | "IOC" | "FOK"
+}
+
 export abstract class BaseExchangeConnector {
   protected credentials: ExchangeCredentials
   protected logs: string[] = []
   protected timeout = 10000 // 10 seconds
   protected rateLimiter: ReturnType<typeof getRateLimiter>
+  protected exchange: string
 
   constructor(credentials: ExchangeCredentials, exchange: string) {
     this.credentials = credentials
+    this.exchange = exchange
     this.rateLimiter = getRateLimiter(exchange)
   }
 
@@ -67,20 +81,30 @@ export abstract class BaseExchangeConnector {
         return response
       } catch (error) {
         clearTimeout(timeoutId)
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error(`Request timeout after ${this.timeout}ms`)
+        }
         throw error
       }
     })
   }
 
+  protected resetLogs(): void {
+    this.logs = []
+  }
+
   abstract testConnection(): Promise<ExchangeConnectorResult>
   abstract getBalance(): Promise<ExchangeConnectorResult>
   abstract getCapabilities(): string[]
+  abstract placeOrder(params: OrderParams): Promise<OrderResult>
 
   async cancelOrder(orderId: string, symbol: string): Promise<boolean> {
-    throw new Error("cancelOrder not implemented for this exchange")
+    this.logError(`cancelOrder not implemented for ${this.exchange}`)
+    return false
   }
 
   async getPositions(): Promise<any[]> {
-    throw new Error("getPositions not implemented for this exchange")
+    this.logError(`getPositions not implemented for ${this.exchange}`)
+    return []
   }
 }

@@ -153,11 +153,12 @@ Market Data → Indication Processing → Strategy Evaluation → Position Manag
 
 ## Documentation
 
+- **[PROJECT_COMPLETE_DOCUMENTATION_V3.1.md](PROJECT_COMPLETE_DOCUMENTATION_V3.1.md)** - Complete system guide with architecture, API, database schema
+- **[SYSTEM_LOGISTICS_COMPLETE.md](SYSTEM_LOGISTICS_COMPLETE.md)** - Position threshold system, performance optimizations, monitoring
 - [INSTALL.md](INSTALL.md) - Installation guide
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment options
 - [DATABASE_SETUP.md](DATABASE_SETUP.md) - Database configuration
 - [SETTINGS_DOCUMENTATION.md](SETTINGS_DOCUMENTATION.md) - Settings reference
-- [VOLUME_CALCULATION_CORRECTIONS.md](VOLUME_CALCULATION_CORRECTIONS.md) - Volume architecture
 
 ## Tech Stack
 

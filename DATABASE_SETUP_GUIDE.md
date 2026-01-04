@@ -180,6 +180,6 @@ If you continue to have database issues:
 2. Verify all environment variables are set correctly
 3. Test database connectivity outside the app
 4. Ensure PostgreSQL version is 12 or higher
-```
+5. Contact support with error details if problems persist
 
-```typescript file="" isHidden
+For additional help, see the [Troubleshooting Guide](./BUILD_TROUBLESHOOTING.md) or [Database Credentials Guide](./DATABASE_CREDENTIALS.md).

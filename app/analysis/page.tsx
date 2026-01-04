@@ -11,6 +11,13 @@ import type { SymbolAnalysis } from "@/lib/position-calculator"
 import { CalculationDemo } from "@/components/analysis/calculation-demo"
 import { TrendingUp, TrendingDown, Activity, DollarSign, Clock, Target } from "lucide-react"
 
+interface Connection {
+  id: string
+  name: string
+  exchange: string
+  is_enabled: boolean
+}
+
 interface ActivePosition {
   id: string
   symbol: string
@@ -42,7 +49,7 @@ export default function AnalysisPage() {
   const [symbolAnalysis, setSymbolAnalysis] = useState<SymbolAnalysis | null>(null)
   const [activePositions, setActivePositions] = useState<ActivePosition[]>([])
   const [positionStats, setPositionStats] = useState<PositionStats | null>(null)
-  const [connections, setConnections] = useState<any[]>([])
+  const [connections, setConnections] = useState<Connection[]>([])
   const [selectedConnection, setSelectedConnection] = useState<string>("all")
   const [loading, setLoading] = useState(true)
 

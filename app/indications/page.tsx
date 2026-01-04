@@ -6,27 +6,53 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { IndicationBar } from "@/components/indications/indication-bar"
-import { IndicationFilters } from "@/components/indications/indication-filters"
+import { IndicationFilters as Filters } from "@/components/indications/indication-filters"
 import { Activity, TrendingUp, BarChart3, Settings, RefreshCw } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
+
+interface Indication {
+  id: string
+  symbol: string
+  type: string
+  range: number
+  profitFactor: number
+  isActive: boolean
+  subConfigurations?: Array<{
+    trailingEnabled: boolean
+    blockEnabled: boolean
+    dcaEnabled: boolean
+  }>
+}
+
+interface IndicationFilters {
+  type: string[]
+  rangeMin: number
+  rangeMax: number
+  profitFactorMin: number
+  symbolFilter: string
+  trailingFilter: "no" | "yes" | "only"
+  adjustBlock: "no" | "yes" | "only"
+  adjustDca: "no" | "yes" | "only"
+  activeOnly: boolean
+}
 
 export default function IndicationsPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [isLoading, setIsLoading] = useState(true)
   const [minimalProfitFactor, setMinimalProfitFactor] = useState(0.5)
-  const [filters, setFilters] = useState({
-    type: [] as string[],
+  const [filters, setFilters] = useState<IndicationFilters>({
+    type: [],
     rangeMin: 3,
     rangeMax: 30,
     profitFactorMin: 0.5,
     symbolFilter: "",
-    trailingFilter: "no" as "no" | "yes" | "only",
-    adjustBlock: "no" as "no" | "yes" | "only",
-    adjustDca: "no" as "no" | "yes" | "only",
+    trailingFilter: "no",
+    adjustBlock: "no",
+    adjustDca: "no",
     activeOnly: false,
   })
 
-  const [indications, setIndications] = useState<any[]>([])
+  const [indications, setIndications] = useState<Indication[]>([])
 
   useEffect(() => {
     const loadIndications = async () => {
@@ -195,7 +221,7 @@ export default function IndicationsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Filters */}
         <div className="lg:col-span-1">
-          <IndicationFilters filters={filters} onFiltersChange={setFilters} />
+          <Filters filters={filters} onFiltersChange={setFilters} />
         </div>
 
         {/* Indications List */}
