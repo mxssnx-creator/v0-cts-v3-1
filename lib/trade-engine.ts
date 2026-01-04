@@ -144,6 +144,8 @@ export interface ComponentHealth {
   successRate: number
 }
 
+import { query } from "./db"
+
 /**
  * Check if a specific trade engine type is enabled
  * @param engineType - The type of engine to check ('main' or 'preset')
@@ -151,7 +153,6 @@ export interface ComponentHealth {
  */
 export async function isTradeEngineTypeEnabled(engineType: "main" | "preset"): Promise<boolean> {
   try {
-    const { query } = await import("./db")
     const settingKey = engineType === "main" ? "mainTradeEngineEnabled" : "presetTradeEngineEnabled"
     const result = await query("SELECT value FROM system_settings WHERE key = $1", [settingKey])
 
