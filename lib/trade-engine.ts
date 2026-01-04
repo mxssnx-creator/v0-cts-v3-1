@@ -18,8 +18,7 @@
  */
 
 import { type ExchangeConfig, createExchangeAPI } from "./exchanges"
-import type { StrategyResult } from "./strategies"
-import type { IndicationResult } from "./indications"
+import type { StrategyConfig } from "./strategies"
 import { SystemLogger } from "./system-logger"
 import DatabaseManager from "./database"
 
@@ -90,8 +89,8 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
   private paused = false
   private exchanges: Map<string, any> = new Map()
   private connectionConfigs: Map<string, ExchangeConfig> = new Map()
-  private strategies: StrategyResult[] = []
-  private indications: IndicationResult[] = []
+  private strategies: StrategyConfig[] = []
+  private indications: any[] = []
   private positions: Map<string, any[]> = new Map()
   private startTime?: Date
   private pauseTime?: Date
@@ -126,7 +125,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
     activeOrderErrors: 0,
   }
 
-  constructor(strategies: StrategyResult[], indications: IndicationResult[]) {
+  constructor(strategies: StrategyConfig[], indications: any) {
     this.strategies = strategies
     this.indications = indications
     this.loadSettings()
@@ -840,7 +839,7 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
     this.statsCache = null
   }
 
-  private async generatePseudoPositions(indication: IndicationResult): Promise<any[]> {
+  private async generatePseudoPositions(indication: any): Promise<any[]> {
     const positions = []
     const indicationAny = indication as any
     const connectionId = indicationAny.connectionId
@@ -1008,12 +1007,12 @@ export class GlobalTradeEngineCoordinator implements TradeEngineInterface {
     return totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999 : 0
   }
 
-  private async evaluateStrategy(strategy: StrategyResult, connectionId: string): Promise<boolean> {
+  private async evaluateStrategy(strategy: StrategyConfig, connectionId: string): Promise<boolean> {
     // This is a placeholder - implement actual strategy evaluation logic
     return Math.random() > 0.8
   }
 
-  private async executeStrategy(strategy: StrategyResult, connectionId: string): Promise<void> {
+  private async executeStrategy(strategy: StrategyConfig, connectionId: string): Promise<void> {
     console.log(`[v0] Executing strategy: ${strategy.name} on connection: ${connectionId}`)
   }
 
@@ -1036,10 +1035,7 @@ export function getGlobalCoordinator(): GlobalTradeEngineCoordinator | null {
   return globalCoordinator
 }
 
-export function initializeTradeEngine(
-  strategies: StrategyResult[],
-  indications: IndicationResult[],
-): GlobalTradeEngineCoordinator {
+export function initializeTradeEngine(strategies: StrategyConfig[], indications: any): GlobalTradeEngineCoordinator {
   if (!globalCoordinator) {
     globalCoordinator = new GlobalTradeEngineCoordinator(strategies, indications)
   }
@@ -1047,8 +1043,8 @@ export function initializeTradeEngine(
 }
 
 export function initializeGlobalCoordinator(
-  strategies: StrategyResult[],
-  indications: IndicationResult[],
+  strategies: StrategyConfig[],
+  indications: any,
 ): GlobalTradeEngineCoordinator {
   return initializeTradeEngine(strategies, indications)
 }
