@@ -4,6 +4,9 @@ import { SystemLogger } from "@/lib/system-logger"
 
 export const runtime = "nodejs"
 
+/**
+ * Resume the Global Trade Engine
+ */
 export async function POST(): Promise<NextResponse> {
   try {
     const engine = getTradeEngine()

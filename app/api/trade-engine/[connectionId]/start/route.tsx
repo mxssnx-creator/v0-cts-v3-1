@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { TradeEngine } from "@/lib/trade-engine/trade-engine"
+import { TradeEngine } from "@/lib/trade-engine"
 import { sql } from "@/lib/db"
 
 // Store active engines in memory

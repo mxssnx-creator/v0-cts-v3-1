@@ -29,12 +29,14 @@ export {
   type ComponentHealth,
 } from "../trade-engine"
 
+// Per-connection TradeEngine class
 export {
   TradeEngine,
   TRADE_SERVICE_NAME,
   type TradeEngineConfig,
 } from "./trade-engine"
 
+// Engine manager for service lifecycle
 export {
   TradeEngineManager,
   type EngineConfig,
