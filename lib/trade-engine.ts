@@ -31,3 +31,30 @@ export function initializeGlobalCoordinator(): GlobalTradeEngineCoordinator {
   }
   return globalCoordinator
 }
+
+export interface EngineStatus {
+  status: "idle" | "running" | "stopped" | "paused" | "error"
+  startedAt?: Date
+  stoppedAt?: Date
+  errorMessage?: string
+}
+
+export interface ConnectionStatus {
+  connectionId: string
+  status: "active" | "inactive" | "error"
+  lastActivity?: Date
+  errorCount: number
+}
+
+export interface HealthStatus {
+  overall: "healthy" | "degraded" | "unhealthy"
+  components: Record<string, ComponentHealth>
+  lastCheck: Date
+}
+
+export interface ComponentHealth {
+  status: "healthy" | "degraded" | "unhealthy"
+  lastCycleDuration: number
+  errorCount: number
+  successRate: number
+}
