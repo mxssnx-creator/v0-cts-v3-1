@@ -81,8 +81,8 @@ export default function StatisticsPage() {
           const analytics = new AnalyticsEngine(positionsData.data || [])
           setAnalyticsEngine(analytics)
           setStrategyAnalytics(analytics.getStrategyAnalytics(filter))
-          setSymbolAnalytics(analytics.getSymbolAnalytics(filter))
-          setTimeSeriesData(analytics.getTimeSeriesData(filter))
+          setSymbolAnalytics(analytics.generateSymbolAnalytics(filter))
+          setTimeSeriesData(analytics.generateTimeSeriesData(filter))
         }
       } catch (error) {
         console.error("[v0] Failed to load statistics:", error)

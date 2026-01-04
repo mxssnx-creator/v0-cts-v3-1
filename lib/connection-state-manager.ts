@@ -62,26 +62,24 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      await sql.begin(async (sql) => {
-        // Deactivate all other connections
-        await sql`
-          UPDATE connection_state SET is_active = false, updated_at = CURRENT_TIMESTAMP
-        `
+      // Deactivate all other connections
+      await sql`
+        UPDATE connection_state SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      `
 
-        // Activate the specified connection
-        await sql`
-          INSERT INTO connection_state (connection_id, is_active, updated_at)
-          VALUES (${connectionId}, true, CURRENT_TIMESTAMP)
-          ON CONFLICT (connection_id) 
-          DO UPDATE SET is_active = true, updated_at = CURRENT_TIMESTAMP
-        `
+      // Activate the specified connection
+      await sql`
+        INSERT INTO connection_state (connection_id, is_active, updated_at)
+        VALUES (${connectionId}, true, CURRENT_TIMESTAMP)
+        ON CONFLICT (connection_id) 
+        DO UPDATE SET is_active = true, updated_at = CURRENT_TIMESTAMP
+      `
 
-        // Log the change
-        await sql`
-          INSERT INTO connection_sync_log (connection_id, action, data)
-          VALUES (${connectionId}, 'set_active', ${JSON.stringify({ timestamp: new Date().toISOString() })})
-        `
-      })
+      // Log the change
+      await sql`
+        INSERT INTO connection_sync_log (connection_id, action, data)
+        VALUES (${connectionId}, 'set_active', ${JSON.stringify({ timestamp: new Date().toISOString() })})
+      `
 
       this.stateCache.set("active", connectionId)
       this.emit("activeConnectionChanged", connectionId)
