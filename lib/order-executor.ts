@@ -118,7 +118,7 @@ export class OrderExecutor {
               UPDATE orders
               SET 
                 status = ${result.status},
-                exchange_order_id = ${exchangeOrderId ?? undefined},
+                exchange_order_id = ${exchangeOrderId ?? null},
                 filled_quantity = ${filledQuantity},
                 average_fill_price = ${averagePrice},
                 executed_at = CURRENT_TIMESTAMP,
@@ -166,7 +166,7 @@ export class OrderExecutor {
         UPDATE orders
         SET 
           status = 'failed',
-          error_message = ${lastError?.message ?? undefined},
+          error_message = ${lastError?.message ?? null},
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${orderId}
       `
