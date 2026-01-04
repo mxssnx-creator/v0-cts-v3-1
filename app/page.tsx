@@ -108,24 +108,61 @@ export default function Dashboard() {
   const loadSystemStats = async () => {
     try {
       console.log("[v0] Loading system stats from API")
-      const response = await fetch("/api/structure/metrics")
-      if (!response.ok) {
+
+      const metricsResponse = await fetch("/api/structure/metrics")
+      if (!metricsResponse.ok) {
         console.log("[v0] System stats not available yet")
         return
       }
 
-      const data = await response.json()
+      const metricsData = await metricsResponse.json()
+
+      let dailyPnL = 0
+      try {
+        const posStatsResponse = await fetch("/api/positions/stats")
+        if (posStatsResponse.ok) {
+          const posStats = await posStatsResponse.json()
+          dailyPnL = posStats.stats?.total_pnl || 0
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load position stats:", error)
+      }
+
+      let totalBalance = 0
+      try {
+        for (const conn of activeConnections) {
+          if (conn.last_test_balance) {
+            totalBalance += conn.last_test_balance
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Failed to calculate total balance:", error)
+      }
+
+      let strategiesActive = 0
+      try {
+        const strategiesResponse = await fetch("/api/strategies")
+        if (strategiesResponse.ok) {
+          const strategiesData = await strategiesResponse.json()
+          if (strategiesData.success && Array.isArray(strategiesData.data)) {
+            strategiesActive = strategiesData.data.filter((s: any) => s.is_active).length
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load strategies:", error)
+      }
+
       console.log("[v0] Loaded system stats")
 
       setSystemStats({
-        activeConnections: data.activeConnections || activeConnections.length,
-        totalPositions: (data.livePositions || 0) + (data.pseudoPositions || 0),
-        dailyPnL: 0, // TODO: Calculate from actual trades
-        totalBalance: 0, // TODO: Sum from all connections
-        indicationsActive: data.indicationsActive || 0,
-        strategiesActive: 0, // TODO: Count active strategies
-        systemLoad: data.cpuUsage || 0,
-        databaseSize: data.diskUsage || 0,
+        activeConnections: metricsData.activeConnections || activeConnections.length,
+        totalPositions: (metricsData.livePositions || 0) + (metricsData.pseudoPositions || 0),
+        dailyPnL,
+        totalBalance,
+        indicationsActive: metricsData.indicationsActive || 0,
+        strategiesActive,
+        systemLoad: metricsData.cpuUsage || 0,
+        databaseSize: metricsData.diskUsage || 0,
       })
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)

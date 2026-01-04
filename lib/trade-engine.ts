@@ -6,6 +6,7 @@ export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine
  */
 export class GlobalTradeEngineCoordinator {
   private isPaused = false
+  private engines: Map<string, any> = new Map()
 
   // Coordinator implementation details here
 
@@ -15,8 +16,19 @@ export class GlobalTradeEngineCoordinator {
    */
   public async pause(): Promise<void> {
     this.isPaused = true
-    console.log("[v0] Global Trade Engine Coordinator paused")
-    // TODO: Implement actual pause logic to stop all active engines
+    console.log("[v0] Global Trade Engine Coordinator paused - stopping all engines")
+
+    // Stop all active engines
+    for (const [connectionId, engine] of this.engines.entries()) {
+      try {
+        if (engine && typeof engine.stop === "function") {
+          await engine.stop()
+          console.log(`[v0] Stopped engine for connection: ${connectionId}`)
+        }
+      } catch (error) {
+        console.error(`[v0] Error stopping engine ${connectionId}:`, error)
+      }
+    }
   }
 
   /**
@@ -25,8 +37,19 @@ export class GlobalTradeEngineCoordinator {
    */
   public async resume(): Promise<void> {
     this.isPaused = false
-    console.log("[v0] Global Trade Engine Coordinator resumed")
-    // TODO: Implement actual resume logic to restart all active engines
+    console.log("[v0] Global Trade Engine Coordinator resumed - restarting all engines")
+
+    // Restart all previously active engines
+    for (const [connectionId, engine] of this.engines.entries()) {
+      try {
+        if (engine && typeof engine.start === "function") {
+          await engine.start()
+          console.log(`[v0] Restarted engine for connection: ${connectionId}`)
+        }
+      } catch (error) {
+        console.error(`[v0] Error restarting engine ${connectionId}:`, error)
+      }
+    }
   }
 
   /**
@@ -34,6 +57,27 @@ export class GlobalTradeEngineCoordinator {
    */
   public isPausedState(): boolean {
     return this.isPaused
+  }
+
+  /**
+   * Register an engine for a connection
+   */
+  public registerEngine(connectionId: string, engine: any): void {
+    this.engines.set(connectionId, engine)
+  }
+
+  /**
+   * Unregister an engine for a connection
+   */
+  public unregisterEngine(connectionId: string): void {
+    this.engines.delete(connectionId)
+  }
+
+  /**
+   * Get all registered engines
+   */
+  public getEngines(): Map<string, any> {
+    return this.engines
   }
 }
 

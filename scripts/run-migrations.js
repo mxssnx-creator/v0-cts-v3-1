@@ -28,16 +28,20 @@ async function main() {
       console.log("⚠️  No .env.local found, using environment variables")
     }
 
-    // Check database connection
-    const { getDatabaseType } = require("../lib/db")
-    const dbType = getDatabaseType()
+    const databaseUrl = process.env.DATABASE_URL || process.env.REMOTE_POSTGRES_URL
+    if (!databaseUrl) {
+      console.error("❌ No DATABASE_URL found")
+      console.error("   Please set DATABASE_URL in .env.local")
+      process.exit(1)
+    }
+
+    const dbType = databaseUrl.startsWith("postgres") ? "PostgreSQL" : "SQLite"
     console.log(`📊 Database Type: ${dbType}`)
     console.log()
 
-    // Initialize database
     console.log("🔧 Initializing database...")
-    const { DatabaseInitializer } = require("../lib/db-initializer")
-    const initialized = await DatabaseInitializer.initialize(3, 60000)
+    const { DatabaseInitializer } = require("./db-initializer.cjs")
+    const initialized = await DatabaseInitializer.initialize()
 
     if (!initialized) {
       console.error("❌ Database initialization failed")
@@ -46,39 +50,16 @@ async function main() {
     console.log("✅ Database initialized")
     console.log()
 
-    // Run main migrations
-    console.log("🔄 Running main migrations...")
-    const { DatabaseMigrations } = require("../lib/db-migrations")
-    await DatabaseMigrations.runPendingMigrations()
-    console.log("✅ Main migrations completed")
-    console.log()
-
-    // Run auto migrations
-    console.log("🔄 Running auto migrations...")
-    const { runAutoMigrations } = require("../lib/auto-migrate")
-    const autoResult = await runAutoMigrations()
-
-    if (autoResult.success) {
-      console.log("✅ Auto migrations completed")
-    } else {
-      console.log("⚠️  Auto migrations had warnings:", autoResult.error || autoResult.message)
-    }
-    console.log()
-
-    // Run additional migrations
-    console.log("🔄 Running additional migrations...")
-    const { runAdditionalMigrations } = require("../lib/db-migrations-additions")
-    await runAdditionalMigrations()
-    console.log("✅ Additional migrations completed")
-    console.log()
-
     console.log("=".repeat(50))
-    console.log("✅ All migrations completed successfully!")
+    console.log("✅ Database initialization completed successfully!")
     console.log("=".repeat(50))
+    console.log()
+    console.log("ℹ️  Note: Full migrations will run automatically when you start the app")
+    console.log("   The TypeScript migration system requires the app to be running")
     console.log()
     console.log("Next steps:")
-    console.log("  • Run 'npm run db:status' to check database status")
     console.log("  • Run 'npm run dev' to start the application")
+    console.log("  • All pending migrations will run on startup")
     console.log()
 
     process.exit(0)
