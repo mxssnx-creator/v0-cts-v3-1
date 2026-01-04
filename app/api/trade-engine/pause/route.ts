@@ -3,6 +3,7 @@ import { getTradeEngine } from "@/lib/trade-engine"
 import { SystemLogger } from "@/lib/system-logger"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 /**
  * Pause the Global Trade Engine Coordinator
