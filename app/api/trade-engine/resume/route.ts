@@ -6,6 +6,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 /**
+ * POST /api/trade-engine/resume
  * Resume the Global Trade Engine Coordinator
  * Resumes all trading operations across all connections
  */

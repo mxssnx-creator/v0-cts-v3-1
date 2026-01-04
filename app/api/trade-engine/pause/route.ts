@@ -6,6 +6,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 /**
+ * POST /api/trade-engine/pause
  * Pause the Global Trade Engine Coordinator
  * Pauses all trading operations across all connections
  */
