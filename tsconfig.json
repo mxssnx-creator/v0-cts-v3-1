@@ -24,5 +24,15 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "backups/**/*", "**/*.tmp", "**/*_backup*", ".next", "dist", "build", "scripts/**/*.js"]
+  "exclude": [
+    "node_modules",
+    "backups/**/*",
+    "**/*.tmp",
+    "**/*_backup*",
+    ".next",
+    "dist",
+    "build",
+    "scripts/**/*.js",
+    ".turbopack-cache-bust.ts"
+  ]
 }

@@ -21,6 +21,9 @@ const cacheDirs = [
   path.join(rootDir, ".tsbuildinfo"),
   path.join(rootDir, "node_modules", ".cache", "typescript"),
   path.join(rootDir, ".vercel"),
+  path.join(rootDir, ".next", "cache"),
+  path.join(rootDir, ".next", "server"),
+  path.join(rootDir, ".next", "static"),
 ]
 
 console.log("  Clearing all build caches...")
@@ -57,22 +60,22 @@ for (const file of tsBuildInfoFiles) {
   }
 }
 
-const strayFiles = [
+const problematicFiles = [
+  path.join(rootDir, ".turbopack-cache-bust.ts"),
   path.join(rootDir, "lib", "configuration-set-manager.ts"),
   path.join(rootDir, "lib", "configuration-set-manager.tsx"),
 ]
 
-console.log("\n  Checking for stray files...")
-let foundStray = false
-for (const strayFile of strayFiles) {
-  if (fs.existsSync(strayFile)) {
-    console.log(`    ✓ Removed stray file: ${path.basename(strayFile)}`)
-    fs.unlinkSync(strayFile)
-    foundStray = true
+console.log("\n  Removing problematic files...")
+for (const file of problematicFiles) {
+  if (fs.existsSync(file)) {
+    try {
+      fs.unlinkSync(file)
+      console.log(`    ✓ Removed ${path.basename(file)}`)
+    } catch (err) {
+      console.log(`    ⚠ Could not remove ${path.basename(file)}`)
+    }
   }
-}
-if (!foundStray) {
-  console.log(`    ✓ No stray files found`)
 }
 
 console.log("\n  Validating critical modules...")
