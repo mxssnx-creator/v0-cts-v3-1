@@ -15,6 +15,7 @@
  *    - Service name: project_name-trade
  */
 
+// Explicit re-exports from parent trade-engine module
 export {
   getTradeEngine,
   getGlobalCoordinator,
@@ -38,3 +39,6 @@ export {
   TradeEngineManager,
   type EngineConfig,
 } from "./engine-manager"
+
+// Re-export for compatibility
+export { getTradeEngine as getGlobalTradeEngine } from "../trade-engine"

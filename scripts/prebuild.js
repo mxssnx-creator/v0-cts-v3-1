@@ -14,6 +14,7 @@ console.log("CTS v3.1 Pre-build Cache Clearing...\n")
 
 const cacheDirs = [
   path.join(rootDir, ".next"),
+  path.join(rootDir, ".turbopack"),
   path.join(rootDir, "node_modules", ".cache"),
   path.join(rootDir, ".turbo"),
   path.join(rootDir, "node_modules", ".vite"),
@@ -29,7 +30,6 @@ for (const dir of cacheDirs) {
       fs.rmSync(dir, { recursive: true, force: true })
       console.log(`    ✓ Cleared ${path.relative(rootDir, dir)}`)
     } catch (err) {
-      // Non-fatal - continue
       console.log(`    ⚠ Could not clear ${path.relative(rootDir, dir)}`)
     }
   }
@@ -41,6 +41,8 @@ const tsBuildInfoFiles = [
   path.join(rootDir, "tsconfig.build.tsbuildinfo"),
   path.join(rootDir, "app", "tsconfig.tsbuildinfo"),
   path.join(rootDir, "lib", "tsconfig.tsbuildinfo"),
+  path.join(rootDir, "components", "tsconfig.tsbuildinfo"),
+  path.join(rootDir, "hooks", "tsconfig.tsbuildinfo"),
 ]
 
 console.log("\n  Clearing TypeScript build info files...")
@@ -71,6 +73,35 @@ for (const strayFile of strayFiles) {
 }
 if (!foundStray) {
   console.log(`    ✓ No stray files found`)
+}
+
+console.log("\n  Validating critical modules...")
+const criticalFiles = [
+  { path: "hooks/use-toast.ts", exports: ["useToast", "toast"] },
+  { path: "lib/trade-engine.ts", exports: ["getTradeEngine"] },
+  { path: "lib/trade-engine/index.ts", exports: ["getTradeEngine"] },
+]
+
+let allValid = true
+for (const { path: filePath, exports } of criticalFiles) {
+  const fullPath = path.join(rootDir, filePath)
+  if (!fs.existsSync(fullPath)) {
+    console.log(`    ✗ Missing: ${filePath}`)
+    allValid = false
+  } else {
+    const content = fs.readFileSync(fullPath, "utf-8")
+    const missingExports = exports.filter((exp) => !content.includes(exp))
+    if (missingExports.length > 0) {
+      console.log(`    ⚠ ${filePath} missing exports: ${missingExports.join(", ")}`)
+    } else {
+      console.log(`    ✓ ${filePath}`)
+    }
+  }
+}
+
+if (!allValid) {
+  console.error("\n❌ Critical files missing! Build may fail.\n")
+  process.exit(1)
 }
 
 console.log("\n✅ Cache cleared successfully! Building...\n")

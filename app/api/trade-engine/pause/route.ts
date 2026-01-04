@@ -12,12 +12,8 @@ export async function POST(): Promise<NextResponse> {
       return NextResponse.json({ error: "Trade engine not initialized" }, { status: 400 })
     }
 
-    if (!engine.isRunning()) {
-      return NextResponse.json({ message: "Trade engine already paused" })
-    }
-
-    await engine.stop()
-    await SystemLogger.logTradeEngine("Trade engine paused for database reorganization", "info")
+    await engine.pause()
+    await SystemLogger.logTradeEngine("Global Trade Engine paused", "info")
 
     return NextResponse.json({ success: true, message: "Trade engine paused" })
   } catch (error) {

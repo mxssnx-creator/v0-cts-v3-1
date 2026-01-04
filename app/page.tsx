@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ConnectionCard } from "@/components/dashboard/connection-card"
 import { SystemOverview } from "@/components/dashboard/system-overview"
 import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
+import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import type { ExchangeConnection } from "@/lib/types"
-import { RefreshCw, Plus } from 'lucide-react'
+import { RefreshCw, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
@@ -57,7 +58,7 @@ export default function Dashboard() {
       }
 
       const data = await response.json()
-      
+
       if (!Array.isArray(data) || data.length === 0) {
         console.log("[v0] No connections from API, keeping predefined")
         return
@@ -107,10 +108,10 @@ export default function Dashboard() {
       const response = await fetch(`/api/settings/connections/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          is_enabled: enabled, 
+        body: JSON.stringify({
+          is_enabled: enabled,
           is_live_trade: enabled ? false : false, // Disable live trade when disabling connection
-          is_preset_trade: enabled ? false : false // Disable preset trade when disabling connection
+          is_preset_trade: enabled ? false : false, // Disable preset trade when disabling connection
         }),
       })
 
@@ -132,10 +133,10 @@ export default function Dashboard() {
       const response = await fetch(`/api/settings/connections/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           is_enabled: true, // Keep connection enabled
           is_live_trade: enabled,
-          is_preset_trade: false // Optionally preserve preset state
+          is_preset_trade: false, // Optionally preserve preset state
         }),
       })
 
@@ -306,6 +307,8 @@ export default function Dashboard() {
           </Card>
 
           <RealTimeTicker />
+
+          <GlobalTradeEngineControls />
 
           <Card>
             <CardHeader>
