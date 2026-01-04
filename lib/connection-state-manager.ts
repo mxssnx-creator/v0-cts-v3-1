@@ -1,11 +1,30 @@
 import { sql } from "./db"
 import { EventEmitter } from "events"
 
+interface ConnectionState {
+  connection_id: string
+  is_active: boolean
+  volume_factor_live: number
+  volume_factor_preset: number
+  test_results: any
+  last_sync_at: Date
+  created_at: Date
+  updated_at: Date
+}
+
+interface SyncLogEntry {
+  id: number
+  connection_id: string
+  action: string
+  data: any
+  created_at: Date
+}
+
 class ConnectionStateManager extends EventEmitter {
   private initialized = false
   private stateCache: Map<string, any> = new Map()
 
-  async initialize() {
+  async initialize(): Promise<void> {
     if (this.initialized) return
 
     try {
@@ -44,14 +63,14 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const [active] = await sql`
+      const result: ConnectionState[] = await sql`
         SELECT connection_id FROM connection_state
         WHERE is_active = true
         ORDER BY updated_at DESC
         LIMIT 1
       `
 
-      return active?.connection_id || null
+      return result[0]?.connection_id || null
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get active connection:", error)
       return null
@@ -62,12 +81,10 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      // Deactivate all other connections
       await sql`
         UPDATE connection_state SET is_active = false, updated_at = CURRENT_TIMESTAMP
       `
 
-      // Activate the specified connection
       await sql`
         INSERT INTO connection_state (connection_id, is_active, updated_at)
         VALUES (${connectionId}, true, CURRENT_TIMESTAMP)
@@ -75,10 +92,10 @@ class ConnectionStateManager extends EventEmitter {
         DO UPDATE SET is_active = true, updated_at = CURRENT_TIMESTAMP
       `
 
-      // Log the change
+      const logData = JSON.stringify({ timestamp: new Date().toISOString() })
       await sql`
         INSERT INTO connection_sync_log (connection_id, action, data)
-        VALUES (${connectionId}, 'set_active', ${JSON.stringify({ timestamp: new Date().toISOString() })})
+        VALUES (${connectionId}, 'set_active', ${logData})
       `
 
       this.stateCache.set("active", connectionId)
@@ -94,17 +111,17 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const [state] = await sql`
+      const result: ConnectionState[] = await sql`
         SELECT volume_factor_live, volume_factor_preset
         FROM connection_state
         WHERE connection_id = ${connectionId}
       `
 
-      if (!state) return null
+      if (!result[0]) return null
 
       return {
-        live: Number.parseFloat(state.volume_factor_live),
-        preset: Number.parseFloat(state.volume_factor_preset),
+        live: Number(result[0].volume_factor_live),
+        preset: Number(result[0].volume_factor_preset),
       }
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get volume factor:", error)
@@ -126,9 +143,10 @@ class ConnectionStateManager extends EventEmitter {
           updated_at = CURRENT_TIMESTAMP
       `
 
+      const logData = JSON.stringify({ live, preset, timestamp: new Date().toISOString() })
       await sql`
         INSERT INTO connection_sync_log (connection_id, action, data)
-        VALUES (${connectionId}, 'update_volume', ${JSON.stringify({ live, preset, timestamp: new Date().toISOString() })})
+        VALUES (${connectionId}, 'update_volume', ${logData})
       `
 
       this.emit("volumeFactorChanged", connectionId, live, preset)
@@ -143,12 +161,12 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const [state] = await sql`
+      const result: ConnectionState[] = await sql`
         SELECT test_results FROM connection_state
         WHERE connection_id = ${connectionId}
       `
 
-      return state?.test_results || null
+      return result[0]?.test_results || null
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get test results:", error)
       return null
@@ -164,12 +182,14 @@ class ConnectionStateManager extends EventEmitter {
         timestamp: new Date().toISOString(),
       }
 
+      const resultsJson = JSON.stringify(resultsWithTimestamp)
+
       await sql`
         INSERT INTO connection_state (connection_id, test_results, updated_at)
-        VALUES (${connectionId}, ${JSON.stringify(resultsWithTimestamp)}, CURRENT_TIMESTAMP)
+        VALUES (${connectionId}, ${resultsJson}, CURRENT_TIMESTAMP)
         ON CONFLICT (connection_id)
         DO UPDATE SET 
-          test_results = ${JSON.stringify(resultsWithTimestamp)},
+          test_results = ${resultsJson},
           updated_at = CURRENT_TIMESTAMP
       `
 
@@ -181,11 +201,11 @@ class ConnectionStateManager extends EventEmitter {
     }
   }
 
-  async getSyncLog(limit = 100): Promise<any[]> {
+  async getSyncLog(limit = 100): Promise<SyncLogEntry[]> {
     try {
       await this.initialize()
 
-      const logs = await sql`
+      const logs: SyncLogEntry[] = await sql`
         SELECT * FROM connection_sync_log
         ORDER BY created_at DESC
         LIMIT ${limit}
@@ -217,7 +237,7 @@ class ConnectionStateManager extends EventEmitter {
 
   async getStaleConnections(): Promise<string[]> {
     try {
-      const stale = await sql`
+      const stale: ConnectionState[] = await sql`
         SELECT connection_id FROM connection_state
         WHERE last_sync_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes'
           AND is_active = true
