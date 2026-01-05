@@ -144,7 +144,7 @@ export class AutoRecoveryManager {
     if (!service) return
 
     try {
-      const stats = await positionThresholdManager.getStats()
+      const stats = await positionThresholdManager.getPositionStatistics()
 
       service.status = "running"
       service.lastHeartbeat = new Date()
