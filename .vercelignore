@@ -6,6 +6,51 @@ backups/
 # Build artifacts
 .next/
 out/
-
-# Cache
 .turbo/
+.turbopack/
+
+# Database files (use remote PostgreSQL on Vercel)
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Development files
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Test files
+__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+coverage/
+
+# Scripts not needed for deployment
+scripts/install.sh
+scripts/quick-install.sh
+scripts/setup-nginx.sh
+scripts/install-certbot.sh
+scripts/clear-cache.sh
+scripts/clear-local-cache.sh
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Local environment files
+.env.local
+.env.development.local
+.env.test.local
