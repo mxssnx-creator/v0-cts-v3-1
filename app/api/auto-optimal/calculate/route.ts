@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - config.calculation_days)
 
-    const allPositions = await dbManager.query("pseudo_positions", { status: "closed" }, ["*"])
+    const allPositions = await dbManager.query("pseudo_positions", { status: "closed" })
 
     // Filter positions by date in JavaScript
     const historicalPositions = allPositions
