@@ -1,0 +1,18 @@
+CORRUPTED AND MISSING FILES - REQUIRES IMMEDIATE RESTORATION
+=============================================================
+
+CRITICAL - Settings Page Corrupted:
+  app/settings/page.tsx
+  Status: Contains only placeholder variables, 0% functional
+  Solution: Restore from GitHub v279 (commit: 9cb416d)
+
+CRITICAL - Trading Page Missing:
+  app/trading/page.tsx
+  Status: File does not exist
+  Solution: Restore from GitHub v279 (commit: 9cb416d)
+
+RECOVERY COMMAND:
+  bun scripts/recover-from-github.ts --recover-settings
+
+This will restore all settings, indication, and strategy pages from the last
+known good version (v279) while preserving all engine and database fixes.
