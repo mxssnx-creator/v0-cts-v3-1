@@ -70,7 +70,7 @@ export class OKXConnector extends BaseExchangeConnector {
           "OK-ACCESS-KEY": this.credentials.apiKey,
           "OK-ACCESS-SIGN": signature,
           "OK-ACCESS-TIMESTAMP": timestamp,
-          "OK-ACCESS-PASSPHRASE": this.credentials.apiPassphrase || "",
+          "OK-ACCESS-PASSPHRASE": this.credentials.passphrase || "",
           "Content-Type": "application/json",
         },
       })
@@ -144,7 +144,7 @@ export class OKXConnector extends BaseExchangeConnector {
           "OK-ACCESS-KEY": this.credentials.apiKey,
           "OK-ACCESS-SIGN": signature,
           "OK-ACCESS-TIMESTAMP": timestamp,
-          "OK-ACCESS-PASSPHRASE": this.credentials.apiPassphrase || "",
+          "OK-ACCESS-PASSPHRASE": this.credentials.passphrase || "",
           "Content-Type": "application/json",
         },
         body: requestBody,
