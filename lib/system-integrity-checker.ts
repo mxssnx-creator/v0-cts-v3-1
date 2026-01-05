@@ -141,22 +141,22 @@ export class SystemIntegrityChecker {
   private async checkDatabaseSchema(): Promise<IntegrityCheckResult[]> {
     const checks: IntegrityCheckResult[] = []
 
-    const requiredTables = [
-      "exchange_connections",
-      "pseudo_positions",
-      "real_positions",
-      "presets",
-      "preset_types",
-      "system_logs",
-    ]
+    const requiredEntities = [
+      { type: "connection", name: "exchange_connections" },
+      { type: "pseudo_position", name: "pseudo_positions" },
+      { type: "real_position", name: "real_positions" },
+      { type: "preset", name: "presets" },
+      { type: "preset_type", name: "preset_types" },
+      { type: "log", name: "system_logs" },
+    ] as const
 
-    for (const table of requiredTables) {
+    for (const entity of requiredEntities) {
       try {
-        await this.db.query(table, { limit: 1 })
+        await this.db.query(entity.type as any, { limit: 1 })
         checks.push({
           passed: true,
           component: "Database Schema",
-          message: `Table '${table}' exists and accessible`,
+          message: `Table '${entity.name}' exists and accessible`,
           severity: "info",
           timestamp: new Date(),
         })
@@ -164,7 +164,7 @@ export class SystemIntegrityChecker {
         checks.push({
           passed: false,
           component: "Database Schema",
-          message: `Table '${table}' missing or inaccessible`,
+          message: `Table '${entity.name}' missing or inaccessible`,
           severity: "error",
           timestamp: new Date(),
         })
