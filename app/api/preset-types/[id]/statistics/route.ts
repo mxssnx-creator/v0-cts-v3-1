@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { db } from "@/lib/database"
 
 // GET /api/preset-types/[id]/statistics - Get statistics for a preset type
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!presetType) {
       return NextResponse.json({ error: "Preset type not found" }, { status: 404 })
     }
+
+    const presetStats = await db.getAggregatedStatistics({
+      strategyType: "simple", // Presets typically use simple strategy
+    })
 
     // Get configuration sets count
     const setsCountResult = await sql`
@@ -129,6 +134,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       set_performance: setPerformanceWithPF,
       recent_trades: recentTrades,
       performance_over_time: performanceOverTime,
+      aggregated_stats: presetStats,
     })
   } catch (error) {
     console.error("[v0] Failed to fetch preset type statistics:", error)

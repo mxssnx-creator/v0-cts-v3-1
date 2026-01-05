@@ -269,12 +269,20 @@ export class DatabaseOptimizer {
         activeRealPositions = Number.parseInt(realResult.rows[0].count)
       } else {
         const sqliteDb = client as Database.Database
-        totalConnections =
-          sqliteDb.prepare("SELECT COUNT(*) as count FROM exchange_connections WHERE is_enabled = 1").get()?.count || 0
-        activePseudoPositions =
-          sqliteDb.prepare("SELECT COUNT(*) as count FROM pseudo_positions WHERE status = 'active'").get()?.count || 0
-        activeRealPositions =
-          sqliteDb.prepare("SELECT COUNT(*) as count FROM real_positions WHERE status = 'open'").get()?.count || 0
+        const connectionsResult = sqliteDb
+          .prepare("SELECT COUNT(*) as count FROM exchange_connections WHERE is_enabled = 1")
+          .get() as { count: number } | undefined
+        totalConnections = connectionsResult?.count || 0
+
+        const pseudoResult = sqliteDb
+          .prepare("SELECT COUNT(*) as count FROM pseudo_positions WHERE status = 'active'")
+          .get() as { count: number } | undefined
+        activePseudoPositions = pseudoResult?.count || 0
+
+        const realResult = sqliteDb
+          .prepare("SELECT COUNT(*) as count FROM real_positions WHERE status = 'open'")
+          .get() as { count: number } | undefined
+        activeRealPositions = realResult?.count || 0
       }
 
       return {
