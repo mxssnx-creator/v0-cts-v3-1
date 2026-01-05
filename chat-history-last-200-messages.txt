@@ -1,0 +1,430 @@
+=============================================================
+CHAT HISTORY - LAST 200 INPUT MESSAGES
+CTS v3.1 Development Session
+=============================================================
+
+Message 1:
+"...update other parts of the project to work properly for statistics etc.."
+
+Message 2:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 3:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: da22acd)
+Cloning completed: 475.000ms
+Found .vercelignore
+...
+  54 |     }
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 4:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 0bc9524)
+Cloning completed: 416.000ms
+Found .vercelignore
+...
+  54 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 5:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: e2b514f)
+Cloning completed: 457.000ms
+Found .vercelignore
+...
+  771 |     return await this.dynamicOps.query(entityType, options)
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 6:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 4b6fdbf)
+Cloning completed: 425.000ms
+Found .vercelignore
+...
+  1421 |   public async getConnectionStatistics(connectionId: string): Promise<any> {
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 7:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: cc8a7be)
+Cloning completed: 416.000ms
+Found .vercelignore
+...
+   	- include was updated to add '.next/dev/types/**/*.ts'
+
+   The following mandatory changes were made to your tsconfig.json:
+
+   	- jsx was set to react-jsx (next.js uses the React automatic runtime)"
+
+Message 8:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: f1c5c8a)
+Cloning completed: 443.000ms
+Found .vercelignore
+...
+  1444 |   public async getStrategyStatistics(
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 9:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 4fa23ff)
+Cloning completed: 440.000ms
+Found .vercelignore
+...
+  8 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 10:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: ec412d1)
+Cloning completed: 440.000ms
+Found .vercelignore
+...
+  12 |   }
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 11:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 4dd69ee)
+Cloning completed: 418.000ms
+Found .vercelignore
+...
+  26 |     this.log(`Using endpoint: ${this.getBaseUrl()}`)
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 12:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 0531403)
+Cloning completed: 427.000ms
+Found .vercelignore
+...
+  54 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 13:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: cc3cb01)
+Cloning completed: 441.000ms
+Found .vercelignore
+...
+  150 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 14:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 741e879)
+Cloning completed: 396.000ms
+Found .vercelignore
+...
+  12 |   }
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 15:
+"check wholr project for completness and functilnality, integrity and errors fix all issues, do necessary workouts."
+
+Message 16:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 17:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: d86ef0f)
+Cloning completed: 394.000ms
+Found .vercelignore
+...
+  56 |       this.logError(error instanceof Error ? error.message : "Unknown error")
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 18:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 19:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 35d4423)
+Cloning completed: 435.000ms
+Found .vercelignore
+...
+  9 | import { PionexConnector } from "./pionex-connector"
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 20:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 73d0687)
+Cloning completed: 399.000ms
+Found .vercelignore
+...
+  59 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 21:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: bca5755)
+Cloning completed: 397.000ms
+Found .vercelignore
+...
+  42 |
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 22:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: b2b77b7)
+Cloning completed: 391.000ms
+Found .vercelignore
+...
+  76 |       })
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 23:
+"check connection structure,vengine functionality, check intensively for errorsand fix them"
+
+Message 24:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 25:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: c749459)
+Cloning completed: 394.000ms
+Found .vercelignore
+...
+  203 |               component: "Exchange Connections",
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 26:
+"and run bun instead of npm"
+
+Message 27:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: eb4d9d4)
+Cloning completed: 412.000ms
+Found .vercelignore
+...
+  158 |           component: "Database Schema",
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 28:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 29:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: d86ef0f)
+Cloning completed: 394.000ms
+Found .vercelignore
+...
+  56 |       this.logError(error instanceof Error ? error.message : "Unknown error")
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 30:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 4dd69ee)
+Cloning completed: 418.000ms
+Found .vercelignore
+...
+  26 |     this.log(`Using endpoint: ${this.getBaseUrl()}`)
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 31:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 92f8c18)
+Cloning completed: 401.000ms
+Found .vercelignore
+...
+  29 |   ADJUSTMENT_TYPES,
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 32:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: ddb2e82)
+Cloning completed: 404.000ms
+Found .vercelignore
+...
+  908 |     // Filter in JavaScript to avoid SQL INTERVAL issues
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 33:
+"the settings page got destroyed, its blank. please recover completely!"
+
+Message 34:
+"restore the old complete settings page, maybecthere is a backup"
+
+Message 35:
+"v0 Diagnostics were collected automatically and found issues."
+
+Message 36:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 13db097)
+Cloning completed: 364.000ms
+Found .vercelignore
+...
+  296 |     </div>
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 37:
+"The user used the v0 interface to revert back to version 279. It has been copied into a new version, v286."
+
+Message 38:
+"An error occurred during deployment. Please fix:
+
+Running build in Washington, D.C., USA (East) – iad1 (Turbo Build Machine)
+Build machine configuration: 30 cores, 60 GB
+Cloning github.com/mxssnx-creator/v0-cts-v3-1 (Branch: main, Commit: 9cb416d)
+Cloning completed: 655.000ms
+Found .vercelignore
+...
+  203 |               component: "Exchange Connections",
+Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code: 1
+error: script "vercel-build" exited with code 1
+Error: Command "bun run vercel-build" exited with 1"
+
+Message 39:
+"for vercel deployment, do not rebuild better-sqlite3 if not necessary, it takes long time.."
+
+Message 40:
+"create a zextfile with the last 200 input chat messages!..."
+
+=============================================================
+END OF CHAT HISTORY
+Total Messages: 40 (All user input messages from this session)
+Generated: 2026-01-05
+=============================================================
