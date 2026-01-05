@@ -24,10 +24,6 @@ export { ErrorLogger } from "./error-logger"
 export { DatabaseInitializer } from "./db-initializer"
 export {
   DEFAULT_LEVERAGE,
-  MIN_LEVERAGE,
-  MAX_LEVERAGE,
-  DEFAULT_VOLUME,
-  MIN_VOLUME,
   TP_ADJUSTMENT_TYPES,
   VOLUME_ADJUSTMENT_TYPES,
   ADJUSTMENT_TYPES,
