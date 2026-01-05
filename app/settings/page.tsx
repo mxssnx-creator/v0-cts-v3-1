@@ -290,7 +290,7 @@ export default function SettingsPage() {
 
         {/* Statistics Tab */}
         <TabsContent value="statistics" className="space-y-4">
-          <StatisticsOverview />
+          <StatisticsOverview settings={{}} />
         </TabsContent>
       </Tabs>
     </div>
