@@ -87,8 +87,12 @@ function validatePage(filePath: string): ValidationResult {
       result.isCorrupted = true
     }
 
-    // Check for export default
-    result.hasExportDefault = /export\s+default\s+(function|const)/i.test(content)
+    result.hasExportDefault =
+      /export\s+default\s+function/i.test(content) ||
+      /export\s+default\s+const/i.test(content) ||
+      /export\s+default\s+class/i.test(content) ||
+      /export\s+default/i.test(content)
+
     if (!result.hasExportDefault) {
       result.issues.push("MISSING EXPORT DEFAULT")
       result.isCorrupted = true
