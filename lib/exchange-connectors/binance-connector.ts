@@ -11,6 +11,11 @@ export class BinanceConnector extends BaseExchangeConnector {
     return this.credentials.isTestnet ? "https://testnet.binancefuture.com" : "https://fapi.binance.com"
   }
 
+  generateSignature(data: string | Record<string, unknown>): string {
+    const payload = typeof data === "string" ? data : new URLSearchParams(data as Record<string, string>).toString()
+    return crypto.createHmac("sha256", this.credentials.apiSecret).update(payload).digest("hex")
+  }
+
   getCapabilities(): string[] {
     return ["futures", "perpetual_futures", "spot", "leverage", "hedge_mode", "cross_margin", "isolated_margin"]
   }
@@ -42,7 +47,7 @@ export class BinanceConnector extends BaseExchangeConnector {
 
     try {
       const queryString = `timestamp=${timestamp}`
-      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+      const signature = this.generateSignature(queryString)
 
       this.log("Fetching account balance...")
 
@@ -101,7 +106,7 @@ export class BinanceConnector extends BaseExchangeConnector {
         queryString += `&price=${params.price}&timeInForce=${params.timeInForce || "GTC"}`
       }
 
-      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+      const signature = this.generateSignature(queryString)
       queryString += `&signature=${signature}`
 
       this.log("Sending order request...")
