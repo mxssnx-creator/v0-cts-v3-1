@@ -21,7 +21,6 @@ export {
   getGlobalCoordinator,
   initializeTradeEngine,
   initializeGlobalCoordinator,
-  isTradeEngineTypeEnabled,
   GlobalTradeEngineCoordinator,
   type TradeEngineInterface,
   type EngineStatus,
