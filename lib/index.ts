@@ -23,11 +23,6 @@ export { ErrorHandler, errorHandler, AppError } from "./error-handler"
 export { ErrorLogger } from "./error-logger"
 export { DatabaseInitializer } from "./db-initializer"
 export {
-  CONNECTION_PREDEFINITIONS,
-  getConnectionPredefinition,
-  getAllConnectionPredefinitions,
-} from "./connection-predefinitions"
-export {
   DEFAULT_LEVERAGE,
   MIN_LEVERAGE,
   MAX_LEVERAGE,
@@ -43,8 +38,6 @@ export {
   MIN_SL_DISTANCE,
   MAX_SL_DISTANCE,
   DEFAULT_SL_DISTANCE,
-  TRADE_ENGINE_TYPES,
-  STRATEGY_BASES,
   TP_ADJUSTMENT_TYPES,
   VOLUME_ADJUSTMENT_TYPES,
   ADJUSTMENT_TYPES,

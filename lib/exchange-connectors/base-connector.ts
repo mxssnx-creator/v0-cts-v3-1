@@ -45,7 +45,7 @@ export abstract class BaseExchangeConnector {
   protected logs: string[] = []
   protected timeout = 10000 // 10 seconds
   protected rateLimiter: ReturnType<typeof getRateLimiter>
-  protected exchange: string
+  public exchange: string
 
   constructor(credentials: ExchangeCredentials, exchange: string) {
     this.credentials = credentials
