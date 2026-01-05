@@ -8,24 +8,31 @@ export async function POST(request: NextRequest) {
     const { connectionId, type } = body
 
     if (type === "manual" && connectionId) {
-      // Manual cleanup for specific connection
       await positionThresholdManager.manualCleanup(connectionId)
-      return successResponse({ success: true }, `Cleanup completed for connection ${connectionId}`)
+      return successResponse({
+        success: true,
+        message: `Cleanup completed for connection ${connectionId}`,
+      })
     } else if (type === "all") {
-      // Cleanup all configurations
       await positionThresholdManager.checkAndCleanupAllConfigurations()
-      return successResponse({ success: true }, "Cleanup completed for all connections")
+      return successResponse({
+        success: true,
+        message: "Cleanup completed for all connections",
+      })
     } else {
-      return errorResponse(
-        "Invalid cleanup type",
-        "Bad Request",
-        "Must specify 'manual' with connectionId or 'all'",
-        400,
-      )
+      return errorResponse("Invalid cleanup type. Must specify 'manual' with connectionId or 'all'", {
+        status: 400,
+        code: "BAD_REQUEST",
+        details: { type, connectionId },
+      })
     }
   } catch (error) {
     console.error("Threshold cleanup error:", error)
-    return errorResponse("Cleanup failed", "Server Error", String(error), 500)
+    return errorResponse("Cleanup failed", {
+      status: 500,
+      code: "SERVER_ERROR",
+      details: String(error),
+    })
   }
 }
 
@@ -35,6 +42,10 @@ export async function GET() {
     return NextResponse.json({ success: true, statistics: stats })
   } catch (error) {
     console.error("Failed to fetch position statistics:", error)
-    return errorResponse("Failed to fetch statistics", "Server Error", String(error), 500)
+    return errorResponse("Failed to fetch statistics", {
+      status: 500,
+      code: "SERVER_ERROR",
+      details: String(error),
+    })
   }
 }
