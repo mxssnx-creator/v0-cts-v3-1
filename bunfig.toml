@@ -1,8 +1,36 @@
-# Bun configuration for local development
+# Bun configuration for CTS v3.1
+
 [install]
-# Skip optional dependencies to prevent libpq from building
-optional = false
+# Install peer dependencies automatically
 peer = true
 
+# Skip optional dependencies to prevent build issues
+optional = false
+
+# Faster installs with concurrent downloads
+concurrent = true
+
 [install.cache]
+# Enable caching for faster subsequent installs
 disable = false
+
+# Cache directory (Vercel handles this automatically)
+dir = ".bun/cache"
+
+[build]
+# Enable source maps for debugging
+sourcemap = "external"
+
+# Target ES2022 for modern JavaScript features
+target = "bun"
+
+[run]
+# Enable hot module reloading for development
+hot = true
+
+# Preload scripts for faster startup
+preload = []
+
+[test]
+# Test configuration (if using Bun for testing)
+coverage = true

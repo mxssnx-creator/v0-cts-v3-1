@@ -1246,14 +1246,12 @@ class DatabaseManager {
     const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
-      return await (client as Pool).query(`
-        DELETE FROM logs WHERE timestamp < NOW() - INTERVAL '${days} days'
-      `)
+      return await (client as Pool).query(`DELETE FROM logs WHERE timestamp < NOW() - INTERVAL '1 day' * $1`, [days])
     } else {
       const stmt = (client as Database.Database).prepare(`
-        DELETE FROM logs WHERE timestamp < datetime('now', '-${days} days')
+        DELETE FROM logs WHERE timestamp < datetime('now', '-' || ? || ' days')
       `)
-      return stmt.run()
+      return stmt.run(days)
     }
   }
 
@@ -1315,14 +1313,15 @@ class DatabaseManager {
     const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
-      return await (client as Pool).query(`
-        DELETE FROM errors WHERE resolved = true AND timestamp < NOW() - INTERVAL '${days} days'
-      `)
+      return await (client as Pool).query(
+        `DELETE FROM errors WHERE resolved = true AND timestamp < NOW() - INTERVAL '1 day' * $1`,
+        [days],
+      )
     } else {
       const stmt = (client as Database.Database).prepare(`
-        DELETE FROM errors WHERE resolved = 1 AND timestamp < datetime('now', '-${days} days')
+        DELETE FROM errors WHERE resolved = 1 AND timestamp < datetime('now', '-' || ? || ' days')
       `)
-      return stmt.run()
+      return stmt.run(days)
     }
   }
 

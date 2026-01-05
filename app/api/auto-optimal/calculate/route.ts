@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { v4 as uuidv4 } from "uuid"
 import DatabaseManager from "@/lib/database"
 import { EntityTypes, ConfigSubTypes } from "@/lib/core/entity-types"
-import { sql } from "slonik"
 
 interface AutoOptimalConfig {
   symbol_mode: string
@@ -94,12 +93,20 @@ export async function POST(request: NextRequest) {
     console.log(`[v0] Auto-optimal config created using dynamic operations: ${configId}`)
     console.log(`[v0] Starting auto-optimal calculation for config: ${configId}`)
 
-    const historicalPositions = await sql<HistoricalPosition>`
-      SELECT * FROM pseudo_positions
-      WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '${config.calculation_days} days'
-      AND status = 'closed'
-      ORDER BY closed_at DESC
-    `
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - config.calculation_days)
+
+    const allPositions = await dbManager.query("pseudo_positions", { status: "closed" }, ["*"])
+
+    // Filter positions by date in JavaScript
+    const historicalPositions = allPositions
+      .filter((pos: any) => {
+        const createdAt = new Date(pos.created_at)
+        return createdAt >= cutoffDate
+      })
+      .sort((a: any, b: any) => {
+        return new Date(b.closed_at || 0).getTime() - new Date(a.closed_at || 0).getTime()
+      })
 
     console.log(`[v0] Analyzing ${historicalPositions.length} historical positions`)
 

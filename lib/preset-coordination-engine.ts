@@ -10,6 +10,7 @@ import type { PresetType, PresetConfigurationSet, PresetCoordinationResult } fro
 import { calculateIndicators, type IndicatorConfig } from "./indicators"
 import crypto from "crypto"
 import { PresetPseudoPositionManager } from "./preset-pseudo-position-manager"
+import { DatabaseManager } from "@/lib/database-manager" // Import DatabaseManager
 
 export interface PresetCoordinationConfig {
   connectionId: string
@@ -891,14 +892,23 @@ export class PresetCoordinationEngine {
   }
 
   private async getHistoricalData(symbol: string, days: number): Promise<any[]> {
-    const result = await sql`
-      SELECT * FROM preset_historical_data
-      WHERE connection_id = ${this.connectionId}
-        AND symbol = ${symbol}
-        AND timestamp > NOW() - INTERVAL '${days} days'
-      ORDER BY timestamp ASC
-    `
-    return result
+    const dbManager = DatabaseManager.getInstance()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - days)
+
+    const allData = await dbManager.query(
+      "preset_historical_data",
+      {
+        connection_id: this.connectionId,
+        symbol: symbol,
+      },
+      ["*"],
+    )
+
+    // Filter in JavaScript to avoid SQL INTERVAL issues
+    return allData
+      .filter((row: any) => new Date(row.timestamp) > cutoffDate)
+      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   }
 
   private async getCurrentMarketSignal(result: PresetCoordinationResult): Promise<any> {
