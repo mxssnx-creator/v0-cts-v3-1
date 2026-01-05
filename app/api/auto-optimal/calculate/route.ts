@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     // Store top results
     for (const result of simulationResults.slice(0, 100)) {
-      await dbManager.insert(EntityTypes.CONFIG, ConfigSubTypes.AUTO_OPTIMAL_RESULT, {
+      await dbManager.insert(EntityTypes.AUTO_OPTIMAL_RESULT, undefined, {
         id: uuidv4(),
         config_id: configId,
         ...result,
