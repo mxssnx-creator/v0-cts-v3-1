@@ -75,7 +75,7 @@ export class AutoRecoveryManager {
     try {
       await fs.mkdir(RECOVERY_LOG_DIR, { recursive: true })
     } catch (error) {
-      SystemLogger.logError("AutoRecovery", "Failed to create recovery log directory", String(error))
+      SystemLogger.logError(error, "system", "AutoRecovery: Failed to create recovery log directory")
     }
   }
 
@@ -86,7 +86,7 @@ export class AutoRecoveryManager {
       const logLine = `${action.timestamp.toISOString()} | ${action.type} | ${action.status} | ${action.error || "N/A"} | Retry: ${action.retryCount}\n`
       await fs.appendFile(logFile, logLine, "utf8")
     } catch (error) {
-      SystemLogger.logError("AutoRecovery", "Failed to log recovery action", String(error))
+      SystemLogger.logError(error, "system", "AutoRecovery: Failed to log recovery action")
     }
   }
 
@@ -131,7 +131,7 @@ export class AutoRecoveryManager {
       service.errorCount = 0
     } catch (error) {
       service.errorCount++
-      SystemLogger.logError("AutoRecovery", "Database health check failed", String(error))
+      SystemLogger.logError(error, "database", "AutoRecovery: Database health check failed")
 
       if (service.errorCount >= MAX_ERROR_THRESHOLD) {
         await this.recoverDatabase()
@@ -151,7 +151,7 @@ export class AutoRecoveryManager {
       service.errorCount = 0
     } catch (error) {
       service.errorCount++
-      SystemLogger.logError("AutoRecovery", "Position threshold health check failed", String(error))
+      SystemLogger.logError(error, "system", "AutoRecovery: Position threshold health check failed")
 
       if (service.errorCount >= MAX_ERROR_THRESHOLD) {
         await this.recoverPositionThreshold()
@@ -172,7 +172,7 @@ export class AutoRecoveryManager {
       service.errorCount = 0
     } catch (error) {
       service.errorCount++
-      SystemLogger.logError("AutoRecovery", "Trade engine health check failed", String(error))
+      SystemLogger.logError(error, "trade-engine", "AutoRecovery: Trade engine health check failed")
 
       if (service.errorCount >= MAX_ERROR_THRESHOLD) {
         await this.recoverTradeEngine()
@@ -189,11 +189,8 @@ export class AutoRecoveryManager {
     if (!service) return
 
     if (service.restartCount >= MAX_RESTART_ATTEMPTS) {
-      SystemLogger.logError(
-        "AutoRecovery",
-        "Database recovery failed",
-        `Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`,
-      )
+      const error = new Error(`Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`)
+      SystemLogger.logError(error, "database", "AutoRecovery: Database recovery failed")
       service.status = "error"
       return
     }
@@ -229,7 +226,7 @@ export class AutoRecoveryManager {
       action.error = String(error)
       service.status = "error"
       service.restartCount++
-      SystemLogger.logError("AutoRecovery", "Database recovery failed", String(error))
+      SystemLogger.logError(error, "database", "AutoRecovery: Database recovery failed")
     } finally {
       this.isRecovering = false
       this.recoveryActions.push(action)
@@ -254,11 +251,8 @@ export class AutoRecoveryManager {
     if (!service) return
 
     if (service.restartCount >= MAX_RESTART_ATTEMPTS) {
-      SystemLogger.logError(
-        "AutoRecovery",
-        "Position threshold recovery failed",
-        `Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`,
-      )
+      const error = new Error(`Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`)
+      SystemLogger.logError(error, "system", "AutoRecovery: Position threshold recovery failed")
       service.status = "error"
       return
     }
@@ -290,7 +284,7 @@ export class AutoRecoveryManager {
       action.error = String(error)
       service.status = "error"
       service.restartCount++
-      SystemLogger.logError("AutoRecovery", "Position threshold recovery failed", String(error))
+      SystemLogger.logError(error, "system", "AutoRecovery: Position threshold recovery failed")
     } finally {
       this.isRecovering = false
       this.recoveryActions.push(action)
@@ -315,11 +309,8 @@ export class AutoRecoveryManager {
     if (!service) return
 
     if (service.restartCount >= MAX_RESTART_ATTEMPTS) {
-      SystemLogger.logError(
-        "AutoRecovery",
-        "Trade engine recovery failed",
-        `Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`,
-      )
+      const error = new Error(`Maximum restart attempts (${MAX_RESTART_ATTEMPTS}) reached`)
+      SystemLogger.logError(error, "trade-engine", "AutoRecovery: Trade engine recovery failed")
       service.status = "error"
       return
     }
@@ -356,7 +347,7 @@ export class AutoRecoveryManager {
       action.error = String(error)
       service.status = "error"
       service.restartCount++
-      SystemLogger.logError("AutoRecovery", "Trade engine recovery failed", String(error))
+      SystemLogger.logError(error, "trade-engine", "AutoRecovery: Trade engine recovery failed")
     } finally {
       this.isRecovering = false
       this.recoveryActions.push(action)
@@ -424,7 +415,7 @@ export class AutoRecoveryManager {
 
       return logs
     } catch (error) {
-      SystemLogger.logError("AutoRecovery", "Failed to read recovery logs", String(error))
+      SystemLogger.logError(error, "system", "AutoRecovery: Failed to read recovery logs")
       return []
     }
   }
