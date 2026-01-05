@@ -294,6 +294,23 @@ export class HighPerformanceDatabaseRouter {
   public async getPositionStats(connectionId: string): Promise<any> {
     return this.getAggregatedStats({ connectionId })
   }
+
+  /**
+   * Get statistics for a specific indication type
+   */
+  public async getIndicationStats(
+    indicationType: "active" | "direction" | "move",
+    connectionId?: string,
+  ): Promise<any> {
+    return this.getAggregatedStats({ indicationType, connectionId })
+  }
+
+  /**
+   * Get statistics for a specific strategy type
+   */
+  public async getStrategyStats(strategyType: "simple" | "advanced" | "step", connectionId?: string): Promise<any> {
+    return this.getAggregatedStats({ strategyType, connectionId })
+  }
 }
 
 export const dbRouter = HighPerformanceDatabaseRouter.getInstance()
