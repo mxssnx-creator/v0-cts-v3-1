@@ -95,7 +95,7 @@ export class AutoRecoveryManager {
       return
     }
 
-    SystemLogger.logSystem("AutoRecovery", "info", "Starting automatic health monitoring")
+    SystemLogger.logSystem("Starting automatic health monitoring", "info", { context: "AutoRecovery" })
 
     this.healthCheckInterval = setInterval(async () => {
       await this.performHealthChecks()
@@ -109,7 +109,7 @@ export class AutoRecoveryManager {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval)
       this.healthCheckInterval = null
-      SystemLogger.logSystem("AutoRecovery", "info", "Stopped automatic health monitoring")
+      SystemLogger.logSystem("Stopped automatic health monitoring", "info", { context: "AutoRecovery" })
     }
   }
 
@@ -207,7 +207,7 @@ export class AutoRecoveryManager {
     }
 
     try {
-      SystemLogger.logSystem("AutoRecovery", "info", "Attempting database recovery")
+      SystemLogger.logSystem("Attempting database recovery", "info", { context: "AutoRecovery" })
 
       const { DatabaseInitializer } = await import("./db-initializer")
       const success = await DatabaseInitializer.initialize()
@@ -217,7 +217,7 @@ export class AutoRecoveryManager {
         service.status = "running"
         service.errorCount = 0
         service.restartCount++
-        SystemLogger.logSystem("AutoRecovery", "info", "Database recovery successful")
+        SystemLogger.logSystem("Database recovery successful", "info", { context: "AutoRecovery" })
       } else {
         throw new Error("Database initialization returned false")
       }
@@ -269,7 +269,7 @@ export class AutoRecoveryManager {
     }
 
     try {
-      SystemLogger.logSystem("AutoRecovery", "info", "Attempting position threshold recovery")
+      SystemLogger.logSystem("Attempting position threshold recovery", "info", { context: "AutoRecovery" })
 
       positionThresholdManager.stopMonitoring()
       await positionThresholdManager.startMonitoring(60000)
@@ -278,7 +278,7 @@ export class AutoRecoveryManager {
       service.status = "running"
       service.errorCount = 0
       service.restartCount++
-      SystemLogger.logSystem("AutoRecovery", "info", "Position threshold recovery successful")
+      SystemLogger.logSystem("Position threshold recovery successful", "info", { context: "AutoRecovery" })
     } catch (error) {
       action.status = "failed"
       action.error = String(error)
@@ -327,7 +327,7 @@ export class AutoRecoveryManager {
     }
 
     try {
-      SystemLogger.logSystem("AutoRecovery", "info", "Attempting trade engine recovery")
+      SystemLogger.logSystem("Attempting trade engine recovery", "info", { context: "AutoRecovery" })
 
       // Just clear error state and let coordinator reinitialize
       const { loadSettings, saveSettings } = await import("./file-storage")
@@ -341,7 +341,7 @@ export class AutoRecoveryManager {
       service.status = "running"
       service.errorCount = 0
       service.restartCount++
-      SystemLogger.logSystem("AutoRecovery", "info", "Trade engine recovery successful")
+      SystemLogger.logSystem("Trade engine recovery successful", "info", { context: "AutoRecovery" })
     } catch (error) {
       action.status = "failed"
       action.error = String(error)
@@ -369,7 +369,7 @@ export class AutoRecoveryManager {
       return false
     }
 
-    SystemLogger.logSystem("AutoRecovery", "info", `Manual restart requested for ${serviceName}`)
+    SystemLogger.logSystem(`Manual restart requested for ${serviceName}`, "info", { context: "AutoRecovery" })
 
     switch (serviceName) {
       case "database":
