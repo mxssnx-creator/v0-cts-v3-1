@@ -1,5 +1,14 @@
-import { sql } from "./db"
+import fs from "fs"
+import path from "path"
 import { EventEmitter } from "events"
+
+const DATA_DIR =
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    ? path.join("/tmp", "data")
+    : path.join(process.cwd(), "data")
+
+const CONNECTION_STATE_FILE = path.join(DATA_DIR, "connection-state.json")
+const CONNECTION_SYNC_LOG_FILE = path.join(DATA_DIR, "connection-sync-log.json")
 
 interface ConnectionState {
   connection_id: string
@@ -7,9 +16,9 @@ interface ConnectionState {
   volume_factor_live: number
   volume_factor_preset: number
   test_results: any
-  last_sync_at: Date
-  created_at: Date
-  updated_at: Date
+  last_sync_at: string
+  created_at: string
+  updated_at: string
 }
 
 interface SyncLogEntry {
@@ -17,7 +26,70 @@ interface SyncLogEntry {
   connection_id: string
   action: string
   data: any
-  created_at: Date
+  created_at: string
+}
+
+function ensureDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true })
+    }
+  } catch (error) {
+    console.error("[ConnectionStateManager] Failed to create data directory:", error)
+  }
+}
+
+function loadStateFromFile(): ConnectionState[] {
+  try {
+    ensureDataDir()
+    if (fs.existsSync(CONNECTION_STATE_FILE)) {
+      const data = fs.readFileSync(CONNECTION_STATE_FILE, "utf-8")
+      if (data && data.trim()) {
+        return JSON.parse(data)
+      }
+    }
+    return []
+  } catch (error) {
+    console.error("[ConnectionStateManager] Failed to load state from file:", error)
+    return []
+  }
+}
+
+function saveStateToFile(states: ConnectionState[]): void {
+  try {
+    ensureDataDir()
+    fs.writeFileSync(CONNECTION_STATE_FILE, JSON.stringify(states, null, 2), "utf-8")
+  } catch (error) {
+    console.error("[ConnectionStateManager] Failed to save state to file:", error)
+    throw error
+  }
+}
+
+function loadSyncLogFromFile(): SyncLogEntry[] {
+  try {
+    ensureDataDir()
+    if (fs.existsSync(CONNECTION_SYNC_LOG_FILE)) {
+      const data = fs.readFileSync(CONNECTION_SYNC_LOG_FILE, "utf-8")
+      if (data && data.trim()) {
+        return JSON.parse(data)
+      }
+    }
+    return []
+  } catch (error) {
+    console.error("[ConnectionStateManager] Failed to load sync log from file:", error)
+    return []
+  }
+}
+
+function saveSyncLogToFile(logs: SyncLogEntry[]): void {
+  try {
+    ensureDataDir()
+    // Keep only last 1000 entries
+    const trimmedLogs = logs.slice(-1000)
+    fs.writeFileSync(CONNECTION_SYNC_LOG_FILE, JSON.stringify(trimmedLogs, null, 2), "utf-8")
+  } catch (error) {
+    console.error("[ConnectionStateManager] Failed to save sync log to file:", error)
+  }
 }
 
 class ConnectionStateManager extends EventEmitter {
@@ -28,31 +100,18 @@ class ConnectionStateManager extends EventEmitter {
     if (this.initialized) return
 
     try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS connection_state (
-          connection_id TEXT PRIMARY KEY,
-          is_active BOOLEAN DEFAULT false,
-          volume_factor_live REAL DEFAULT 1.0,
-          volume_factor_preset REAL DEFAULT 1.0,
-          test_results JSONB,
-          last_sync_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
+      ensureDataDir()
 
-      await sql`
-        CREATE TABLE IF NOT EXISTS connection_sync_log (
-          id SERIAL PRIMARY KEY,
-          connection_id TEXT,
-          action TEXT NOT NULL,
-          data JSONB,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
+      // Ensure files exist
+      if (!fs.existsSync(CONNECTION_STATE_FILE)) {
+        saveStateToFile([])
+      }
+      if (!fs.existsSync(CONNECTION_SYNC_LOG_FILE)) {
+        saveSyncLogToFile([])
+      }
 
       this.initialized = true
-      console.log("[ConnectionStateManager] Initialized with database backend")
+      console.log("[ConnectionStateManager] Initialized with file-based backend")
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to initialize:", error)
       throw error
@@ -63,14 +122,12 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const result: ConnectionState[] = await sql`
-        SELECT connection_id FROM connection_state
-        WHERE is_active = true
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `
+      const states = loadStateFromFile()
+      const activeState = states
+        .filter((s) => s.is_active)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
 
-      return result[0]?.connection_id || null
+      return activeState?.connection_id || null
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get active connection:", error)
       return null
@@ -81,22 +138,44 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      await sql`
-        UPDATE connection_state SET is_active = false, updated_at = CURRENT_TIMESTAMP
-      `
+      const states = loadStateFromFile()
 
-      await sql`
-        INSERT INTO connection_state (connection_id, is_active, updated_at)
-        VALUES (${connectionId}, true, CURRENT_TIMESTAMP)
-        ON CONFLICT (connection_id) 
-        DO UPDATE SET is_active = true, updated_at = CURRENT_TIMESTAMP
-      `
+      // Deactivate all connections
+      states.forEach((s) => {
+        s.is_active = false
+        s.updated_at = new Date().toISOString()
+      })
 
-      const logData = JSON.stringify({ timestamp: new Date().toISOString() })
-      await sql`
-        INSERT INTO connection_sync_log (connection_id, action, data)
-        VALUES (${connectionId}, 'set_active', ${logData})
-      `
+      // Find or create the connection state
+      const state = states.find((s) => s.connection_id === connectionId)
+      if (state) {
+        state.is_active = true
+        state.updated_at = new Date().toISOString()
+      } else {
+        states.push({
+          connection_id: connectionId,
+          is_active: true,
+          volume_factor_live: 1.0,
+          volume_factor_preset: 1.0,
+          test_results: null,
+          last_sync_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      saveStateToFile(states)
+
+      // Log the action
+      const logs = loadSyncLogFromFile()
+      logs.push({
+        id: logs.length + 1,
+        connection_id: connectionId,
+        action: "set_active",
+        data: { timestamp: new Date().toISOString() },
+        created_at: new Date().toISOString(),
+      })
+      saveSyncLogToFile(logs)
 
       this.stateCache.set("active", connectionId)
       this.emit("activeConnectionChanged", connectionId)
@@ -111,17 +190,14 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const result: ConnectionState[] = await sql`
-        SELECT volume_factor_live, volume_factor_preset
-        FROM connection_state
-        WHERE connection_id = ${connectionId}
-      `
+      const states = loadStateFromFile()
+      const state = states.find((s) => s.connection_id === connectionId)
 
-      if (!result[0]) return null
+      if (!state) return null
 
       return {
-        live: Number(result[0].volume_factor_live),
-        preset: Number(result[0].volume_factor_preset),
+        live: Number(state.volume_factor_live),
+        preset: Number(state.volume_factor_preset),
       }
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get volume factor:", error)
@@ -133,21 +209,38 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      await sql`
-        INSERT INTO connection_state (connection_id, volume_factor_live, volume_factor_preset, updated_at)
-        VALUES (${connectionId}, ${live}, ${preset}, CURRENT_TIMESTAMP)
-        ON CONFLICT (connection_id)
-        DO UPDATE SET 
-          volume_factor_live = ${live},
-          volume_factor_preset = ${preset},
-          updated_at = CURRENT_TIMESTAMP
-      `
+      const states = loadStateFromFile()
+      const state = states.find((s) => s.connection_id === connectionId)
 
-      const logData = JSON.stringify({ live, preset, timestamp: new Date().toISOString() })
-      await sql`
-        INSERT INTO connection_sync_log (connection_id, action, data)
-        VALUES (${connectionId}, 'update_volume', ${logData})
-      `
+      if (state) {
+        state.volume_factor_live = live
+        state.volume_factor_preset = preset
+        state.updated_at = new Date().toISOString()
+      } else {
+        states.push({
+          connection_id: connectionId,
+          is_active: false,
+          volume_factor_live: live,
+          volume_factor_preset: preset,
+          test_results: null,
+          last_sync_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      saveStateToFile(states)
+
+      // Log the action
+      const logs = loadSyncLogFromFile()
+      logs.push({
+        id: logs.length + 1,
+        connection_id: connectionId,
+        action: "update_volume",
+        data: { live, preset, timestamp: new Date().toISOString() },
+        created_at: new Date().toISOString(),
+      })
+      saveSyncLogToFile(logs)
 
       this.emit("volumeFactorChanged", connectionId, live, preset)
       console.log("[ConnectionStateManager] Volume factor updated:", connectionId, { live, preset })
@@ -161,12 +254,10 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const result: ConnectionState[] = await sql`
-        SELECT test_results FROM connection_state
-        WHERE connection_id = ${connectionId}
-      `
+      const states = loadStateFromFile()
+      const state = states.find((s) => s.connection_id === connectionId)
 
-      return result[0]?.test_results || null
+      return state?.test_results || null
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get test results:", error)
       return null
@@ -177,21 +268,31 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
+      const states = loadStateFromFile()
+      const state = states.find((s) => s.connection_id === connectionId)
+
       const resultsWithTimestamp = {
         ...results,
         timestamp: new Date().toISOString(),
       }
 
-      const resultsJson = JSON.stringify(resultsWithTimestamp)
+      if (state) {
+        state.test_results = resultsWithTimestamp
+        state.updated_at = new Date().toISOString()
+      } else {
+        states.push({
+          connection_id: connectionId,
+          is_active: false,
+          volume_factor_live: 1.0,
+          volume_factor_preset: 1.0,
+          test_results: resultsWithTimestamp,
+          last_sync_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      }
 
-      await sql`
-        INSERT INTO connection_state (connection_id, test_results, updated_at)
-        VALUES (${connectionId}, ${resultsJson}, CURRENT_TIMESTAMP)
-        ON CONFLICT (connection_id)
-        DO UPDATE SET 
-          test_results = ${resultsJson},
-          updated_at = CURRENT_TIMESTAMP
-      `
+      saveStateToFile(states)
 
       this.emit("testResultsUpdated", connectionId, results)
       console.log("[ConnectionStateManager] Test results saved:", connectionId)
@@ -205,13 +306,8 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const logs: SyncLogEntry[] = await sql`
-        SELECT * FROM connection_sync_log
-        ORDER BY created_at DESC
-        LIMIT ${limit}
-      `
-
-      return logs
+      const logs = loadSyncLogFromFile()
+      return logs.slice(-limit).reverse()
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get sync log:", error)
       return []
@@ -225,11 +321,13 @@ class ConnectionStateManager extends EventEmitter {
 
   async updateHeartbeat(connectionId: string): Promise<void> {
     try {
-      await sql`
-        UPDATE connection_state
-        SET last_sync_at = CURRENT_TIMESTAMP
-        WHERE connection_id = ${connectionId}
-      `
+      const states = loadStateFromFile()
+      const state = states.find((s) => s.connection_id === connectionId)
+
+      if (state) {
+        state.last_sync_at = new Date().toISOString()
+        saveStateToFile(states)
+      }
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to update heartbeat:", error)
     }
@@ -237,13 +335,10 @@ class ConnectionStateManager extends EventEmitter {
 
   async getStaleConnections(): Promise<string[]> {
     try {
-      const stale: ConnectionState[] = await sql`
-        SELECT connection_id FROM connection_state
-        WHERE last_sync_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes'
-          AND is_active = true
-      `
+      const states = loadStateFromFile()
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
 
-      return stale.map((row) => row.connection_id)
+      return states.filter((s) => s.is_active && new Date(s.last_sync_at) < fiveMinutesAgo).map((s) => s.connection_id)
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to get stale connections:", error)
       return []

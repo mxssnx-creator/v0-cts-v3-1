@@ -77,18 +77,40 @@ export async function POST(request: NextRequest) {
       { exchange: body.exchange, api_type: body.api_type },
     )
 
-    if (!body.name || !body.exchange) {
-      await SystemLogger.logAPI("Missing required fields", "warn", "POST /api/settings/connections")
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      await SystemLogger.logAPI("Missing connection name", "warn", "POST /api/settings/connections")
       return NextResponse.json(
-        { error: "Missing required fields", details: "Connection name and exchange are required" },
+        { error: "Missing connection name", details: "Connection name is required and must not be empty" },
         { status: 400 },
       )
     }
 
-    if (!body.api_key || !body.api_secret) {
-      await SystemLogger.logAPI("Missing API credentials", "warn", "POST /api/settings/connections")
+    if (!body.exchange || typeof body.exchange !== "string") {
+      await SystemLogger.logAPI("Missing exchange", "warn", "POST /api/settings/connections")
+      return NextResponse.json({ error: "Missing exchange", details: "Exchange name is required" }, { status: 400 })
+    }
+
+    if (!body.api_key || typeof body.api_key !== "string" || !body.api_key.trim()) {
+      await SystemLogger.logAPI("Missing API key", "warn", "POST /api/settings/connections")
       return NextResponse.json(
-        { error: "Missing API credentials", details: "Both API key and API secret are required" },
+        { error: "Missing API key", details: "API key is required and must not be empty" },
+        { status: 400 },
+      )
+    }
+
+    if (!body.api_secret || typeof body.api_secret !== "string" || !body.api_secret.trim()) {
+      await SystemLogger.logAPI("Missing API secret", "warn", "POST /api/settings/connections")
+      return NextResponse.json(
+        { error: "Missing API secret", details: "API secret is required and must not be empty" },
+        { status: 400 },
+      )
+    }
+
+    const exchangeName = body.exchange.toLowerCase()
+    if (exchangeName === "okx" && (!body.api_passphrase || !body.api_passphrase.trim())) {
+      await SystemLogger.logAPI("Missing API passphrase for OKX", "warn", "POST /api/settings/connections")
+      return NextResponse.json(
+        { error: "Missing API passphrase", details: "OKX requires an API passphrase for authentication" },
         { status: 400 },
       )
     }
@@ -106,29 +128,42 @@ export async function POST(request: NextRequest) {
       "kucoin",
       "huobi",
     ]
-    if (!supportedExchanges.includes(body.exchange.toLowerCase())) {
+    if (!supportedExchanges.includes(exchangeName)) {
+      await SystemLogger.logAPI(`Unsupported exchange: ${exchangeName}`, "warn", "POST /api/settings/connections")
       return NextResponse.json(
-        { error: "Unsupported exchange", details: `Exchange ${body.exchange} is not supported` },
+        {
+          error: "Unsupported exchange",
+          details: `Exchange "${body.exchange}" is not supported. Supported exchanges: ${supportedExchanges.join(", ")}`,
+        },
         { status: 400 },
       )
     }
 
     const connectionId = nanoid()
-    const exchangeName = body.exchange.toLowerCase()
     const exchangeId = EXCHANGE_NAME_TO_ID[exchangeName] || null
+
+    let connectionSettings = body.connection_settings
+    if (connectionSettings && typeof connectionSettings === "object") {
+      try {
+        connectionSettings = JSON.stringify(connectionSettings)
+      } catch (err) {
+        console.error("[v0] Failed to stringify connection settings:", err)
+        connectionSettings = "{}"
+      }
+    }
 
     const newConnection: Connection = {
       id: connectionId,
       user_id: 1,
-      name: body.name,
+      name: body.name.trim(),
       exchange: exchangeName,
       exchange_id: exchangeId,
       api_type: body.api_type || "perpetual_futures",
       connection_method: body.connection_method || "rest",
       connection_library: body.connection_library || "rest",
-      api_key: body.api_key,
-      api_secret: body.api_secret,
-      api_passphrase: body.api_passphrase,
+      api_key: body.api_key.trim(),
+      api_secret: body.api_secret.trim(),
+      api_passphrase: body.api_passphrase?.trim(),
       margin_type: body.margin_type || "cross",
       position_mode: body.position_mode || "hedge",
       is_testnet: body.is_testnet || false,
@@ -138,14 +173,27 @@ export async function POST(request: NextRequest) {
       is_active: true,
       is_predefined: false,
       volume_factor: 1.0,
-      connection_settings: body.connection_settings ? JSON.stringify(body.connection_settings) : undefined,
+      connection_settings: connectionSettings,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
-    const connections = loadConnections()
-    connections.push(newConnection)
-    saveConnections(connections)
+    try {
+      const connections = loadConnections()
+      connections.push(newConnection)
+      saveConnections(connections)
+    } catch (storageError) {
+      console.error("[v0] Failed to save connection to storage:", storageError)
+      await SystemLogger.logError(storageError, "api", "POST /api/settings/connections - storage")
+
+      return NextResponse.json(
+        {
+          error: "Storage error",
+          details: "Failed to save connection to storage. Please ensure the data directory is writable.",
+        },
+        { status: 500 },
+      )
+    }
 
     console.log("[v0] Connection created successfully:", connectionId)
     await SystemLogger.logConnection(`Connection created: ${body.name}`, connectionId, "info", {
@@ -158,17 +206,21 @@ export async function POST(request: NextRequest) {
         success: true,
         id: connectionId,
         message: "Connection created successfully",
+        connection: newConnection,
       },
       { status: 201 },
     )
   } catch (error) {
-    console.error("[v0] Error creating connection:", error)
+    console.error("[v0] Error creating connection - Full error:", error)
     await SystemLogger.logError(error, "api", "POST /api/settings/connections")
+
+    const isDev = process.env.NODE_ENV === "development"
 
     return NextResponse.json(
       {
         error: "Failed to create connection",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error.message : "Unknown error occurred",
+        ...(isDev && error instanceof Error && { stack: error.stack }),
       },
       { status: 500 },
     )
