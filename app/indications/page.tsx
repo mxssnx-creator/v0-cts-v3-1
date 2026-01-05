@@ -13,7 +13,7 @@ import { toast } from "@/lib/simple-toast"
 interface Indication {
   id: string
   symbol: string
-  type: string
+  type: "active" | "direction" | "move"
   range: number
   profitFactor: number
   isActive: boolean
