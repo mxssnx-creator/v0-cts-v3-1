@@ -8,7 +8,7 @@ import type {
   ConnectionTestResult,
 } from "@/lib/exchange-connector-types"
 
-export type { OrderParams, OrderResult, BalanceResult, PositionResult, ConnectionTestResult }
+export type { ExchangeCredentials, OrderParams, OrderResult, BalanceResult, PositionResult, ConnectionTestResult }
 
 export interface ExchangeBalance {
   asset: string
