@@ -7,7 +7,6 @@ import { DatabaseManager } from "./database"
 import { GlobalTradeEngineCoordinator } from "./global-trade-engine-coordinator"
 import { getExchangeConnector } from "./exchange-connectors"
 import { getDatabaseType } from "./db"
-import type { ExchangeConnection } from "./types"
 
 export interface IntegrityCheckResult {
   passed: boolean
@@ -182,7 +181,7 @@ export class SystemIntegrityChecker {
     const checks: IntegrityCheckResult[] = []
 
     try {
-      const connections = (await this.db.getConnections()) as ExchangeConnection[]
+      const connections = await this.db.getConnections()
 
       if (connections.length === 0) {
         checks.push({

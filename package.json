@@ -57,7 +57,7 @@
     "dev": "bash scripts/clear-local-cache.sh && next dev -p ${PORT:-3000}",
     "dev:nocache": "next dev -p ${PORT:-3000}",
     "preinstall": "rm -rf .next .turbo tsconfig.tsbuildinfo node_modules/.cache 2>/dev/null || true",
-    "postinstall": "if [ \"$VERCEL\" != \"1\" ]; then npm rebuild better-sqlite3 sharp 2>/dev/null || true; fi",
+    "postinstall": "npm rebuild better-sqlite3 sharp 2>/dev/null || true",
     "install:download": "bash scripts/quick-install.sh",
     "install:full": "bash scripts/install.sh",
     "install:quick": "bash scripts/install-continuous.sh",

@@ -8,18 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Database,
-  Download,
-  Server,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Terminal,
-  Package,
-  FileText,
-  Archive,
-} from "lucide-react"
+import { Database, Download, Server, CheckCircle2, XCircle, Loader2, Terminal, Package, FileText, Archive } from 'lucide-react'
 import { toast } from "sonner"
 
 interface InstallLog {
@@ -36,7 +25,7 @@ interface Backup {
   type: "manual" | "automatic"
 }
 
-const InstallManager = () => {
+export default function InstallManager() {
   const [installing, setInstalling] = useState(false)
   const [installLogs, setInstallLogs] = useState<InstallLog[]>([])
   const [backups, setBackups] = useState<Backup[]>([])
@@ -962,6 +951,3 @@ const InstallManager = () => {
     </div>
   )
 }
-
-export { InstallManager }
-export default InstallManager

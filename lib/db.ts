@@ -1,5 +1,5 @@
 import { Pool } from "./pg-compat"
-import type Database from "better-sqlite3"
+import Database from "better-sqlite3"
 import path from "path"
 import fs from "fs"
 
@@ -54,40 +54,12 @@ function getDatabaseTypeFromSettings(): string {
     console.log("[v0] Could not load database type from settings, using default")
   }
 
-  if (process.env.VERCEL === "1" || process.env.NODE_ENV === "production") {
-    console.log("[v0] Production environment detected, defaulting to PostgreSQL")
-    return "postgresql"
-  }
-
+  // Default to sqlite
   console.log("[v0] Using default database type: sqlite")
   return "sqlite"
 }
 
 const DATABASE_TYPE = getDatabaseTypeFromSettings()
-
-function loadSQLiteDatabase(): Database.Database {
-  const BetterSqlite3 = require("better-sqlite3")
-  const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
-  const dbDir = path.dirname(dbPath)
-
-  try {
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true })
-    }
-    console.log(`[v0] Initializing SQLite database at ${dbPath}...`)
-    const db = new BetterSqlite3(dbPath)
-    console.log("[v0] SQLite database client initialized successfully")
-    return db
-  } catch (error) {
-    console.error("[v0] Failed to create database directory:", error)
-    // In serverless environment, use /tmp directory instead
-    const tmpDbPath = path.join("/tmp", "cts.db")
-    console.log(`[v0] Using temporary database at ${tmpDbPath}`)
-    const db = new BetterSqlite3(tmpDbPath)
-    console.log("[v0] SQLite database client initialized successfully (temporary)")
-    return db
-  }
-}
 
 function getClient(): Database.Database | Pool {
   if (isBuildPhase) {
@@ -96,7 +68,26 @@ function getClient(): Database.Database | Pool {
 
   if (DATABASE_TYPE === "sqlite") {
     if (!sqliteClient) {
-      sqliteClient = loadSQLiteDatabase()
+      const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
+      const dbDir = path.dirname(dbPath)
+
+      try {
+        if (!fs.existsSync(dbDir)) {
+          fs.mkdirSync(dbDir, { recursive: true })
+        }
+      } catch (error) {
+        console.error("[v0] Failed to create database directory:", error)
+        // In serverless environment, use /tmp directory instead
+        const tmpDbPath = path.join("/tmp", "cts.db")
+        console.log(`[v0] Using temporary database at ${tmpDbPath}`)
+        sqliteClient = new Database(tmpDbPath)
+        console.log("[v0] SQLite database client initialized successfully (temporary)")
+        return sqliteClient
+      }
+
+      console.log(`[v0] Initializing SQLite database at ${dbPath}...`)
+      sqliteClient = new Database(dbPath)
+      console.log("[v0] SQLite database client initialized successfully")
     }
     return sqliteClient
   } else if (DATABASE_TYPE === "postgresql" || DATABASE_TYPE === "remote") {

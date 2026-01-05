@@ -57,8 +57,6 @@ interface ExchangeConnectionManagerProps {
   onConnectionsChange?: () => void
 }
 
-export { ExchangeConnectionManager }
-
 export default function ExchangeConnectionManager({ onConnectionsChange }: ExchangeConnectionManagerProps = {}) {
   const [connections, setConnections] = useState<BaseConnection[]>([])
   const [testingConnection, setTestingConnection] = useState<string | null>(null)
