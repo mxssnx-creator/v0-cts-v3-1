@@ -17,6 +17,13 @@ interface Indication {
   range: number
   profitFactor: number
   isActive: boolean
+  stats: {
+    last8Avg: number
+    last20Avg: number
+    last50Avg: number
+    positionsPerDay: number
+    drawdownHours: number
+  }
   subConfigurations?: Array<{
     trailingEnabled: boolean
     blockEnabled: boolean
