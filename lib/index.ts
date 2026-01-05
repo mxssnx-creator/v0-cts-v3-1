@@ -9,7 +9,8 @@ export * from "./types"
 export { sql, query, queryOne, execute, insertReturning, getDatabaseType } from "./db"
 export { OrderExecutor, orderExecutor, type OrderParams, type ExecutionResult } from "./order-executor"
 export { PositionManager, positionManager } from "./position-manager"
-export { ConnectionStateManager, connectionStateManager } from "./connection-state-manager"
+export { ConnectionStateManager } from "./connection-state-manager"
+export { default as connectionStateManager } from "./connection-state-manager"
 export { SystemLogger } from "./system-logger"
 export { createExchangeConnector, getExchangeConnector } from "./exchange-connectors"
 export { getRateLimiter } from "./rate-limiter"
@@ -26,4 +27,28 @@ export {
   getConnectionPredefinition,
   getAllConnectionPredefinitions,
 } from "./connection-predefinitions"
-export * from "./constants"
+export {
+  DEFAULT_LEVERAGE,
+  MIN_LEVERAGE,
+  MAX_LEVERAGE,
+  DEFAULT_VOLUME,
+  MIN_VOLUME,
+  MAX_VOLUME,
+  MIN_ENTRY_DISTANCE,
+  MAX_ENTRY_DISTANCE,
+  DEFAULT_ENTRY_DISTANCE,
+  MIN_TP_DISTANCE,
+  MAX_TP_DISTANCE,
+  DEFAULT_TP_DISTANCE,
+  MIN_SL_DISTANCE,
+  MAX_SL_DISTANCE,
+  DEFAULT_SL_DISTANCE,
+  TRADE_ENGINE_TYPES,
+  STRATEGY_BASES,
+  TP_ADJUSTMENT_TYPES,
+  VOLUME_ADJUSTMENT_TYPES,
+  ADJUSTMENT_TYPES,
+  // Note: AdjustmentType already exported from ./types - not re-exported to avoid duplicate
+  type TpAdjustmentType,
+  type VolumeAdjustmentType,
+} from "./constants/types"

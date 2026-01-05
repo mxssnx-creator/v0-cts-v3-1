@@ -41,7 +41,7 @@ export interface OrderParams {
 }
 
 export abstract class BaseExchangeConnector {
-  protected credentials: ExchangeCredentials
+  public credentials: ExchangeCredentials
   protected logs: string[] = []
   protected timeout = 10000 // 10 seconds
   protected rateLimiter: ReturnType<typeof getRateLimiter>
