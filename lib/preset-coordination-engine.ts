@@ -10,7 +10,7 @@ import type { PresetType, PresetConfigurationSet, PresetCoordinationResult } fro
 import { calculateIndicators, type IndicatorConfig } from "./indicators"
 import crypto from "crypto"
 import { PresetPseudoPositionManager } from "./preset-pseudo-position-manager"
-import { DatabaseManager } from "@/lib/database-manager" // Import DatabaseManager
+import { DatabaseManager } from "@/lib/database"
 
 export interface PresetCoordinationConfig {
   connectionId: string
