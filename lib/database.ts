@@ -47,15 +47,14 @@ class DatabaseManager {
   private constructor() {
     if (isBuildPhase) {
       console.log("[v0] Skipping database initialization during build phase")
-      // Initialize HP router and optimizer even during build phase for potential static analysis or pre-computation
-      this.hpRouter = new HighPerformanceDatabaseRouter()
+      this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
       this.queryOptimizer = new DatabaseQueryOptimizer()
       return
     }
 
     try {
       this.initializeDynamicOps()
-      this.hpRouter = new HighPerformanceDatabaseRouter()
+      this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
       this.queryOptimizer = new DatabaseQueryOptimizer()
       this.initializeTables()
     } catch (error) {
