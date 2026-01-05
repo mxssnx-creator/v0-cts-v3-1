@@ -37,7 +37,7 @@ interface SystemHealthLog {
 
 export function SystemHealthPanel() {
   const [healthChecks, setHealthChecks] = useState<SystemHealthCheck[]>([])
-  const [overallStatus, setOverallStatus] = useState<"healthy" | "warning" | "critical">("unknown")
+  const [overallStatus, setOverallStatus] = useState<"healthy" | "warning" | "critical" | "unknown">("unknown")
   const [loading, setLoading] = useState(false)
   const [expandedChecks, setExpandedChecks] = useState<Set<string>>(new Set())
   const [logs, setLogs] = useState<Map<string, SystemHealthLog[]>>(new Map())
