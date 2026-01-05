@@ -1,7 +1,8 @@
 import crypto from "crypto"
 import {
   BaseExchangeConnector,
-  type ExchangeConnectorResult,
+  type ConnectionTestResult,
+  type BalanceResult,
   type OrderParams,
   type OrderResult,
 } from "./base-connector"
@@ -15,25 +16,36 @@ export class BingXConnector extends BaseExchangeConnector {
     return ["futures", "perpetual_futures", "leverage", "hedge_mode", "cross_margin"]
   }
 
-  async testConnection(): Promise<ExchangeConnectorResult> {
+  generateSignature(data: string | Record<string, any>): string {
+    const queryString = typeof data === "string" ? data : new URLSearchParams(data as any).toString()
+    return crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+  }
+
+  async testConnection(): Promise<ConnectionTestResult> {
     this.log("Starting BingX connection test")
     this.log(`Using endpoint: ${this.getBaseUrl()}`)
 
     try {
-      return await this.getBalance()
+      const balanceResult = await this.getBalance()
+      return {
+        success: balanceResult.totalBalance > 0,
+        balance: balanceResult.totalBalance,
+        latency: 0,
+        timestamp: Date.now(),
+      }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
       return {
         success: false,
         balance: 0,
-        capabilities: this.getCapabilities(),
+        latency: 0,
+        timestamp: Date.now(),
         error: error instanceof Error ? error.message : "Connection test failed",
-        logs: this.logs,
       }
     }
   }
 
-  async getBalance(): Promise<ExchangeConnectorResult> {
+  async getBalance(): Promise<BalanceResult> {
     const timestamp = Date.now()
     const baseUrl = this.getBaseUrl()
 
@@ -41,7 +53,7 @@ export class BingXConnector extends BaseExchangeConnector {
 
     try {
       const queryString = `timestamp=${timestamp}`
-      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+      const signature = this.generateSignature(queryString)
 
       this.log("Fetching account balance...")
 
@@ -77,11 +89,9 @@ export class BingXConnector extends BaseExchangeConnector {
       this.log(`Account Balance: ${usdtBalance.toFixed(2)} USDT`)
 
       return {
-        success: true,
-        balance: usdtBalance,
+        totalBalance: usdtBalance,
+        availableBalance: balances.find((b) => b.asset === "USDT")?.free || 0,
         balances,
-        capabilities: this.getCapabilities(),
-        logs: this.logs,
       }
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
@@ -104,7 +114,7 @@ export class BingXConnector extends BaseExchangeConnector {
         queryString += `&price=${params.price}&timeInForce=${params.timeInForce || "GTC"}`
       }
 
-      const signature = crypto.createHmac("sha256", this.credentials.apiSecret).update(queryString).digest("hex")
+      const signature = this.generateSignature(queryString)
 
       this.log("Sending order request...")
 
@@ -126,7 +136,7 @@ export class BingXConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.msg || "Order placement failed",
-          logs: this.logs,
+          timestamp: Date.now(),
         }
       }
 
@@ -135,14 +145,15 @@ export class BingXConnector extends BaseExchangeConnector {
       return {
         success: true,
         orderId: data.data.orderId.toString(),
-        logs: this.logs,
+        status: "filled",
+        timestamp: Date.now(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        logs: this.logs,
+        timestamp: Date.now(),
       }
     }
   }

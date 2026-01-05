@@ -1,7 +1,8 @@
 import crypto from "crypto"
 import {
   BaseExchangeConnector,
-  type ExchangeConnectorResult,
+  type ConnectionTestResult,
+  type BalanceResult,
   type OrderParams,
   type OrderResult,
 } from "./base-connector"
@@ -15,25 +16,45 @@ export class OrangeXConnector extends BaseExchangeConnector {
     return ["futures", "perpetual_futures", "leverage", "cross_margin"]
   }
 
-  async testConnection(): Promise<ExchangeConnectorResult> {
+  generateSignature(data: string | Record<string, any>): string {
+    const dataString =
+      typeof data === "string"
+        ? data
+        : Object.entries(data)
+            .sort()
+            .map(([k, v]) => `${k}=${v}`)
+            .join("&")
+    return crypto.createHmac("sha256", this.credentials.apiSecret).update(dataString).digest("hex")
+  }
+
+  async testConnection(): Promise<ConnectionTestResult> {
     this.log("Starting OrangeX connection test")
     this.log(`Using endpoint: ${this.getBaseUrl()}`)
 
+    const startTime = Date.now()
     try {
-      return await this.getBalance()
+      const balanceResult = await this.getBalance()
+      const latency = Date.now() - startTime
+
+      return {
+        success: true,
+        balance: balanceResult.totalBalance,
+        latency,
+        timestamp: new Date().toISOString(),
+      }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
       return {
         success: false,
         balance: 0,
-        capabilities: this.getCapabilities(),
+        latency: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Connection test failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }
 
-  async getBalance(): Promise<ExchangeConnectorResult> {
+  async getBalance(): Promise<BalanceResult> {
     const timestamp = Date.now()
     const baseUrl = this.getBaseUrl()
 
@@ -66,6 +87,8 @@ export class OrangeXConnector extends BaseExchangeConnector {
 
       const balanceData = data.data || []
       const usdtBalance = Number.parseFloat(balanceData.find((b: any) => b.asset === "USDT")?.free || "0")
+      const usdtLocked = Number.parseFloat(balanceData.find((b: any) => b.asset === "USDT")?.locked || "0")
+      const totalUsdt = usdtBalance + usdtLocked
 
       const balances = balanceData.map((b: any) => ({
         asset: b.asset,
@@ -74,14 +97,12 @@ export class OrangeXConnector extends BaseExchangeConnector {
         total: Number.parseFloat(b.free || "0") + Number.parseFloat(b.locked || "0"),
       }))
 
-      this.log(`Account Balance: ${usdtBalance.toFixed(2)} USDT`)
+      this.log(`Account Balance: ${totalUsdt.toFixed(2)} USDT`)
 
       return {
-        success: true,
-        balance: usdtBalance,
+        totalBalance: totalUsdt,
+        availableBalance: usdtBalance,
         balances,
-        capabilities: this.getCapabilities(),
-        logs: this.logs,
       }
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
@@ -134,7 +155,7 @@ export class OrangeXConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.msg || "Order placement failed",
-          logs: this.logs,
+          timestamp: new Date().toISOString(),
         }
       }
 
@@ -143,14 +164,15 @@ export class OrangeXConnector extends BaseExchangeConnector {
       return {
         success: true,
         orderId: data.orderId.toString(),
-        logs: this.logs,
+        status: "NEW",
+        timestamp: new Date().toISOString(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }

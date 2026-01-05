@@ -1,7 +1,8 @@
 import crypto from "crypto"
 import {
   BaseExchangeConnector,
-  type ExchangeConnectorResult,
+  type ConnectionTestResult,
+  type BalanceResult,
   type OrderParams,
   type OrderResult,
 } from "./base-connector"
@@ -15,26 +16,40 @@ export class OKXConnector extends BaseExchangeConnector {
     return ["futures", "perpetual_futures", "spot", "leverage", "hedge_mode", "cross_margin", "isolated_margin"]
   }
 
-  async testConnection(): Promise<ExchangeConnectorResult> {
+  generateSignature(data: string | Record<string, any>): string {
+    const dataString = typeof data === "string" ? data : JSON.stringify(data)
+    return crypto.createHmac("sha256", this.credentials.apiSecret).update(dataString).digest("base64")
+  }
+
+  async testConnection(): Promise<ConnectionTestResult> {
     this.log("Starting OKX connection test")
     this.log(`Testnet: ${this.credentials.isTestnet ? "Yes" : "No"}`)
     this.log(`Using endpoint: ${this.getBaseUrl()}`)
 
+    const startTime = Date.now()
     try {
-      return await this.getBalance()
+      const balanceResult = await this.getBalance()
+      const latency = Date.now() - startTime
+
+      return {
+        success: true,
+        balance: balanceResult.totalBalance,
+        latency,
+        timestamp: new Date().toISOString(),
+      }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
       return {
         success: false,
         balance: 0,
-        capabilities: this.getCapabilities(),
+        latency: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Connection test failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }
 
-  async getBalance(): Promise<ExchangeConnectorResult> {
+  async getBalance(): Promise<BalanceResult> {
     const timestamp = new Date().toISOString()
     const baseUrl = this.getBaseUrl()
 
@@ -72,6 +87,7 @@ export class OKXConnector extends BaseExchangeConnector {
       const details = data.data?.[0]?.details || []
       const usdtDetail = details.find((d: any) => d.ccy === "USDT")
       const usdtBalance = Number.parseFloat(usdtDetail?.eq || "0")
+      const usdtAvailable = Number.parseFloat(usdtDetail?.availBal || "0")
 
       const balances = details.map((d: any) => ({
         asset: d.ccy,
@@ -83,11 +99,9 @@ export class OKXConnector extends BaseExchangeConnector {
       this.log(`Account Balance: ${usdtBalance.toFixed(2)} USDT`)
 
       return {
-        success: true,
-        balance: usdtBalance,
+        totalBalance: usdtBalance,
+        availableBalance: usdtAvailable,
         balances,
-        capabilities: this.getCapabilities(),
-        logs: this.logs,
       }
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
@@ -143,7 +157,7 @@ export class OKXConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.msg || "Order placement failed",
-          logs: this.logs,
+          timestamp: new Date().toISOString(),
         }
       }
 
@@ -153,15 +167,15 @@ export class OKXConnector extends BaseExchangeConnector {
       return {
         success: true,
         orderId: orderResult.ordId,
-        clientOrderId: orderResult.clOrdId,
-        logs: this.logs,
+        status: "NEW",
+        timestamp: new Date().toISOString(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }

@@ -1,7 +1,8 @@
 import crypto from "crypto"
 import {
   BaseExchangeConnector,
-  type ExchangeConnectorResult,
+  type ConnectionTestResult,
+  type BalanceResult,
   type OrderParams,
   type OrderResult,
 } from "./base-connector"
@@ -24,26 +25,46 @@ export class BybitConnector extends BaseExchangeConnector {
     ]
   }
 
-  async testConnection(): Promise<ExchangeConnectorResult> {
+  generateSignature(data: string | Record<string, any>): string {
+    const dataString =
+      typeof data === "string"
+        ? data
+        : Object.entries(data)
+            .sort()
+            .map(([k, v]) => `${k}=${v}`)
+            .join("&")
+    return crypto.createHmac("sha256", this.credentials.apiSecret).update(dataString).digest("hex")
+  }
+
+  async testConnection(): Promise<ConnectionTestResult> {
     this.log("Starting Bybit connection test")
     this.log(`Testnet: ${this.credentials.isTestnet ? "Yes" : "No"}`)
     this.log(`Using endpoint: ${this.getBaseUrl()}`)
 
+    const startTime = Date.now()
     try {
-      return await this.getBalance()
+      const balanceResult = await this.getBalance()
+      const latency = Date.now() - startTime
+
+      return {
+        success: true,
+        balance: balanceResult.totalBalance,
+        latency,
+        timestamp: new Date().toISOString(),
+      }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
       return {
         success: false,
         balance: 0,
-        capabilities: this.getCapabilities(),
+        latency: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Connection test failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }
 
-  async getBalance(): Promise<ExchangeConnectorResult> {
+  async getBalance(): Promise<BalanceResult> {
     const timestamp = Date.now()
     const baseUrl = this.getBaseUrl()
 
@@ -79,6 +100,7 @@ export class BybitConnector extends BaseExchangeConnector {
       const coins = data.result?.list?.[0]?.coin || []
       const usdtCoin = coins.find((c: any) => c.coin === "USDT")
       const usdtBalance = Number.parseFloat(usdtCoin?.walletBalance || "0")
+      const usdtAvailable = Number.parseFloat(usdtCoin?.availableToWithdraw || "0")
 
       const balances = coins.map((c: any) => ({
         asset: c.coin,
@@ -90,11 +112,9 @@ export class BybitConnector extends BaseExchangeConnector {
       this.log(`Account Balance: ${usdtBalance.toFixed(2)} USDT`)
 
       return {
-        success: true,
-        balance: usdtBalance,
+        totalBalance: usdtBalance,
+        availableBalance: usdtAvailable,
         balances,
-        capabilities: this.getCapabilities(),
-        logs: this.logs,
       }
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
@@ -150,7 +170,7 @@ export class BybitConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.retMsg || "Order placement failed",
-          logs: this.logs,
+          timestamp: new Date().toISOString(),
         }
       }
 
@@ -159,15 +179,15 @@ export class BybitConnector extends BaseExchangeConnector {
       return {
         success: true,
         orderId: data.result.orderId,
-        clientOrderId: data.result.orderLinkId,
-        logs: this.logs,
+        status: "NEW",
+        timestamp: new Date().toISOString(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        logs: this.logs,
+        timestamp: new Date().toISOString(),
       }
     }
   }
