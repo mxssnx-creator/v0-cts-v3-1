@@ -53,7 +53,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const connector = createExchangeConnector(connection.exchange, {
       apiKey: connection.api_key,
       apiSecret: connection.api_secret,
-      apiPassphrase: connection.api_passphrase,
+      passphrase: connection.api_passphrase,
       isTestnet: connection.is_testnet || false,
     })
 
