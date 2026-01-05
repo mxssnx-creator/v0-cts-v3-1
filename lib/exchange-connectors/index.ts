@@ -36,7 +36,7 @@ export function getExchangeConnector(connection: any): BaseExchangeConnector {
   const credentials: ExchangeCredentials = {
     apiKey: connection.api_key,
     apiSecret: connection.api_secret,
-    apiPassphrase: connection.api_passphrase,
+    passphrase: connection.api_passphrase,
     isTestnet: connection.is_testnet || connection.testnet || false,
   }
 
