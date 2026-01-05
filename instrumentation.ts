@@ -11,6 +11,10 @@ export async function register() {
     console.log("=".repeat(60))
 
     try {
+      const { autoRecoveryManager } = await import("./lib/auto-recovery-manager")
+      await autoRecoveryManager.startHealthMonitoring()
+      console.log("[v0] ✅ Auto-recovery system started")
+
       // Import dynamically to avoid Edge Runtime issues
       const { DatabaseInitializer } = await import("./lib/db-initializer")
 
@@ -42,7 +46,7 @@ export async function register() {
         console.error("[v0] ❌ DEPLOYMENT INITIALIZATION FAILED")
         console.log("=".repeat(60))
         console.error("[v0] Database initialization did not complete successfully")
-        console.error("[v0] The app will start but may have limited functionality")
+        console.error("[v0] Auto-recovery system will attempt to fix this")
         console.log("=".repeat(60))
       }
     } catch (error) {
@@ -50,9 +54,9 @@ export async function register() {
       console.error("[v0] ❌ DEPLOYMENT INITIALIZATION ERROR")
       console.log("=".repeat(60))
       console.error("[v0] Error during initialization:", error)
-      console.error("[v0] The app will start but database may not be initialized")
+      console.error("[v0] Auto-recovery system will attempt to fix this")
       console.log("=".repeat(60))
-      // Don't throw - allow app to start even if initialization fails
+      // Don't throw - allow app to start, auto-recovery will handle it
     }
   } else {
     console.log("[v0] Skipping initialization (Edge Runtime)")
