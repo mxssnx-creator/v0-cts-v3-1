@@ -23,6 +23,9 @@ export interface ThresholdConfig {
   mainPositionLimit: number
   realPositionLimit: number
   presetPositionLimit: number
+  optimalPositionLimit: number
+  autoPositionLimit: number
+  adxDatabaseLength: number
   thresholdPercent: number
   maxDatabaseSizeGB: number
 }
@@ -98,6 +101,13 @@ export class PositionThresholdManager {
           config.presetPositionLimit,
           config.thresholdPercent,
         ),
+        this.checkAndCleanupConfiguration(
+          "optimal_pseudo_positions",
+          config.optimalPositionLimit,
+          config.thresholdPercent,
+        ),
+        this.checkAndCleanupConfiguration("auto_pseudo_positions", config.autoPositionLimit, config.thresholdPercent),
+        this.checkAndCleanupADXData(config.adxDatabaseLength),
       ])
 
       // Check overall database size
@@ -301,20 +311,85 @@ export class PositionThresholdManager {
   }
 
   /**
+   * Check and cleanup ADX data based on configured length
+   */
+  private async checkAndCleanupADXData(maxRecords: number): Promise<void> {
+    try {
+      // Count total ADX records
+      const countResult = await query<{ count: number }>(`SELECT COUNT(*) as count FROM adx_data`)
+
+      if (countResult.length === 0 || countResult[0].count <= maxRecords) {
+        return
+      }
+
+      await SystemLogger.logSystem("ADX data cleanup triggered", "info", {
+        currentRecords: countResult[0].count,
+        maxRecords,
+      })
+
+      // Archive old ADX data before deletion
+      await execute(
+        `INSERT INTO archived_adx_data 
+         (symbol, timeframe, adx_value, plus_di, minus_di, timestamp, archived_at, adx_data)
+         SELECT symbol, timeframe, adx_value, plus_di, minus_di, timestamp, NOW(), 
+                row_to_json(adx_data.*)
+         FROM adx_data
+         WHERE id NOT IN (
+           SELECT id FROM adx_data
+           ORDER BY timestamp DESC
+           LIMIT $1
+         )`,
+        [maxRecords],
+      )
+
+      // Delete old ADX records
+      const deleted = await execute(
+        `DELETE FROM adx_data
+         WHERE id NOT IN (
+           SELECT id FROM adx_data
+           ORDER BY timestamp DESC
+           LIMIT $1
+         )`,
+        [maxRecords],
+      )
+
+      await SystemLogger.logSystem("ADX data cleanup complete", "info", {
+        deletedCount: deleted.rowCount || 0,
+        remainingRecords: maxRecords,
+      })
+
+      // Log cleanup
+      await execute(
+        `INSERT INTO data_cleanup_log 
+         (cleanup_type, table_name, records_cleaned, records_archived, 
+          cleanup_started_at, cleanup_completed_at, status)
+         VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)`,
+        ["adx_threshold_cleanup", "adx_data", deleted.rowCount || 0, deleted.rowCount || 0, "success"],
+      )
+    } catch (error) {
+      await SystemLogger.logError(error, "database", "ADX data cleanup")
+    }
+  }
+
+  /**
    * Get current threshold configuration from settings
    */
   private async getThresholdConfig(): Promise<ThresholdConfig> {
     const settings = await query<{ key: string; value: string }>(
       `SELECT key, value FROM system_settings 
        WHERE key IN ('databaseSizeBase', 'databaseSizeMain', 'databaseSizeReal', 
-                     'databaseSizePreset', 'databaseThresholdPercent', 'maxDatabaseSizeGB')`,
+                     'databaseSizePreset', 'databaseSizeOptimal', 'databaseSizeAuto',
+                     'adxDatabaseLength', 'databaseThresholdPercent', 'maxDatabaseSizeGB')`,
     )
 
     const config: ThresholdConfig = {
       basePositionLimit: 250,
       mainPositionLimit: 250,
       realPositionLimit: 250,
-      presetPositionLimit: 250,
+      presetPositionLimit: 500, // Higher limit for presets
+      optimalPositionLimit: 300,
+      autoPositionLimit: 300,
+      adxDatabaseLength: 10000, // Default 10k ADX records
       thresholdPercent: 20,
       maxDatabaseSizeGB: 20,
     }
@@ -333,6 +408,15 @@ export class PositionThresholdManager {
           break
         case "databaseSizePreset":
           config.presetPositionLimit = value
+          break
+        case "databaseSizeOptimal":
+          config.optimalPositionLimit = value
+          break
+        case "databaseSizeAuto":
+          config.autoPositionLimit = value
+          break
+        case "adxDatabaseLength":
+          config.adxDatabaseLength = value
           break
         case "databaseThresholdPercent":
           config.thresholdPercent = value
@@ -377,6 +461,18 @@ export class PositionThresholdManager {
         config.presetPositionLimit,
         this.calculateStorageLimit(config.presetPositionLimit, config.thresholdPercent),
       ),
+      this.reorganizePositionsForConnection(
+        "optimal_pseudo_positions",
+        connectionId,
+        config.optimalPositionLimit,
+        this.calculateStorageLimit(config.optimalPositionLimit, config.thresholdPercent),
+      ),
+      this.reorganizePositionsForConnection(
+        "auto_pseudo_positions",
+        connectionId,
+        config.autoPositionLimit,
+        this.calculateStorageLimit(config.autoPositionLimit, config.thresholdPercent),
+      ),
     ])
   }
 
@@ -384,7 +480,14 @@ export class PositionThresholdManager {
    * Get statistics for position counts per connection
    */
   public async getPositionStatistics(): Promise<any> {
-    const tables = ["base_pseudo_positions", "pseudo_positions", "real_pseudo_positions", "preset_pseudo_positions"]
+    const tables = [
+      "base_pseudo_positions",
+      "pseudo_positions",
+      "real_pseudo_positions",
+      "preset_pseudo_positions",
+      "optimal_pseudo_positions",
+      "auto_pseudo_positions",
+    ]
     const stats: any = {}
 
     for (const table of tables) {
@@ -398,6 +501,18 @@ export class PositionThresholdManager {
       )
       stats[table] = results
     }
+
+    const adxStats = await query(
+      `SELECT 
+        symbol,
+        timeframe,
+        COUNT(*) as record_count,
+        MIN(timestamp) as oldest_record,
+        MAX(timestamp) as newest_record
+       FROM adx_data
+       GROUP BY symbol, timeframe`,
+    )
+    stats.adx_data = adxStats
 
     return stats
   }
