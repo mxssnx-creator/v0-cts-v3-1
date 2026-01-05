@@ -196,6 +196,104 @@ export class HighPerformanceDatabaseRouter {
       console.error("[HighPerformanceDatabaseRouter] Failed to log performance metrics:", error)
     }
   }
+
+  /**
+   * Get aggregated statistics across all indication/strategy tables
+   */
+  public async getAggregatedStats(params: {
+    connectionId?: string
+    indicationType?: string
+    strategyType?: string
+    timeRange?: string
+  }): Promise<any> {
+    const { getClient, getDatabaseType } = await import("./db")
+    const client = getClient()
+    const dbType = getDatabaseType()
+
+    const stats = {
+      totalPseudoPositions: 0,
+      totalRealPositions: 0,
+      byIndication: {} as Record<string, number>,
+      byStrategy: {} as Record<string, number>,
+    }
+
+    try {
+      // Query all pseudo position tables
+      const pseudoTables = this.getAllPseudoPositionTables()
+      for (const table of pseudoTables) {
+        const indicationType = table.includes("active") ? "active" : table.includes("direction") ? "direction" : "move"
+
+        let query = `SELECT COUNT(*) as count FROM ${table}`
+        const conditions: string[] = []
+        const values: any[] = []
+
+        if (params.connectionId) {
+          conditions.push(dbType === "postgresql" ? `connection_id = $${values.length + 1}` : `connection_id = ?`)
+          values.push(params.connectionId)
+        }
+
+        if (params.indicationType && params.indicationType !== indicationType) {
+          continue // Skip non-matching indication types
+        }
+
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(" AND ")}`
+        }
+
+        const result =
+          dbType === "postgresql"
+            ? await (client as any).query(query, values)
+            : (client as any).prepare(query).get(...values)
+
+        const count = dbType === "postgresql" ? result.rows[0].count : (result as any).count
+        stats.totalPseudoPositions += Number.parseInt(count || "0")
+        stats.byIndication[indicationType] = (stats.byIndication[indicationType] || 0) + Number.parseInt(count || "0")
+      }
+
+      // Query all real position tables
+      const realTables = this.getAllRealPositionTables()
+      for (const table of realTables) {
+        const strategyType = table.includes("simple") ? "simple" : table.includes("advanced") ? "advanced" : "step"
+
+        let query = `SELECT COUNT(*) as count FROM ${table}`
+        const conditions: string[] = []
+        const values: any[] = []
+
+        if (params.connectionId) {
+          conditions.push(dbType === "postgresql" ? `connection_id = $${values.length + 1}` : `connection_id = ?`)
+          values.push(params.connectionId)
+        }
+
+        if (params.strategyType && params.strategyType !== strategyType) {
+          continue // Skip non-matching strategy types
+        }
+
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(" AND ")}`
+        }
+
+        const result =
+          dbType === "postgresql"
+            ? await (client as any).query(query, values)
+            : (client as any).prepare(query).get(...values)
+
+        const count = dbType === "postgresql" ? result.rows[0].count : (result as any).count
+        stats.totalRealPositions += Number.parseInt(count || "0")
+        stats.byStrategy[strategyType] = (stats.byStrategy[strategyType] || 0) + Number.parseInt(count || "0")
+      }
+    } catch (error) {
+      console.error("[HighPerformanceDatabaseRouter] Error getting aggregated stats:", error)
+    }
+
+    return stats
+  }
+
+  /**
+   * Get position statistics for a specific connection
+   */
+  public async getPositionStats(connectionId: string): Promise<any> {
+    return this.getAggregatedStats({ connectionId })
+  }
 }
 
 export const dbRouter = HighPerformanceDatabaseRouter.getInstance()
