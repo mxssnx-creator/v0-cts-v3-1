@@ -1,11 +1,12 @@
 import { getRateLimiter } from "@/lib/rate-limiter"
-
-export interface ExchangeCredentials {
-  apiKey: string
-  apiSecret: string
-  apiPassphrase?: string
-  isTestnet: boolean
-}
+import type {
+  ExchangeCredentials,
+  OrderParams,
+  OrderResult,
+  BalanceResult,
+  PositionResult,
+  ConnectionTestResult,
+} from "@/lib/exchange-connector-types"
 
 export interface ExchangeBalance {
   asset: string
@@ -21,23 +22,6 @@ export interface ExchangeConnectorResult {
   capabilities: string[]
   error?: string
   logs: string[]
-}
-
-export interface OrderResult {
-  success: boolean
-  orderId?: string
-  clientOrderId?: string
-  error?: string
-  logs: string[]
-}
-
-export interface OrderParams {
-  symbol: string
-  side: "buy" | "sell"
-  type: "market" | "limit"
-  quantity: number
-  price?: number
-  timeInForce?: "GTC" | "IOC" | "FOK"
 }
 
 export abstract class BaseExchangeConnector {
@@ -95,8 +79,8 @@ export abstract class BaseExchangeConnector {
 
   abstract generateSignature(data: string | Record<string, unknown>): string
 
-  abstract testConnection(): Promise<ExchangeConnectorResult>
-  abstract getBalance(): Promise<ExchangeConnectorResult>
+  abstract testConnection(): Promise<ConnectionTestResult>
+  abstract getBalance(): Promise<BalanceResult>
   abstract getCapabilities(): string[]
   abstract placeOrder(params: OrderParams): Promise<OrderResult>
 
@@ -105,7 +89,7 @@ export abstract class BaseExchangeConnector {
     return false
   }
 
-  async getPositions(): Promise<any[]> {
+  async getPositions(): Promise<PositionResult[]> {
     this.logError(`getPositions not implemented for ${this.exchange}`)
     return []
   }
