@@ -29,6 +29,7 @@ export class PresetCoordinationEngine {
   private positionLimits: Map<string, number> = new Map()
   private lastPositionTime: Map<string, number> = new Map()
   private pseudoPositionManager: PresetPseudoPositionManager
+  private db: any
 
   private readonly BATCH_SIZE = 10
   private readonly MAX_CONCURRENT_SYMBOLS = 5
@@ -39,6 +40,7 @@ export class PresetCoordinationEngine {
     this.connectionId = connectionId
     this.presetTypeId = presetTypeId
     this.pseudoPositionManager = new PresetPseudoPositionManager(connectionId, presetTypeId)
+    this.db = DatabaseManager.getInstance()
   }
 
   /**
@@ -892,18 +894,16 @@ export class PresetCoordinationEngine {
   }
 
   private async getHistoricalData(symbol: string, days: number): Promise<any[]> {
-    const dbManager = DatabaseManager.getInstance()
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - days)
 
-    const allData = await dbManager.query(
-      "preset_historical_data",
-      {
+    const allData = await this.db.query("preset_historical_data", {
+      where: {
         connection_id: this.connectionId,
         symbol: symbol,
       },
-      ["*"],
-    )
+      select: ["*"],
+    })
 
     // Filter in JavaScript to avoid SQL INTERVAL issues
     return allData
