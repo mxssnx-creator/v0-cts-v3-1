@@ -144,7 +144,7 @@ export class BinanceConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.msg || "Order placement failed",
-          logs: this.logs,
+          timestamp: Date.now(),
         }
       }
 
@@ -153,15 +153,15 @@ export class BinanceConnector extends BaseExchangeConnector {
       return {
         success: true,
         orderId: data.orderId.toString(),
-        clientOrderId: data.clientOrderId,
-        logs: this.logs,
+        status: data.status,
+        timestamp: Date.now(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        logs: this.logs,
+        timestamp: Date.now(),
       }
     }
   }
