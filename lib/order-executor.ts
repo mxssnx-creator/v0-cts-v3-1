@@ -270,7 +270,7 @@ export class OrderExecutor {
         orderId: data.result.orderId,
         status: data.result.orderStatus === "Filled" ? "filled" : "open",
         filledQty: Number.parseFloat(data.result.cumExecQty || "0"),
-        avgPrice: Number.parseFloat(data.result.avgPrice || params.price?.toString() || "0"),
+        avgPrice: Number.parseFloat(data.result.avgPrice || "0"),
       }
     }
 
@@ -323,7 +323,7 @@ export class OrderExecutor {
         orderId: data.orderId.toString(),
         status: data.status === "FILLED" ? "filled" : "open",
         filledQty: Number.parseFloat(data.executedQty || "0"),
-        avgPrice: Number.parseFloat(data.avgPrice || params.price?.toString() || "0"),
+        avgPrice: Number.parseFloat(data.avgPrice || "0"),
       }
     }
 
@@ -370,7 +370,7 @@ export class OrderExecutor {
         orderId: data.data.order.orderId,
         status: data.data.order.status === "FILLED" ? "filled" : "open",
         filledQty: Number.parseFloat(data.data.order.executedQty || "0"),
-        avgPrice: Number.parseFloat(data.data.order.avgPrice || params.price?.toString() || "0"),
+        avgPrice: Number.parseFloat(data.data.order.avgPrice || "0"),
       }
     }
 
@@ -384,7 +384,7 @@ export class OrderExecutor {
     const endpoint = "https://api.pionex.com"
 
     const timestamp = Date.now()
-    const payload = {
+    const payload: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),
       type: params.order_type.toUpperCase(),
@@ -420,7 +420,7 @@ export class OrderExecutor {
         orderId: data.result.orderId,
         status: data.result.status === "FILLED" ? "filled" : "open",
         filledQty: Number.parseFloat(data.result.filledAmount || "0"),
-        avgPrice: Number.parseFloat(data.result.avgPrice || params.price?.toString() || "0"),
+        avgPrice: Number.parseFloat(data.result.avgPrice || "0"),
       }
     }
 
@@ -434,7 +434,7 @@ export class OrderExecutor {
     const endpoint = "https://api.orangex.com"
 
     const timestamp = Date.now()
-    const payload = {
+    const payload: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),
       orderType: params.order_type.toUpperCase(),
@@ -467,7 +467,7 @@ export class OrderExecutor {
         orderId: data.data.orderId,
         status: data.data.status === "FILLED" ? "filled" : "open",
         filledQty: Number.parseFloat(data.data.filledQty || "0"),
-        avgPrice: Number.parseFloat(data.data.avgPrice || params.price?.toString() || "0"),
+        avgPrice: Number.parseFloat(data.data.avgPrice || "0"),
       }
     }
 
