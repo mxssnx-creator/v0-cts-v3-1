@@ -48,14 +48,14 @@ class DatabaseManager {
     if (isBuildPhase) {
       console.log("[v0] Skipping database initialization during build phase")
       this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
-      this.queryOptimizer = new DatabaseQueryOptimizer()
+      this.queryOptimizer = DatabaseQueryOptimizer.getInstance()
       return
     }
 
     try {
       this.initializeDynamicOps()
       this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
-      this.queryOptimizer = new DatabaseQueryOptimizer()
+      this.queryOptimizer = DatabaseQueryOptimizer.getInstance()
       this.initializeTables()
     } catch (error) {
       console.error("[v0] Failed to initialize DatabaseManager:", error)
