@@ -1031,7 +1031,7 @@ export function ConnectionCard({
         {presetTradeEnabled && testingProgress > 0 && testingProgress < 100 && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
-              <span className="truncate">{engineStatus?.testing_message || "Testing configurations..."}</span>
+              <span className="truncate">{engineStatus?.message || "Testing configurations..."}</span>
               <span className="shrink-0 ml-2">{testingProgress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5">
