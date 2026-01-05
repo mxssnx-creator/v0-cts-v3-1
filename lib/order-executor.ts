@@ -236,19 +236,22 @@ export class OrderExecutor {
   private async placeBybitOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
     const endpoint = connector.credentials.isTestnet ? "https://api-testnet.bybit.com" : "https://api.bybit.com"
 
-    const payload = {
+    const payload: Record<string, any> = {
       category: "linear",
       symbol: params.symbol,
       side: params.side === "buy" ? "Buy" : "Sell",
       orderType: params.order_type === "market" ? "Market" : "Limit",
       qty: params.quantity.toString(),
-      ...(params.price && { price: params.price.toString() }),
       timeInForce: params.time_in_force || "GTC",
       reduceOnly: params.reduce_only || false,
     }
 
+    if (params.price) {
+      payload.price = params.price.toString()
+    }
+
     const timestamp = Date.now().toString()
-    const signature = connector.generateSignature(timestamp, payload)
+    const signature = connector.generateSignature(`${timestamp}${JSON.stringify(payload)}`)
 
     const response = await fetch(`${endpoint}/v5/order/create`, {
       method: "POST",
@@ -284,28 +287,30 @@ export class OrderExecutor {
     const endpoint = connector.credentials.isTestnet ? "https://testnet.binancefuture.com" : "https://fapi.binance.com"
 
     const timestamp = Date.now()
-    const queryString = `symbol=${params.symbol}&side=${params.side.toUpperCase()}&type=${params.order_type.toUpperCase()}&quantity=${params.quantity}&timestamp=${timestamp}`
 
-    const signature = connector.generateSignature(queryString)
-
-    const payload: Record<string, any> = {
+    const queryParams: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),
       type: params.order_type.toUpperCase(),
       quantity: params.quantity,
       timestamp,
-      signature,
     }
 
     if (params.price) {
-      payload.price = params.price
+      queryParams.price = params.price
     }
     if (params.time_in_force) {
-      payload.timeInForce = params.time_in_force
+      queryParams.timeInForce = params.time_in_force
     }
     if (params.reduce_only) {
-      payload.reduceOnly = params.reduce_only
+      queryParams.reduceOnly = params.reduce_only
     }
+
+    const queryString = Object.entries(queryParams)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&")
+
+    const signature = connector.generateSignature(queryString)
 
     const response = await fetch(`${endpoint}/fapi/v1/order?${queryString}&signature=${signature}`, {
       method: "POST",
@@ -337,7 +342,8 @@ export class OrderExecutor {
     const endpoint = "https://open-api.bingx.com"
 
     const timestamp = Date.now()
-    const payload = {
+
+    const payload: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),
       type: params.order_type.toUpperCase(),
@@ -384,6 +390,7 @@ export class OrderExecutor {
     const endpoint = "https://api.pionex.com"
 
     const timestamp = Date.now()
+
     const payload: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),
@@ -434,6 +441,7 @@ export class OrderExecutor {
     const endpoint = "https://api.orangex.com"
 
     const timestamp = Date.now()
+
     const payload: Record<string, any> = {
       symbol: params.symbol,
       side: params.side.toUpperCase(),

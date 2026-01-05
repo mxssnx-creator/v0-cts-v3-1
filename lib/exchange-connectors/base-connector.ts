@@ -93,6 +93,8 @@ export abstract class BaseExchangeConnector {
     this.logs = []
   }
 
+  abstract generateSignature(data: string | Record<string, unknown>): string
+
   abstract testConnection(): Promise<ExchangeConnectorResult>
   abstract getBalance(): Promise<ExchangeConnectorResult>
   abstract getCapabilities(): string[]
