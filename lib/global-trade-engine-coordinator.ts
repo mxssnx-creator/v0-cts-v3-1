@@ -112,7 +112,7 @@ export class GlobalTradeEngineCoordinator {
 
       SystemLogger.logSystem(`Engine started successfully for connection: ${connectionId}`, "info")
     } catch (error) {
-      SystemLogger.logError(`Failed to start engine for ${connectionId}`, error)
+      SystemLogger.logError(error, "trade-engine", `Failed to start engine for ${connectionId}`)
       this.engineStatuses.set(connectionId, {
         status: "error",
         errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -143,7 +143,7 @@ export class GlobalTradeEngineCoordinator {
 
       SystemLogger.logSystem(`Engine stopped for connection: ${connectionId}`, "info")
     } catch (error) {
-      SystemLogger.logError(`Failed to stop engine for ${connectionId}`, error)
+      SystemLogger.logError(error, "trade-engine", `Failed to stop engine for ${connectionId}`)
       throw error
     }
   }
@@ -171,7 +171,7 @@ export class GlobalTradeEngineCoordinator {
           }),
         )
       } catch (error) {
-        SystemLogger.logError(`Error pausing engine ${connectionId}`, error)
+        SystemLogger.logError(error, "trade-engine", `Error pausing engine ${connectionId}`)
       }
     }
 
@@ -215,7 +215,7 @@ export class GlobalTradeEngineCoordinator {
           )
         }
       } catch (error) {
-        SystemLogger.logError(`Error resuming engine ${connectionId}`, error)
+        SystemLogger.logError(error, "trade-engine", `Error resuming engine ${connectionId}`)
       }
     }
 
@@ -349,7 +349,7 @@ export class GlobalTradeEngineCoordinator {
           SystemLogger.logSystem(`Coordinator health: ${health.overall}`, "warn")
         }
       } catch (error) {
-        SystemLogger.logError("Health monitoring error", error)
+        SystemLogger.logError(error, "system", "Health monitoring error")
       }
     }, 30000)
   }
@@ -363,7 +363,7 @@ export class GlobalTradeEngineCoordinator {
       settings.globalTradeEnginePaused = isPaused
       await saveSettings(settings)
     } catch (error) {
-      SystemLogger.logError("Failed to save paused state", error)
+      SystemLogger.logError(error, "system", "Failed to save paused state")
     }
   }
 
