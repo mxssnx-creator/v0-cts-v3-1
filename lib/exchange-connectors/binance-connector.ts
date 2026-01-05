@@ -1,10 +1,10 @@
 import crypto from "crypto"
 import {
   BaseExchangeConnector,
-  type ExchangeConnectorResult,
   type OrderParams,
   type OrderResult,
   type ConnectionTestResult,
+  type BalanceResult,
 } from "./base-connector"
 
 export class BinanceConnector extends BaseExchangeConnector {
@@ -33,8 +33,8 @@ export class BinanceConnector extends BaseExchangeConnector {
       const latency = Date.now() - startTime
 
       return {
-        success: balanceResult.success,
-        balance: balanceResult.balance,
+        success: true,
+        balance: balanceResult.totalBalance,
         latency,
         timestamp: Date.now(),
       }
@@ -48,7 +48,7 @@ export class BinanceConnector extends BaseExchangeConnector {
     }
   }
 
-  async getBalance(): Promise<ExchangeConnectorResult> {
+  async getBalance(): Promise<BalanceResult> {
     const timestamp = Date.now()
     const baseUrl = this.getBaseUrl()
 
@@ -76,23 +76,33 @@ export class BinanceConnector extends BaseExchangeConnector {
 
       this.log("Successfully retrieved account data")
 
-      const usdtBalance = Number.parseFloat(data.find((b: any) => b.asset === "USDT")?.balance || "0")
+      let totalBalance = 0
+      let availableBalance = 0
 
-      const balances = data.map((b: any) => ({
-        asset: b.asset,
-        free: Number.parseFloat(b.availableBalance || "0"),
-        locked: Number.parseFloat(b.balance || "0") - Number.parseFloat(b.availableBalance || "0"),
-        total: Number.parseFloat(b.balance || "0"),
-      }))
+      const balances = data.map((b: any) => {
+        const total = Number.parseFloat(b.balance || "0")
+        const available = Number.parseFloat(b.availableBalance || "0")
+        const locked = total - available
 
-      this.log(`Account Balance: ${usdtBalance.toFixed(2)} USDT`)
+        if (b.asset === "USDT") {
+          totalBalance += total
+          availableBalance += available
+        }
+
+        return {
+          currency: b.asset,
+          total,
+          available,
+          locked,
+        }
+      })
+
+      this.log(`Account Balance: ${totalBalance.toFixed(2)} USDT`)
 
       return {
-        success: true,
-        balance: usdtBalance,
+        totalBalance,
+        availableBalance,
         balances,
-        capabilities: this.getCapabilities(),
-        logs: this.logs,
       }
     } catch (error) {
       this.logError(`Connection error: ${error instanceof Error ? error.message : "Unknown"}`)
