@@ -50,7 +50,7 @@ export class BybitConnector extends BaseExchangeConnector {
         success: true,
         balance: balanceResult.totalBalance,
         latency,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().getTime(),
       }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
@@ -59,7 +59,7 @@ export class BybitConnector extends BaseExchangeConnector {
         balance: 0,
         latency: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Connection test failed",
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().getTime(),
       }
     }
   }
@@ -170,7 +170,7 @@ export class BybitConnector extends BaseExchangeConnector {
         return {
           success: false,
           error: data.retMsg || "Order placement failed",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         }
       }
 
@@ -180,14 +180,14 @@ export class BybitConnector extends BaseExchangeConnector {
         success: true,
         orderId: data.result.orderId,
         status: "NEW",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       }
     } catch (error) {
       this.logError(`Order placement error: ${error instanceof Error ? error.message : "Unknown"}`)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Order placement failed",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       }
     }
   }
