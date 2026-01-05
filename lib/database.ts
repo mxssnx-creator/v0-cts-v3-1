@@ -763,9 +763,14 @@ class DatabaseManager {
   public async query(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], options?: any) {
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
 
-    // Use HP router for indication and strategy specific queries
     if (this.shouldUseHighPerformanceRouter(entityType, options)) {
-      return await this.hpRouter.query(entityType, options)
+      const tableName = this.hpRouter.routeEntityToTable(entityType, {
+        indicationType: options?.indication_type,
+        strategyType: options?.strategy_type,
+      })
+
+      // Execute query using the routed table name
+      return await this.dynamicOps.query(entityType, { ...options, tableName })
     }
 
     return await this.dynamicOps.query(entityType, options)
