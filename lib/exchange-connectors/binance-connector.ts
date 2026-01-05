@@ -4,6 +4,7 @@ import {
   type ExchangeConnectorResult,
   type OrderParams,
   type OrderResult,
+  type ConnectionTestResult,
 } from "./base-connector"
 
 export class BinanceConnector extends BaseExchangeConnector {
@@ -20,21 +21,29 @@ export class BinanceConnector extends BaseExchangeConnector {
     return ["futures", "perpetual_futures", "spot", "leverage", "hedge_mode", "cross_margin", "isolated_margin"]
   }
 
-  async testConnection(): Promise<ExchangeConnectorResult> {
+  async testConnection(): Promise<ConnectionTestResult> {
     this.log("Starting Binance connection test")
     this.log(`Testnet: ${this.credentials.isTestnet ? "Yes" : "No"}`)
     this.log(`Using endpoint: ${this.getBaseUrl()}`)
 
+    const startTime = Date.now()
+
     try {
-      return await this.getBalance()
+      const balanceResult = await this.getBalance()
+      const latency = Date.now() - startTime
+
+      return {
+        success: balanceResult.success,
+        balance: balanceResult.balance,
+        latency,
+        timestamp: Date.now(),
+      }
     } catch (error) {
       this.logError(error instanceof Error ? error.message : "Unknown error")
       return {
         success: false,
-        balance: 0,
-        capabilities: this.getCapabilities(),
         error: error instanceof Error ? error.message : "Connection test failed",
-        logs: this.logs,
+        timestamp: Date.now(),
       }
     }
   }
