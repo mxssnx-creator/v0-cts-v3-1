@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Missing diagnosticId or actionId" }, { status: 400 })
     }
 
-    const result = await executeAction(diagnosticId, actionId, session?.user?.username)
+    const result = await executeAction(diagnosticId, actionId, session?.username)
 
     return NextResponse.json(result)
   } catch (error) {
