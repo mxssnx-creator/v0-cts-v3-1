@@ -36,6 +36,9 @@ export default function Dashboard() {
     strategiesActive: 0,
     systemLoad: 0,
     databaseSize: 0,
+    memoryUsage: 0,
+    cpuUsage: 0,
+    databaseLoad: 0,
   })
 
   useEffect(() => {
@@ -158,6 +161,12 @@ export default function Dashboard() {
 
       console.log("[v0] Loaded system stats")
 
+      const memoryUsage =
+        metricsData.memoryUsage ||
+        (process.memoryUsage ? (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100 : 50)
+      const cpuUsage = metricsData.cpuUsage || systemStats.systemLoad
+      const databaseLoad = metricsData.databaseLoad || (systemStats.databaseSize / 10000) * 100 // Assuming 10GB max
+
       setSystemStats({
         activeConnections: metricsData.activeConnections || activeConnections.length,
         totalPositions: (metricsData.livePositions || 0) + (metricsData.pseudoPositions || 0),
@@ -167,6 +176,9 @@ export default function Dashboard() {
         strategiesActive,
         systemLoad: metricsData.cpuUsage || 0,
         databaseSize: metricsData.diskUsage || 0,
+        memoryUsage: Math.min(100, Math.max(0, memoryUsage)),
+        cpuUsage: Math.min(100, Math.max(0, cpuUsage)),
+        databaseLoad: Math.min(100, Math.max(0, databaseLoad)),
       })
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
@@ -324,6 +336,16 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">System Load</p>
                   <p className="text-2xl font-bold">{systemStats.systemLoad}%</p>
                   <p className="text-xs text-muted-foreground mt-1">CPU usage</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Memory Usage</p>
+                  <p className="text-2xl font-bold">{systemStats.memoryUsage}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Heap usage</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Database Load</p>
+                  <p className="text-2xl font-bold">{systemStats.databaseLoad}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Disk usage</p>
                 </div>
               </div>
             </CardContent>
