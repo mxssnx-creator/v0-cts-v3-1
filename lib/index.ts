@@ -23,7 +23,6 @@ export { ErrorHandler, errorHandler, AppError } from "./error-handler"
 export { ErrorLogger } from "./error-logger"
 export { DatabaseInitializer } from "./db-initializer"
 export {
-  DEFAULT_LEVERAGE,
   TP_ADJUSTMENT_TYPES,
   VOLUME_ADJUSTMENT_TYPES,
   ADJUSTMENT_TYPES,
