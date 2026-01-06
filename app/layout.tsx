@@ -6,9 +6,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { StyleInitializer } from "@/components/style-initializer"
 import { AuthProvider } from "@/lib/auth-context"
-import { Toaster } from "@/components/ui/sonner"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
 import { initializeApplication } from "@/lib/init-app"
+import { Toaster } from "sonner"
+import { ToastContainer } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -44,6 +46,7 @@ export default function RootLayout({
             </SiteLoggerProvider>
           </AuthProvider>
           <Toaster position="top-right" expand={true} richColors closeButton />
+          <ToastContainer position="top-right" expand={true} theme="colored" closeButton={true} />
         </ThemeProvider>
       </body>
     </html>
