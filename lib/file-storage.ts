@@ -492,7 +492,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true, // Updated default connections with ByBit and BingX enabled by default
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -522,7 +522,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true, // Updated default connections with ByBit and BingX enabled by default
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -856,7 +856,7 @@ function getDefaultMainIndicationSettings(): MainIndicationSettings {
       activity_calculated: { from: 10, to: 90, step: 10 },
       activity_lastpart: { from: 10, to: 90, step: 10 },
       market_change_range: { from: 1, to: 10, step: 1 }, // 10 variations: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-      market_change_lastpart_base: 20, // 20% = 0.2 ratio
+      market_change_lastpart_base: 20, // Last 20% activity base (0.2 ratio)
       market_change_lastpart_ratios: { from: 1.0, to: 2.5, step: 0.5 }, // 1.0, 1.5, 2.0, 2.5 (4 variations)
       interval: 1,
       timeout: 3,

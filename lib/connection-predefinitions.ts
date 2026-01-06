@@ -367,7 +367,7 @@ export function getAllConnectionPredefinitions(): ConnectionPredefinition[] {
 }
 
 export function getPredefinedConnectionsAsStatic(): ExchangeConnection[] {
-  return CONNECTION_PREDEFINITIONS.map((pred) => ({
+  const predefinedConnections = CONNECTION_PREDEFINITIONS.map((pred) => ({
     id: pred.id,
     name: pred.name,
     exchange: pred.id.split("-")[0],
@@ -379,7 +379,7 @@ export function getPredefinedConnectionsAsStatic(): ExchangeConnection[] {
     margin_type: pred.marginType,
     position_mode: pred.positionMode,
     is_testnet: false,
-    is_enabled: false,
+    is_enabled: pred.id === "bybit-x03" || pred.id === "bingx-x01",
     is_active: true,
     is_predefined: true,
     is_live_trade: false,
@@ -393,4 +393,6 @@ export function getPredefinedConnectionsAsStatic(): ExchangeConnection[] {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }))
+
+  return predefinedConnections
 }

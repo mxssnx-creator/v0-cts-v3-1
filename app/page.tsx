@@ -26,19 +26,14 @@ export default function Dashboard() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
   const [systemStats, setSystemStats] = useState({
-    activeSymbols: 0,
-    indicationsActive: 0,
-    indicationsTotal: 0,
-    livePositions: 0,
-    pseudoPositions: 0,
     activeConnections: 0,
-    totalConnections: 0,
-    systemHealth: 0,
-    cpuUsage: 0,
-    memoryUsage: 0,
-    diskUsage: 0,
-    uptime: 0,
-    lastUpdate: new Date().toISOString(),
+    totalPositions: 0,
+    dailyPnL: 0,
+    totalBalance: 0,
+    indicationsActive: 0,
+    strategiesActive: 0,
+    systemLoad: 0,
+    databaseSize: 0,
   })
 
   useEffect(() => {
@@ -120,7 +115,16 @@ export default function Dashboard() {
 
       const data = await response.json()
       console.log("[v0] Loaded system stats")
-      setSystemStats(data)
+      setSystemStats({
+        activeConnections: data.activeConnections || 0,
+        totalPositions: (data.livePositions || 0) + (data.pseudoPositions || 0),
+        dailyPnL: 0, // TODO: Calculate from positions
+        totalBalance: 0, // TODO: Aggregate from active connections
+        indicationsActive: data.indicationsActive || 0,
+        strategiesActive: 0, // TODO: Calculate from active strategies
+        systemLoad: data.cpuUsage || 0,
+        databaseSize: data.diskUsage || 0,
+      })
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
     }
@@ -260,24 +264,24 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Symbols</p>
-                  <p className="text-2xl font-bold">{systemStats.activeSymbols || 0}</p>
+                  <p className="text-2xl font-bold">{systemStats.activeConnections || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Trading pairs</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Indications</p>
                   <p className="text-2xl font-bold">
-                    {systemStats.indicationsActive}/{systemStats.indicationsTotal}
+                    {systemStats.indicationsActive}/{systemStats.strategiesActive}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Active/Total</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Live Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.livePositions || 0}</p>
+                  <p className="text-2xl font-bold">{systemStats.totalPositions || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Open trades</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pseudo Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.pseudoPositions || 0}</p>
+                  <p className="text-2xl font-bold">{systemStats.dailyPnL || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Test trades</p>
                 </div>
               </div>

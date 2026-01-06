@@ -6,6 +6,68 @@ export { TradeEngine, type TradeEngineConfig } from "./trade-engine/trade-engine
  */
 export class GlobalTradeEngineCoordinator {
   // Coordinator implementation details here
+  private isPaused = false
+  private isRunning = false
+  private startTime?: Date
+
+  async pause(): Promise<void> {
+    if (!this.isRunning) {
+      throw new Error("Trade engine is not running")
+    }
+
+    if (this.isPaused) {
+      throw new Error("Trade engine is already paused")
+    }
+
+    this.isPaused = true
+    console.log("[GlobalTradeEngineCoordinator] Trade engine paused")
+  }
+
+  async resume(): Promise<void> {
+    if (!this.isRunning) {
+      throw new Error("Trade engine is not running")
+    }
+
+    if (!this.isPaused) {
+      throw new Error("Trade engine is not paused")
+    }
+
+    this.isPaused = false
+    console.log("[GlobalTradeEngineCoordinator] Trade engine resumed")
+  }
+
+  async start(): Promise<void> {
+    if (this.isRunning) {
+      throw new Error("Trade engine is already running")
+    }
+
+    this.isRunning = true
+    this.isPaused = false
+    this.startTime = new Date()
+    console.log("[GlobalTradeEngineCoordinator] Trade engine started")
+  }
+
+  async stop(): Promise<void> {
+    if (!this.isRunning) {
+      throw new Error("Trade engine is not running")
+    }
+
+    this.isRunning = false
+    this.isPaused = false
+    console.log("[GlobalTradeEngineCoordinator] Trade engine stopped")
+  }
+
+  getStatus(): EngineStatus {
+    if (!this.isRunning) {
+      return { status: "stopped" }
+    }
+
+    if (this.isPaused) {
+      return { status: "paused", startedAt: this.startTime }
+    }
+
+    return { status: "running", startedAt: this.startTime }
+  }
 }
 
 /**
