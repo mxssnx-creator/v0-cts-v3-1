@@ -87,7 +87,7 @@
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
     "validate:pages": "bun scripts/validate-pages-integrity.ts",
-    "vercel-build": "next build",
+    "vercel-build": "next build --debug 2>&1 || (echo 'Build failed with exit code $?' && exit 1)",
     "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
