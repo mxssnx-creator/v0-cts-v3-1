@@ -1,19 +1,19 @@
-export async function initializeInstrumentation() {
-  // Skip during build phase
+export async function register() {
+  // Skip during build phase - Next.js calls this during compilation
   if (
     process.env.NEXT_PHASE === "phase-production-build" ||
-    (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) ||
-    typeof window !== "undefined"
+    process.env.NODE_ENV !== "production" ||
+    !process.env.DATABASE_URL
   ) {
-    console.log("[Instrumentation] Skipping initialization during build phase")
     return
   }
 
+  // Only run in Node.js runtime (not Edge)
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { DatabaseManager } = await import("./lib/database")
-    const { AutoRecoveryManager } = await import("./lib/auto-recovery-manager")
-
     try {
+      const { DatabaseManager } = await import("./lib/database")
+      const { AutoRecoveryManager } = await import("./lib/auto-recovery-manager")
+
       console.log("[Instrumentation] Initializing database...")
       await DatabaseManager.initialize()
 
