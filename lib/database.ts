@@ -7,7 +7,8 @@ import { dbConfig } from "./config/database-config"
 import { HighPerformanceDatabaseRouter } from "./high-performance-database-router"
 import { DatabaseQueryOptimizer } from "./database-query-optimizer"
 
-const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
+const isBuildPhase =
+  process.env.NEXT_PHASE === "phase-production-build" || process.env.NODE_ENV === "build" || !process.env.DATABASE_URL
 
 const MAX_RETRIES = 3
 const INITIAL_RETRY_DELAY = 1000 // 1 second
@@ -77,7 +78,10 @@ class DatabaseManager {
   }
 
   private async initializeTables() {
-    if (isBuildPhase || this.initialized) return
+    if (isBuildPhase || this.initialized) {
+      console.log("[v0] Skipping table initialization (build phase or already initialized)")
+      return
+    }
 
     try {
       await retryWithBackoff(async () => {
@@ -379,45 +383,6 @@ class DatabaseManager {
             }
           }
         }
-
-        // Exchange connections table
-        // const connectionsTable = getTableName("exchange_connections") // This line is now moved up and modified
-
-        // if (isPostgres) {
-        //   await (client as Pool).query(`
-        //     CREATE TABLE IF NOT EXISTS ${connectionsTable} (
-        //       id TEXT PRIMARY KEY,
-        //       name TEXT NOT NULL,
-        //       exchange TEXT NOT NULL,
-        //       api_type TEXT NOT NULL,
-        //       connection_method TEXT NOT NULL,
-        //       api_key TEXT NOT NULL,
-        //       api_secret TEXT NOT NULL,
-        //       is_enabled BOOLEAN DEFAULT false,
-        //       is_live_trade BOOLEAN DEFAULT false,
-        //       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        //     )
-        //   `)
-        //   // ... rest of the original Bybit and BingX insertion logic for Postgres ...
-        //   // This has been replaced by the updated logic above.
-        // } else {
-        //   ;(client as Database.Database).exec(`
-        //     CREATE TABLE IF NOT EXISTS ${connectionsTable} (
-        //       id TEXT PRIMARY KEY,
-        //       name TEXT NOT NULL,
-        //       exchange TEXT NOT NULL,
-        //       api_type TEXT NOT NULL,
-        //       connection_method TEXT NOT NULL,
-        //       api_key TEXT NOT NULL,
-        //       api_secret TEXT NOT NULL,
-        //       is_enabled BOOLEAN DEFAULT 0,
-        //       is_live_trade BOOLEAN DEFAULT 0,
-        //       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        //     )
-        //   `)
-        //   // ... rest of the original Bybit and BingX insertion logic for SQLite ...
-        //   // This has been replaced by the updated logic above.
-        // }
 
         // Pseudo positions table
         const pseudoPositionsTable = getTableName("pseudo_positions")

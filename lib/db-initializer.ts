@@ -7,6 +7,15 @@ export class DatabaseInitializer {
   private static initPromise: Promise<boolean> | null = null
 
   static async initialize(retries = 3, timeout = 30000): Promise<boolean> {
+    if (
+      process.env.NEXT_PHASE === "phase-production-build" ||
+      process.env.NODE_ENV === "build" ||
+      !process.env.DATABASE_URL
+    ) {
+      console.log("[v0] Skipping database initialization (build phase)")
+      return true
+    }
+
     if (this.isInitialized) {
       console.log("[v0] Database already initialized, skipping...")
       return true
