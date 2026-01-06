@@ -1,4 +1,9 @@
 export async function register() {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    console.log("[v0] Skipping instrumentation during build phase")
+    return
+  }
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     console.log("=".repeat(60))
     console.log("[v0] 🚀 AUTOMATIC DEPLOYMENT INITIALIZATION STARTING")
