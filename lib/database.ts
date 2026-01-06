@@ -94,7 +94,6 @@ class DatabaseManager {
           }
         }
 
-        // Exchange connections table
         const connectionsTable = getTableName("exchange_connections")
 
         if (isPostgres) {
@@ -109,9 +108,141 @@ class DatabaseManager {
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT false,
               is_live_trade BOOLEAN DEFAULT false,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              is_predefined BOOLEAN DEFAULT false,
+              connection_library TEXT DEFAULT 'ccxt',
+              margin_type TEXT DEFAULT 'isolated',
+              position_mode TEXT DEFAULT 'hedge',
+              is_testnet BOOLEAN DEFAULT false,
+              volume_factor NUMERIC DEFAULT 1.0,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
           `)
+
+          const checkBybit = await (client as Pool).query(
+            `SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`,
+          )
+          if (checkBybit.rows.length === 0) {
+            await (client as Pool).query(
+              `
+              INSERT INTO ${connectionsTable} 
+              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
+               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
+               position_mode, is_testnet, volume_factor)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `,
+              [
+                "bybit-default-" + Date.now(),
+                "Bybit Default",
+                "bybit",
+                "unified",
+                "rest",
+                "placeholder-key",
+                "placeholder-secret",
+                true, // enabled by default
+                false, // not live trade by default
+                true, // marked as predefined
+                "ccxt",
+                "isolated",
+                "hedge",
+                false,
+                1.0,
+              ],
+            )
+            console.log("[v0] Created default Bybit connection with full configuration")
+          }
+
+          const checkBingx = await (client as Pool).query(
+            `SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`,
+          )
+          if (checkBingx.rows.length === 0) {
+            await (client as Pool).query(
+              `
+              INSERT INTO ${connectionsTable} 
+              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
+               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
+               position_mode, is_testnet, volume_factor)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `,
+              [
+                "bingx-default-" + Date.now(),
+                "BingX Default",
+                "bingx",
+                "unified",
+                "rest",
+                "placeholder-key",
+                "placeholder-secret",
+                true, // enabled by default
+                false, // not live trade by default
+                true, // marked as predefined
+                "ccxt",
+                "isolated",
+                "hedge",
+                false,
+                1.0,
+              ],
+            )
+            console.log("[v0] Created default BingX connection with full configuration")
+          }
+
+          const activeConnectionsTable = getTableName("active_connections")
+          await (client as Pool).query(`
+            CREATE TABLE IF NOT EXISTS ${activeConnectionsTable} (
+              id TEXT PRIMARY KEY,
+              connection_id TEXT NOT NULL,
+              exchange TEXT NOT NULL,
+              name TEXT NOT NULL,
+              is_selected BOOLEAN DEFAULT false,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `)
+
+          const activeBybit = await (client as Pool).query(
+            `SELECT id FROM ${activeConnectionsTable} WHERE exchange = 'bybit'`,
+          )
+          if (activeBybit.rows.length === 0) {
+            const bybitConnection = await (client as Pool).query(
+              `SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`,
+            )
+            if (bybitConnection.rows.length > 0) {
+              await (client as Pool).query(
+                `INSERT INTO ${activeConnectionsTable} (id, connection_id, exchange, name, is_selected) 
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [
+                  "active-bybit-" + Date.now(),
+                  bybitConnection.rows[0].id,
+                  "bybit",
+                  "Bybit Default",
+                  true, // Bybit is selected by default
+                ],
+              )
+              console.log("[v0] Added Bybit to active connections (selected)")
+            }
+          }
+
+          const activeBingx = await (client as Pool).query(
+            `SELECT id FROM ${activeConnectionsTable} WHERE exchange = 'bingx'`,
+          )
+          if (activeBingx.rows.length === 0) {
+            const bingxConnection = await (client as Pool).query(
+              `SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`,
+            )
+            if (bingxConnection.rows.length > 0) {
+              await (client as Pool).query(
+                `INSERT INTO ${activeConnectionsTable} (id, connection_id, exchange, name, is_selected) 
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [
+                  "active-bingx-" + Date.now(),
+                  bingxConnection.rows[0].id,
+                  "bingx",
+                  "BingX Default",
+                  false, // BingX is not selected by default
+                ],
+              )
+              console.log("[v0] Added BingX to active connections")
+            }
+          }
         } else {
           ;(client as Database.Database).exec(`
             CREATE TABLE IF NOT EXISTS ${connectionsTable} (
@@ -124,10 +255,169 @@ class DatabaseManager {
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT 0,
               is_live_trade BOOLEAN DEFAULT 0,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+              is_predefined BOOLEAN DEFAULT 0,
+              connection_library TEXT DEFAULT 'ccxt',
+              margin_type TEXT DEFAULT 'isolated',
+              position_mode TEXT DEFAULT 'hedge',
+              is_testnet BOOLEAN DEFAULT 0,
+              volume_factor REAL DEFAULT 1.0,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
           `)
+
+          const checkBybit = (client as Database.Database)
+            .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`)
+            .get()
+          if (!checkBybit) {
+            ;(client as Database.Database)
+              .prepare(`
+              INSERT INTO ${connectionsTable} 
+              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
+               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
+               position_mode, is_testnet, volume_factor)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+              .run(
+                "bybit-default-" + Date.now(),
+                "Bybit Default",
+                "bybit",
+                "unified",
+                "rest",
+                "placeholder-key",
+                "placeholder-secret",
+                1, // enabled
+                0, // not live trade
+                1, // predefined
+                "ccxt",
+                "isolated",
+                "hedge",
+                0, // not testnet
+                1.0,
+              )
+            console.log("[v0] Created default Bybit connection with full configuration")
+          }
+
+          const checkBingx = (client as Database.Database)
+            .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`)
+            .get()
+          if (!checkBingx) {
+            ;(client as Database.Database)
+              .prepare(`
+              INSERT INTO ${connectionsTable} 
+              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
+               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
+               position_mode, is_testnet, volume_factor)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+              .run(
+                "bingx-default-" + Date.now(),
+                "BingX Default",
+                "bingx",
+                "unified",
+                "rest",
+                "placeholder-key",
+                "placeholder-secret",
+                1, // enabled
+                0, // not live trade
+                1, // predefined
+                "ccxt",
+                "isolated",
+                "hedge",
+                0, // not testnet
+                1.0,
+              )
+            console.log("[v0] Created default BingX connection with full configuration")
+          }
+          ;(client as Database.Database).exec(`
+            CREATE TABLE IF NOT EXISTS ${getTableName("active_connections")} (
+              id TEXT PRIMARY KEY,
+              connection_id TEXT NOT NULL,
+              exchange TEXT NOT NULL,
+              name TEXT NOT NULL,
+              is_selected BOOLEAN DEFAULT 0,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `)
+
+          const activeBybit = (client as Database.Database)
+            .prepare(`SELECT id FROM ${getTableName("active_connections")} WHERE exchange = 'bybit'`)
+            .get()
+          if (!activeBybit) {
+            const bybitConnection = (client as Database.Database)
+              .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`)
+              .get() as any
+            if (bybitConnection) {
+              ;(client as Database.Database)
+                .prepare(
+                  `INSERT INTO ${getTableName("active_connections")} 
+                   (id, connection_id, exchange, name, is_selected) 
+                   VALUES (?, ?, ?, ?, ?)`,
+                )
+                .run("active-bybit-" + Date.now(), bybitConnection.id, "bybit", "Bybit Default", 1)
+              console.log("[v0] Added Bybit to active connections (selected)")
+            }
+          }
+
+          const activeBingx = (client as Database.Database)
+            .prepare(`SELECT id FROM ${getTableName("active_connections")} WHERE exchange = 'bingx'`)
+            .get()
+          if (!activeBingx) {
+            const bingxConnection = (client as Database.Database)
+              .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`)
+              .get() as any
+            if (bingxConnection) {
+              ;(client as Database.Database)
+                .prepare(
+                  `INSERT INTO ${getTableName("active_connections")} 
+                   (id, connection_id, exchange, name, is_selected) 
+                   VALUES (?, ?, ?, ?, ?)`,
+                )
+                .run("active-bingx-" + Date.now(), bingxConnection.id, "bingx", "BingX Default", 0)
+              console.log("[v0] Added BingX to active connections")
+            }
+          }
         }
+
+        // Exchange connections table
+        // const connectionsTable = getTableName("exchange_connections") // This line is now moved up and modified
+
+        // if (isPostgres) {
+        //   await (client as Pool).query(`
+        //     CREATE TABLE IF NOT EXISTS ${connectionsTable} (
+        //       id TEXT PRIMARY KEY,
+        //       name TEXT NOT NULL,
+        //       exchange TEXT NOT NULL,
+        //       api_type TEXT NOT NULL,
+        //       connection_method TEXT NOT NULL,
+        //       api_key TEXT NOT NULL,
+        //       api_secret TEXT NOT NULL,
+        //       is_enabled BOOLEAN DEFAULT false,
+        //       is_live_trade BOOLEAN DEFAULT false,
+        //       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        //     )
+        //   `)
+        //   // ... rest of the original Bybit and BingX insertion logic for Postgres ...
+        //   // This has been replaced by the updated logic above.
+        // } else {
+        //   ;(client as Database.Database).exec(`
+        //     CREATE TABLE IF NOT EXISTS ${connectionsTable} (
+        //       id TEXT PRIMARY KEY,
+        //       name TEXT NOT NULL,
+        //       exchange TEXT NOT NULL,
+        //       api_type TEXT NOT NULL,
+        //       connection_method TEXT NOT NULL,
+        //       api_key TEXT NOT NULL,
+        //       api_secret TEXT NOT NULL,
+        //       is_enabled BOOLEAN DEFAULT 0,
+        //       is_live_trade BOOLEAN DEFAULT 0,
+        //       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        //     )
+        //   `)
+        //   // ... rest of the original Bybit and BingX insertion logic for SQLite ...
+        //   // This has been replaced by the updated logic above.
+        // }
 
         // Pseudo positions table
         const pseudoPositionsTable = getTableName("pseudo_positions")

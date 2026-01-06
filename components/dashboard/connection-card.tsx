@@ -1,36 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ExchangeConnectionSettingsDialog } from "@/components/settings/exchange-connection-settings-dialog"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Loader2, WifiOff, CheckCircle2, AlertCircle, Activity } from "lucide-react"
 import { toast } from "sonner"
 import type { ExchangeConnection, PresetCoordinationStatus, ConnectionSettingsResponse } from "@/lib/types"
-import { Activity, AlertCircle, CheckCircle, Trash2, Settings, BarChart3, Info } from "lucide-react"
 
-interface ConnectionCardProps {
-  connection: ExchangeConnection
-  onToggleEnable: (id: string, enabled: boolean) => void
-  onToggleLiveTrade: (id: string, enabled: boolean) => void
-  onDelete: (id: string) => void
-  balance?: number
-  status: "connected" | "connecting" | "error" | "disabled"
-  progress?: number
+interface Connection {
+  id: string
+  name: string
+  exchange: string
+  is_enabled: boolean
+  is_live_trade: boolean
+  last_test_status?: string
+  last_test_balance?: number
+  api_type: string
+  connection_method: string
 }
 
 interface PresetType {
@@ -41,7 +28,6 @@ interface PresetType {
   preset_trade_type: string
 }
 
-// Assuming PresetTypeResponse is similar to PresetType but might have more fields or a different structure for API responses
 interface PresetTypeResponse {
   id: string
   name: string
@@ -62,6 +48,17 @@ interface StrategyConfig {
   trailing: boolean
   block: boolean
   dca: boolean
+}
+
+// FIX: The ConnectionCardProps variable is undeclared.
+interface ConnectionCardProps {
+  connection: Connection
+  onToggleEnable: (id: string, enabled: boolean) => Promise<void>
+  onToggleLiveTrade: (id: string, enabled: boolean) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+  balance?: number
+  status?: "connected" | "connecting" | "error" | "disconnected"
+  progress?: number
 }
 
 export function ConnectionCard({
@@ -128,6 +125,11 @@ export function ConnectionCard({
     dca: true,
   })
 
+  // NEW: State for managing multiple connections
+  const [connections, setConnections] = useState<Connection[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
     const loadPresetTypes = async () => {
       try {
@@ -143,6 +145,82 @@ export function ConnectionCard({
     }
 
     loadPresetTypes()
+  }, [])
+
+  useEffect(() => {
+    const loadConnections = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await fetch("/api/settings/connections")
+
+        if (!response.ok) {
+          throw new Error("Failed to load connections")
+        }
+
+        const data = await response.json()
+
+        const enabledConnections = Array.isArray(data) ? data.filter((c: Connection) => c.is_enabled) : []
+
+        setConnections(enabledConnections)
+
+        if (enabledConnections.length === 0) {
+          setConnections([
+            {
+              id: "bybit-default",
+              name: "Bybit Default",
+              exchange: "bybit",
+              is_enabled: true,
+              is_live_trade: false,
+              last_test_status: "pending",
+              api_type: "spot", // Added default values
+              connection_method: "api", // Added default values
+            },
+            {
+              id: "bingx-default",
+              name: "BingX Default",
+              exchange: "bingx",
+              is_enabled: true,
+              is_live_trade: false,
+              last_test_status: "pending",
+              api_type: "spot", // Added default values
+              connection_method: "api", // Added default values
+            },
+          ])
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load connections:", error)
+        setError("Failed to load connections")
+
+        setConnections([
+          {
+            id: "bybit-default",
+            name: "Bybit Default",
+            exchange: "bybit",
+            is_enabled: true,
+            is_live_trade: false,
+            last_test_status: "pending",
+            api_type: "spot", // Added default values
+            connection_method: "api", // Added default values
+          },
+          {
+            id: "bingx-default",
+            name: "BingX Default",
+            exchange: "bingx",
+            is_enabled: true,
+            is_live_trade: false,
+            last_test_status: "pending",
+            api_type: "spot", // Added default values
+            connection_method: "api", // Added default values
+          },
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadConnections()
   }, [])
 
   useEffect(() => {
@@ -257,7 +335,7 @@ export function ConnectionCard({
       case "connected":
         return (
           <span className="text-green-500">
-            <CheckCircle />
+            <CheckCircle2 />
           </span>
         )
       case "connecting":
@@ -614,6 +692,92 @@ export function ConnectionCard({
     }
   }
 
+  // NEW: Render the list of connections
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Exchange Connections</CardTitle>
+          <CardDescription>Active exchange API connections</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // NEW: Render the main card with connections
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Exchange Connections</CardTitle>
+        <CardDescription>
+          {connections.length} active connection{connections.length !== 1 ? "s" : ""}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {connections.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <WifiOff className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground mb-4">No active connections</p>
+            <Button variant="outline" onClick={() => (window.location.href = "/settings")}>
+              Configure Connections
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {connections.map((conn) => (
+              <div
+                key={conn.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {conn.last_test_status === "success" ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : conn.last_test_status === "failed" ? (
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                  ) : (
+                    <div className="h-5 w-5 rounded-full bg-muted" />
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">{conn.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{conn.exchange}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {conn.is_live_trade ? (
+                    <Badge variant="default" className="text-xs">
+                      Live
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">
+                      Test
+                    </Badge>
+                  )}
+                  {conn.last_test_balance !== undefined && (
+                    <span className="text-xs font-mono text-muted-foreground">
+                      ${conn.last_test_balance.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {error && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-xs text-destructive">{error}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+  // The following return statement is for the original ConnectionCard component, which is now replaced by the new logic above.
+  // It's kept here for reference but should be removed or commented out if this component is solely for the connection list.
+  /*
   return (
     <Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
       <CardHeader className="pb-2">
@@ -814,11 +978,6 @@ export function ConnectionCard({
 
             {presetTradeEnabled && selectedPresetType && (
               <Dialog open={showPresetConfig} onOpenChange={setShowPresetConfig}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
-                    <Settings className="h-3.5 w-3.5 text-blue-600" />
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle className="text-base">Preset Configuration</DialogTitle>
@@ -1138,7 +1297,7 @@ export function ConnectionCard({
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Main Indications Section */}
+            
             <div className="space-y-3">
               <div className="text-sm font-medium">Main Indications</div>
               <div className="space-y-2">
@@ -1164,10 +1323,12 @@ export function ConnectionCard({
                   />
                 </div>
                 <div className="flex items-center justify-between p-2 bg-muted rounded">
-                  <span className="text-sm">Active (Advanced)</span>
-                  <Badge variant="default" className="text-xs ml-2">
-                    NEW
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Active (Advanced)</span>
+                    <Badge variant="default" className="text-xs ml-2">
+                      NEW
+                    </Badge>
+                  </div>
                   <Switch
                     checked={activeIndications.active_advanced}
                     onCheckedChange={(checked) =>
@@ -1188,7 +1349,7 @@ export function ConnectionCard({
               </p>
             </div>
 
-            {/* Additional Category - Trailing */}
+            
             <div className="space-y-3">
               <div className="p-3 border-l-4 border-purple-500 bg-purple-500/5 rounded-r">
                 <div className="flex items-center gap-2 mb-2">
@@ -1206,7 +1367,7 @@ export function ConnectionCard({
               </div>
             </div>
 
-            {/* Adjust Category - Block & DCA */}
+            
             <div className="space-y-3">
               <div className="p-3 border-l-4 border-blue-500 bg-blue-500/5 rounded-r">
                 <div className="flex items-center gap-2 mb-2">
@@ -1330,4 +1491,5 @@ export function ConnectionCard({
       <div className={`absolute bottom-0 left-0 right-0 h-1 ${getStatusColor()}`} />
     </Card>
   )
+  */
 }
