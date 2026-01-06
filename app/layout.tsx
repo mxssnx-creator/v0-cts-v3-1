@@ -45,8 +45,8 @@ export default function RootLayout({
               </SidebarProvider>
             </SiteLoggerProvider>
           </AuthProvider>
-          <Toaster position="top-right" expand={true} richColors closeButton />
-          <ToastContainer position="top-right" expand={true} theme="colored" closeButton={true} />
+          <Toaster position="top-right" expand richColors closeButton />
+          <ToastContainer position="top-right" theme="colored" closeButton={true} />
         </ThemeProvider>
       </body>
     </html>
