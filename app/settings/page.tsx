@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Settings, Database, Activity, TrendingUp, BarChart3, Save, Server, Zap } from "lucide-react"
+import { Settings, Database, Activity, TrendingUp, BarChart3, Save, Server, Zap, AlertCircle } from "lucide-react"
 import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
 import InstallManager from "@/components/settings/install-manager"
 import { AutoIndicationSettings } from "@/components/settings/auto-indication-settings"
@@ -28,6 +28,7 @@ export default function SettingsPage() {
     strategies: 0,
     activePositions: 0,
   })
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -36,23 +37,30 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     try {
+      console.log("[v0] Loading settings...")
       const response = await fetch("/api/settings")
       if (response.ok) {
         const data = await response.json()
         setSettings(data.settings || {})
+        setLoadError(null)
+      } else {
+        console.error("[v0] Failed to load settings:", response.status)
+        setLoadError(`Failed to load settings: ${response.status}`)
       }
     } catch (error) {
       console.error("[v0] Failed to load settings:", error)
+      setLoadError(String(error))
     }
   }
 
   const loadSystemStats = async () => {
     try {
+      console.log("[v0] Loading system stats...")
       const [connectionsRes, indicationsRes, strategiesRes, positionsRes] = await Promise.all([
-        fetch("/api/settings/connections"),
-        fetch("/api/indications"),
-        fetch("/api/strategies"),
-        fetch("/api/positions"),
+        fetch("/api/settings/connections").catch(() => ({ ok: false })),
+        fetch("/api/indications").catch(() => ({ ok: false })),
+        fetch("/api/strategies").catch(() => ({ ok: false })),
+        fetch("/api/positions").catch(() => ({ ok: false })),
       ])
 
       const connections = connectionsRes.ok ? await connectionsRes.json() : { connections: [] }
@@ -67,6 +75,7 @@ export default function SettingsPage() {
         strategies: strategies.strategies?.length || 0,
         activePositions: positions.positions?.filter((p: any) => p.status === "open").length || 0,
       })
+      console.log("[v0] System stats loaded successfully")
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
     }
@@ -97,6 +106,20 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {loadError && (
+        <Card className="border-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <div className="font-semibold">Error Loading Settings</div>
+                <div className="text-sm">{loadError}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
