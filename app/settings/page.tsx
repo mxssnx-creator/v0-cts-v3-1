@@ -87,16 +87,16 @@ export default function SettingsPage() {
     try {
       console.log("[v0] Loading system stats...")
       const [connectionsRes, indicationsRes, strategiesRes, positionsRes] = await Promise.all([
-        fetch("/api/settings/connections").catch(() => ({ ok: false })),
-        fetch("/api/indications").catch(() => ({ ok: false })),
-        fetch("/api/strategies").catch(() => ({ ok: false })),
-        fetch("/api/positions").catch(() => ({ ok: false })),
+        fetch("/api/settings/connections").catch(() => null),
+        fetch("/api/indications").catch(() => null),
+        fetch("/api/strategies").catch(() => null),
+        fetch("/api/positions").catch(() => null),
       ])
 
-      const connections = connectionsRes.ok ? await connectionsRes.json() : { connections: [] }
-      const indications = indicationsRes.ok ? await indicationsRes.json() : { indications: [] }
-      const strategies = strategiesRes.ok ? await strategiesRes.json() : { strategies: [] }
-      const positions = positionsRes.ok ? await positionsRes.json() : { positions: [] }
+      const connections = connectionsRes && connectionsRes.ok ? await connectionsRes.json() : { connections: [] }
+      const indications = indicationsRes && indicationsRes.ok ? await indicationsRes.json() : { indications: [] }
+      const strategies = strategiesRes && strategiesRes.ok ? await strategiesRes.json() : { strategies: [] }
+      const positions = positionsRes && positionsRes.ok ? await positionsRes.json() : { positions: [] }
 
       setSystemStats({
         connections: connections.connections?.length || 0,
