@@ -39,6 +39,10 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 
+# Data directory for file-based health monitoring
+/data/*.tmp
+/data/cache.json
+
 # Backup files - KEEP page backups, ignore only temp files
 backups/*.tmp
 

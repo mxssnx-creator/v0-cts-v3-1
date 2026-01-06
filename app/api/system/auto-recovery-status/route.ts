@@ -14,6 +14,8 @@ export async function GET() {
       restartCount: service.restartCount,
     }))
 
+    const isMonitoring = servicesArray.length > 0 && servicesArray.some((s) => s.status === "running")
+
     return NextResponse.json({
       services: servicesArray,
       history: history.map((action) => ({
@@ -24,7 +26,7 @@ export async function GET() {
         error: action.error,
         retryCount: action.retryCount,
       })),
-      isMonitoring: true, // TODO: Get actual monitoring status
+      isMonitoring,
     })
   } catch (error) {
     console.error("[v0] Failed to get recovery status:", error)
