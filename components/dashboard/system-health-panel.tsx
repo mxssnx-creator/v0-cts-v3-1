@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { AlertCircle, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, RefreshCw, Activity } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface SystemHealthCheck {
   id: string
