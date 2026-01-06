@@ -1,0 +1,22 @@
+Settings Page Current State - Backup Created
+
+The current settings page (app/settings/page.tsx) contains:
+- Full tab structure with 5 tabs (Overall, Indications, System, Advanced, Statistics)
+- Dynamic imports for all components with SSR disabled
+- System stats dashboard with connections, indications, strategies, positions
+- Complete error handling and loading states
+- All major features:
+  * Exchange Connection Manager
+  * Preset Connection Manager
+  * Install Manager
+  * Threshold Management (NEW)
+  * Auto-Recovery Control (NEW)
+  * Logs Viewer
+  * Auto Indication Settings
+  * Active Advanced Indication Settings
+  * Statistics Overview
+
+This matches the v75 structure with added threshold and recovery features.
+File appears complete and functional.
+Line count: 375 lines
+Export: default function SettingsPage()
