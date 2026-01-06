@@ -6,16 +6,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Settings, Database, Activity, TrendingUp, BarChart3, Save, Server, Zap, AlertCircle } from "lucide-react"
-import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
-import InstallManager from "@/components/settings/install-manager"
-import { AutoIndicationSettings } from "@/components/settings/auto-indication-settings"
-import { ActiveAdvancedIndicationSettings } from "@/components/settings/active-advanced-indication-settings"
-import { StatisticsOverview } from "@/components/settings/statistics-overview"
-import { PresetConnectionManager } from "@/components/settings/preset-connection-manager"
-import { LogsViewer } from "@/components/settings/logs-viewer"
-import { ThresholdManagement } from "@/components/settings/threshold-management"
-import { AutoRecoveryControl } from "@/components/settings/auto-recovery-control"
+import dynamic from "next/dynamic"
 import { toast } from "@/lib/simple-toast"
+
+const ExchangeConnectionManager = dynamic(() => import("@/components/settings/exchange-connection-manager"), {
+  ssr: false,
+})
+const InstallManager = dynamic(() => import("@/components/settings/install-manager"), { ssr: false })
+const ThresholdManagement = dynamic(
+  () => import("@/components/settings/threshold-management").then((mod) => ({ default: mod.ThresholdManagement })),
+  { ssr: false },
+)
+const AutoRecoveryControl = dynamic(
+  () => import("@/components/settings/auto-recovery-control").then((mod) => ({ default: mod.AutoRecoveryControl })),
+  { ssr: false },
+)
+const PresetConnectionManager = dynamic(
+  () =>
+    import("@/components/settings/preset-connection-manager").then((mod) => ({ default: mod.PresetConnectionManager })),
+  { ssr: false },
+)
+const LogsViewer = dynamic(
+  () => import("@/components/settings/logs-viewer").then((mod) => ({ default: mod.LogsViewer })),
+  { ssr: false },
+)
+const AutoIndicationSettings = dynamic(
+  () =>
+    import("@/components/settings/auto-indication-settings").then((mod) => ({ default: mod.AutoIndicationSettings })),
+  { ssr: false },
+)
+const ActiveAdvancedIndicationSettings = dynamic(
+  () =>
+    import("@/components/settings/active-advanced-indication-settings").then((mod) => ({
+      default: mod.ActiveAdvancedIndicationSettings,
+    })),
+  { ssr: false },
+)
+const StatisticsOverview = dynamic(
+  () => import("@/components/settings/statistics-overview").then((mod) => ({ default: mod.StatisticsOverview })),
+  { ssr: false },
+)
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("overall")
