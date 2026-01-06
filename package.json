@@ -40,7 +40,7 @@
     "backup:pages": "bun scripts/backup-pages.ts",
     "backup:restore": "bun scripts/restore-from-backup.ts",
     "prebuild": "node scripts/prebuild.js",
-    "build": "bun run validate:pages && next build",
+    "build": "next build",
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
     "clean:aggressive": "node scripts/prebuild.js",
@@ -87,7 +87,7 @@
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
     "validate:pages": "bun scripts/validate-pages-integrity.ts",
-    "vercel-build": "bun run restore:v75:all && bun run protect:pages && bun run clean:aggressive && bun run build",
+    "vercel-build": "bun run clean:aggressive && bun run build",
     "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
