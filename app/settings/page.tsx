@@ -4,8 +4,7 @@ import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Settings, Database, Activity, TrendingUp, BarChart3, Save, Server, Zap, AlertCircle } from "lucide-react"
+import { Settings, Save } from "lucide-react"
 import dynamic from "next/dynamic"
 import { toast } from "@/lib/simple-toast"
 
@@ -136,27 +135,13 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {loadError && (
-        <Card className="border-red-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              <div>
-                <div className="font-semibold">Error Loading Settings</div>
-                <div className="text-sm">{loadError}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Settings className="h-8 w-8" />
             Settings
           </h1>
-          <p className="text-muted-foreground">Configure system, connections, and trading parameters</p>
+          <p className="text-muted-foreground">System configuration and management</p>
         </div>
         <Button onClick={handleSaveSettings} disabled={isSaving}>
           <Save className="h-4 w-4 mr-2" />
@@ -164,125 +149,29 @@ export default function SettingsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-blue-500" />
-              <div>
-                <div className="text-2xl font-bold">{systemStats.connections}</div>
-                <div className="text-xs text-muted-foreground">Connections</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-green-500" />
-              <div>
-                <div className="text-2xl font-bold">{systemStats.activeConnections}</div>
-                <div className="text-xs text-muted-foreground">Active</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-500" />
-              <div>
-                <div className="text-2xl font-bold">{systemStats.indications}</div>
-                <div className="text-xs text-muted-foreground">Indications</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-orange-500" />
-              <div>
-                <div className="text-2xl font-bold">{systemStats.strategies}</div>
-                <div className="text-xs text-muted-foreground">Strategies</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              <div>
-                <div className="text-2xl font-bold">{systemStats.activePositions}</div>
-                <div className="text-xs text-muted-foreground">Positions</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overall">
-            <Settings className="h-4 w-4 mr-2" />
-            Overall
-          </TabsTrigger>
-          <TabsTrigger value="indications">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Indications
-          </TabsTrigger>
-          <TabsTrigger value="system">
-            <Database className="h-4 w-4 mr-2" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="advanced">
-            <Zap className="h-4 w-4 mr-2" />
-            Advanced
-          </TabsTrigger>
-          <TabsTrigger value="statistics">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Statistics
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="overall">Overall</TabsTrigger>
+          <TabsTrigger value="indications">Indications</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
-        {/* Overall Tab - Connection and Preset Management */}
         <TabsContent value="overall" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Exchange Connections</CardTitle>
-              <CardDescription>
-                Manage API connections to exchanges. Configure credentials, test connections, and enable/disable
-                trading.
-              </CardDescription>
+              <CardDescription>Manage exchange API connections and credentials</CardDescription>
             </CardHeader>
             <CardContent>
-              <ExchangeConnectionManager onConnectionsChange={loadSystemStats} />
+              <ExchangeConnectionManager />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Active Connection & Presets</CardTitle>
-              <CardDescription>
-                Select the active trading connection and configure presets for automated trading.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PresetConnectionManager />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Database & System Operations</CardTitle>
-              <CardDescription>
-                Initialize database, run migrations, create backups, and manage system configuration.
-              </CardDescription>
+              <CardTitle>Installation & Database</CardTitle>
+              <CardDescription>System setup and database management</CardDescription>
             </CardHeader>
             <CardContent>
               <InstallManager />
@@ -290,15 +179,11 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Indications Tab - Indication Configuration */}
         <TabsContent value="indications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Main Indication Settings</CardTitle>
-              <CardDescription>
-                Configure direction, move, and active indication types with market activity gating and per-second
-                calculations.
-              </CardDescription>
+              <CardTitle>Indication Settings</CardTitle>
+              <CardDescription>Configure trading indications and parameters</CardDescription>
             </CardHeader>
             <CardContent>
               <AutoIndicationSettings />
@@ -307,11 +192,8 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Active Advanced Indications</CardTitle>
-              <CardDescription>
-                Configure advanced active indications with optimal market change calculations for short-term trades
-                (1-40 min).
-              </CardDescription>
+              <CardTitle>Advanced Indication Settings</CardTitle>
+              <CardDescription>Advanced indication configuration</CardDescription>
             </CardHeader>
             <CardContent>
               <ActiveAdvancedIndicationSettings />
@@ -319,14 +201,11 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* System Tab - Logs, Thresholds, and Recovery */}
         <TabsContent value="system" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Position Threshold Management</CardTitle>
-              <CardDescription>
-                Automatic database cleanup and position limit management with configurable thresholds.
-              </CardDescription>
+              <CardTitle>Position Thresholds</CardTitle>
+              <CardDescription>Manage position limits and automatic cleanup</CardDescription>
             </CardHeader>
             <CardContent>
               <ThresholdManagement />
@@ -335,10 +214,8 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Auto-Recovery System</CardTitle>
-              <CardDescription>
-                Automatic service monitoring, health checks, and recovery for critical system components.
-              </CardDescription>
+              <CardTitle>Auto-Recovery</CardTitle>
+              <CardDescription>Automatic service monitoring and recovery</CardDescription>
             </CardHeader>
             <CardContent>
               <AutoRecoveryControl />
@@ -348,92 +225,28 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>System Logs</CardTitle>
-              <CardDescription>View system logs, errors, and debugging information.</CardDescription>
+              <CardDescription>View system logs and debugging information</CardDescription>
             </CardHeader>
             <CardContent>
               <LogsViewer />
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Database Configuration</CardTitle>
-              <CardDescription>Configure database type and connection settings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">Database Type</span>
-                    <Badge variant="outline">
-                      {process.env.DATABASE_URL?.includes("postgres") ? "PostgreSQL" : "SQLite"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {process.env.DATABASE_URL?.includes("postgres")
-                      ? "Connected to PostgreSQL database"
-                      : "Using local SQLite database"}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    Database configuration is managed through environment variables. Use the Install Manager to perform
-                    database operations.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
-        {/* Advanced Tab - Advanced Settings */}
         <TabsContent value="advanced" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Advanced System Configuration</CardTitle>
-              <CardDescription>Configure advanced engine parameters and system behavior.</CardDescription>
+              <CardTitle>Advanced Configuration</CardTitle>
+              <CardDescription>Advanced system settings</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-sm text-yellow-900 dark:text-yellow-100 font-medium mb-2">⚠️ Caution Required</p>
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    These settings directly affect trading engine behavior. Only modify if you understand the
-                    implications.
-                  </p>
-                </div>
-
-                <div className="grid gap-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="font-medium mb-2">Trade Engine Intervals</div>
-                    <p className="text-sm text-muted-foreground">
-                      Configure check intervals for different indication types (Direction, Move, Active).
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="font-medium mb-2">Position Thresholds</div>
-                    <p className="text-sm text-muted-foreground">
-                      Set maximum positions, cleanup intervals, and position cost limits.
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="font-medium mb-2">Database Limits</div>
-                    <p className="text-sm text-muted-foreground">
-                      Configure row limits for pseudo positions, real positions, and auto-cleanup thresholds.
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Advanced configuration options for system behavior and performance tuning.
+                </p>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Statistics Tab - System Statistics */}
-        <TabsContent value="statistics" className="space-y-6">
-          <StatisticsOverview settings={settings} />
         </TabsContent>
       </Tabs>
     </div>
