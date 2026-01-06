@@ -7,7 +7,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { StyleInitializer } from "@/components/style-initializer"
 import { AuthProvider } from "@/lib/auth-context"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
-import { initializeApplication } from "@/lib/init-app"
 import { Toaster } from "sonner"
 import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
@@ -23,10 +22,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  initializeApplication().catch((error) => {
-    console.error("[v0] Failed to initialize application:", error)
-  })
-
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans">
