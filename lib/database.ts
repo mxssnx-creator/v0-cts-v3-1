@@ -3,12 +3,8 @@ import type { Pool } from "./pg-compat"
 import type Database from "better-sqlite3"
 import { DynamicOperationHandler } from "./core/dynamic-operations"
 import { EntityTypes, ConfigSubTypes } from "./core/entity-types"
-import { dbConfig } from "./config/database-config"
-import { HighPerformanceDatabaseRouter } from "./high-performance-database-router"
-import { DatabaseQueryOptimizer } from "./database-query-optimizer"
 
-const isBuildPhase =
-  process.env.NEXT_PHASE === "phase-production-build" || process.env.NODE_ENV === "build" || !process.env.DATABASE_URL
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
 
 const MAX_RETRIES = 3
 const INITIAL_RETRY_DELAY = 1000 // 1 second
@@ -37,37 +33,28 @@ async function retryWithBackoff<T>(
 }
 
 class DatabaseManager {
-  private static instance: DatabaseManager | null = null
+  private static instance: DatabaseManager
   private initialized = false
   private queryCache: Map<string, { data: any; timestamp: number }> = new Map()
   private readonly CACHE_TTL = 5000 // 5 seconds cache
   private dynamicOps: DynamicOperationHandler | null = null
-  private hpRouter: HighPerformanceDatabaseRouter
-  private queryOptimizer: DatabaseQueryOptimizer
 
   private constructor() {
     if (isBuildPhase) {
       console.log("[v0] Skipping database initialization during build phase")
-      this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
-      this.queryOptimizer = DatabaseQueryOptimizer.getInstance()
       return
     }
 
     try {
-      this.initializeDynamicOps()
-      this.hpRouter = HighPerformanceDatabaseRouter.getInstance()
-      this.queryOptimizer = DatabaseQueryOptimizer.getInstance()
+      const client = getClient()
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
+
+      this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
       this.initializeTables()
     } catch (error) {
       console.error("[v0] Failed to initialize DatabaseManager:", error)
     }
-  }
-
-  private initializeDynamicOps() {
-    const client = getClient()
-    const dbType = getDatabaseType()
-    const isPostgres = dbType === "postgresql" || dbType === "remote"
-    this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
   }
 
   public static getInstance(): DatabaseManager {
@@ -78,10 +65,7 @@ class DatabaseManager {
   }
 
   private async initializeTables() {
-    if (isBuildPhase || this.initialized) {
-      console.log("[v0] Skipping table initialization (build phase or already initialized)")
-      return
-    }
+    if (isBuildPhase || this.initialized) return
 
     try {
       await retryWithBackoff(async () => {
@@ -89,20 +73,10 @@ class DatabaseManager {
         const dbType = getDatabaseType()
         const isPostgres = dbType === "postgresql" || dbType === "remote"
 
-        const getTableName = (baseName: string) => {
-          try {
-            return dbConfig.getTableName(baseName)
-          } catch {
-            // Fallback to base name if config not available
-            return baseName
-          }
-        }
-
-        const connectionsTable = getTableName("exchange_connections")
-
+        // Exchange connections table
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${connectionsTable} (
+            CREATE TABLE IF NOT EXISTS exchange_connections (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               exchange TEXT NOT NULL,
@@ -112,144 +86,12 @@ class DatabaseManager {
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT false,
               is_live_trade BOOLEAN DEFAULT false,
-              is_predefined BOOLEAN DEFAULT false,
-              connection_library TEXT DEFAULT 'ccxt',
-              margin_type TEXT DEFAULT 'isolated',
-              position_mode TEXT DEFAULT 'hedge',
-              is_testnet BOOLEAN DEFAULT false,
-              volume_factor NUMERIC DEFAULT 1.0,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
           `)
-
-          const checkBybit = await (client as Pool).query(
-            `SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`,
-          )
-          if (checkBybit.rows.length === 0) {
-            await (client as Pool).query(
-              `
-              INSERT INTO ${connectionsTable} 
-              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
-               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
-               position_mode, is_testnet, volume_factor)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-            `,
-              [
-                "bybit-default-" + Date.now(),
-                "Bybit Default",
-                "bybit",
-                "unified",
-                "rest",
-                "placeholder-key",
-                "placeholder-secret",
-                true, // enabled by default
-                false, // not live trade by default
-                true, // marked as predefined
-                "ccxt",
-                "isolated",
-                "hedge",
-                false,
-                1.0,
-              ],
-            )
-            console.log("[v0] Created default Bybit connection with full configuration")
-          }
-
-          const checkBingx = await (client as Pool).query(
-            `SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`,
-          )
-          if (checkBingx.rows.length === 0) {
-            await (client as Pool).query(
-              `
-              INSERT INTO ${connectionsTable} 
-              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
-               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
-               position_mode, is_testnet, volume_factor)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-            `,
-              [
-                "bingx-default-" + Date.now(),
-                "BingX Default",
-                "bingx",
-                "unified",
-                "rest",
-                "placeholder-key",
-                "placeholder-secret",
-                true, // enabled by default
-                false, // not live trade by default
-                true, // marked as predefined
-                "ccxt",
-                "isolated",
-                "hedge",
-                false,
-                1.0,
-              ],
-            )
-            console.log("[v0] Created default BingX connection with full configuration")
-          }
-
-          const activeConnectionsTable = getTableName("active_connections")
-          await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${activeConnectionsTable} (
-              id TEXT PRIMARY KEY,
-              connection_id TEXT NOT NULL,
-              exchange TEXT NOT NULL,
-              name TEXT NOT NULL,
-              is_selected BOOLEAN DEFAULT false,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-          `)
-
-          const activeBybit = await (client as Pool).query(
-            `SELECT id FROM ${activeConnectionsTable} WHERE exchange = 'bybit'`,
-          )
-          if (activeBybit.rows.length === 0) {
-            const bybitConnection = await (client as Pool).query(
-              `SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`,
-            )
-            if (bybitConnection.rows.length > 0) {
-              await (client as Pool).query(
-                `INSERT INTO ${activeConnectionsTable} (id, connection_id, exchange, name, is_selected) 
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [
-                  "active-bybit-" + Date.now(),
-                  bybitConnection.rows[0].id,
-                  "bybit",
-                  "Bybit Default",
-                  true, // Bybit is selected by default
-                ],
-              )
-              console.log("[v0] Added Bybit to active connections (selected)")
-            }
-          }
-
-          const activeBingx = await (client as Pool).query(
-            `SELECT id FROM ${activeConnectionsTable} WHERE exchange = 'bingx'`,
-          )
-          if (activeBingx.rows.length === 0) {
-            const bingxConnection = await (client as Pool).query(
-              `SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`,
-            )
-            if (bingxConnection.rows.length > 0) {
-              await (client as Pool).query(
-                `INSERT INTO ${activeConnectionsTable} (id, connection_id, exchange, name, is_selected) 
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [
-                  "active-bingx-" + Date.now(),
-                  bingxConnection.rows[0].id,
-                  "bingx",
-                  "BingX Default",
-                  false, // BingX is not selected by default
-                ],
-              )
-              console.log("[v0] Added BingX to active connections")
-            }
-          }
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${connectionsTable} (
+            CREATE TABLE IF NOT EXISTS exchange_connections (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               exchange TEXT NOT NULL,
@@ -259,136 +101,15 @@ class DatabaseManager {
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT 0,
               is_live_trade BOOLEAN DEFAULT 0,
-              is_predefined BOOLEAN DEFAULT 0,
-              connection_library TEXT DEFAULT 'ccxt',
-              margin_type TEXT DEFAULT 'isolated',
-              position_mode TEXT DEFAULT 'hedge',
-              is_testnet BOOLEAN DEFAULT 0,
-              volume_factor REAL DEFAULT 1.0,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
           `)
-
-          const checkBybit = (client as Database.Database)
-            .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`)
-            .get()
-          if (!checkBybit) {
-            ;(client as Database.Database)
-              .prepare(`
-              INSERT INTO ${connectionsTable} 
-              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
-               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
-               position_mode, is_testnet, volume_factor)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `)
-              .run(
-                "bybit-default-" + Date.now(),
-                "Bybit Default",
-                "bybit",
-                "unified",
-                "rest",
-                "placeholder-key",
-                "placeholder-secret",
-                1, // enabled
-                0, // not live trade
-                1, // predefined
-                "ccxt",
-                "isolated",
-                "hedge",
-                0, // not testnet
-                1.0,
-              )
-            console.log("[v0] Created default Bybit connection with full configuration")
-          }
-
-          const checkBingx = (client as Database.Database)
-            .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`)
-            .get()
-          if (!checkBingx) {
-            ;(client as Database.Database)
-              .prepare(`
-              INSERT INTO ${connectionsTable} 
-              (id, name, exchange, api_type, connection_method, api_key, api_secret, 
-               is_enabled, is_live_trade, is_predefined, connection_library, margin_type, 
-               position_mode, is_testnet, volume_factor)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `)
-              .run(
-                "bingx-default-" + Date.now(),
-                "BingX Default",
-                "bingx",
-                "unified",
-                "rest",
-                "placeholder-key",
-                "placeholder-secret",
-                1, // enabled
-                0, // not live trade
-                1, // predefined
-                "ccxt",
-                "isolated",
-                "hedge",
-                0, // not testnet
-                1.0,
-              )
-            console.log("[v0] Created default BingX connection with full configuration")
-          }
-          ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${getTableName("active_connections")} (
-              id TEXT PRIMARY KEY,
-              connection_id TEXT NOT NULL,
-              exchange TEXT NOT NULL,
-              name TEXT NOT NULL,
-              is_selected BOOLEAN DEFAULT 0,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `)
-
-          const activeBybit = (client as Database.Database)
-            .prepare(`SELECT id FROM ${getTableName("active_connections")} WHERE exchange = 'bybit'`)
-            .get()
-          if (!activeBybit) {
-            const bybitConnection = (client as Database.Database)
-              .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bybit' AND name = 'Bybit Default'`)
-              .get() as any
-            if (bybitConnection) {
-              ;(client as Database.Database)
-                .prepare(
-                  `INSERT INTO ${getTableName("active_connections")} 
-                   (id, connection_id, exchange, name, is_selected) 
-                   VALUES (?, ?, ?, ?, ?)`,
-                )
-                .run("active-bybit-" + Date.now(), bybitConnection.id, "bybit", "Bybit Default", 1)
-              console.log("[v0] Added Bybit to active connections (selected)")
-            }
-          }
-
-          const activeBingx = (client as Database.Database)
-            .prepare(`SELECT id FROM ${getTableName("active_connections")} WHERE exchange = 'bingx'`)
-            .get()
-          if (!activeBingx) {
-            const bingxConnection = (client as Database.Database)
-              .prepare(`SELECT id FROM ${connectionsTable} WHERE exchange = 'bingx' AND name = 'BingX Default'`)
-              .get() as any
-            if (bingxConnection) {
-              ;(client as Database.Database)
-                .prepare(
-                  `INSERT INTO ${getTableName("active_connections")} 
-                   (id, connection_id, exchange, name, is_selected) 
-                   VALUES (?, ?, ?, ?, ?)`,
-                )
-                .run("active-bingx-" + Date.now(), bingxConnection.id, "bingx", "BingX Default", 0)
-              console.log("[v0] Added BingX to active connections")
-            }
-          }
         }
 
         // Pseudo positions table
-        const pseudoPositionsTable = getTableName("pseudo_positions")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${pseudoPositionsTable} (
+            CREATE TABLE IF NOT EXISTS pseudo_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
               symbol TEXT NOT NULL,
@@ -428,12 +149,12 @@ class DatabaseManager {
               checks_per_minute REAL,
               price_updates_count INTEGER DEFAULT 0,
               
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${pseudoPositionsTable} (
+            CREATE TABLE IF NOT EXISTS pseudo_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
               symbol TEXT NOT NULL,
@@ -473,16 +194,15 @@ class DatabaseManager {
               checks_per_minute REAL,
               price_updates_count INTEGER DEFAULT 0,
               
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         }
 
         // Real positions table
-        const realPositionsTable = getTableName("real_positions")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${realPositionsTable} (
+            CREATE TABLE IF NOT EXISTS real_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
               exchange_position_id TEXT,
@@ -512,12 +232,12 @@ class DatabaseManager {
               max_loss REAL,
               profit_volatility REAL,
               
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${realPositionsTable} (
+            CREATE TABLE IF NOT EXISTS real_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
               exchange_position_id TEXT,
@@ -547,42 +267,40 @@ class DatabaseManager {
               max_loss REAL,
               profit_volatility REAL,
               
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         }
 
         // Market data table
-        const marketDataTable = getTableName("market_data")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${marketDataTable} (
+            CREATE TABLE IF NOT EXISTS market_data (
               id SERIAL PRIMARY KEY,
               connection_id TEXT NOT NULL,
               symbol TEXT NOT NULL,
               price REAL NOT NULL,
               timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${marketDataTable} (
+            CREATE TABLE IF NOT EXISTS market_data (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               connection_id TEXT NOT NULL,
               symbol TEXT NOT NULL,
               price REAL NOT NULL,
               timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-              FOREIGN KEY (connection_id) REFERENCES ${connectionsTable} (id)
+              FOREIGN KEY (connection_id) REFERENCES exchange_connections (id)
             )
           `)
         }
 
         // System settings table
-        const systemSettingsTable = getTableName("system_settings")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${systemSettingsTable} (
+            CREATE TABLE IF NOT EXISTS system_settings (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -590,7 +308,7 @@ class DatabaseManager {
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${systemSettingsTable} (
+            CREATE TABLE IF NOT EXISTS system_settings (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -599,10 +317,9 @@ class DatabaseManager {
         }
 
         // Logs table
-        const logsTable = getTableName("logs")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${logsTable} (
+            CREATE TABLE IF NOT EXISTS logs (
               id SERIAL PRIMARY KEY,
               level TEXT NOT NULL,
               category TEXT NOT NULL,
@@ -613,7 +330,7 @@ class DatabaseManager {
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${logsTable} (
+            CREATE TABLE IF NOT EXISTS logs (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               level TEXT NOT NULL,
               category TEXT NOT NULL,
@@ -625,10 +342,9 @@ class DatabaseManager {
         }
 
         // Errors table
-        const errorsTable = getTableName("errors")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${errorsTable} (
+            CREATE TABLE IF NOT EXISTS errors (
               id SERIAL PRIMARY KEY,
               type TEXT NOT NULL,
               message TEXT NOT NULL,
@@ -640,7 +356,7 @@ class DatabaseManager {
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${errorsTable} (
+            CREATE TABLE IF NOT EXISTS errors (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               type TEXT NOT NULL,
               message TEXT NOT NULL,
@@ -653,10 +369,9 @@ class DatabaseManager {
         }
 
         // Site logs table
-        const siteLogsTable = getTableName("site_logs")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${siteLogsTable} (
+            CREATE TABLE IF NOT EXISTS site_logs (
               id SERIAL PRIMARY KEY,
               level TEXT NOT NULL,
               category TEXT NOT NULL,
@@ -669,7 +384,7 @@ class DatabaseManager {
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${siteLogsTable} (
+            CREATE TABLE IF NOT EXISTS site_logs (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               level TEXT NOT NULL,
               category TEXT NOT NULL,
@@ -683,10 +398,9 @@ class DatabaseManager {
         }
 
         // Auto-optimal configurations table
-        const autoOptimalConfigurationsTable = getTableName("auto_optimal_configurations")
         if (isPostgres) {
           await (client as Pool).query(`
-            CREATE TABLE IF NOT EXISTS ${autoOptimalConfigurationsTable} (
+            CREATE TABLE IF NOT EXISTS auto_optimal_configurations (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               symbol_mode TEXT NOT NULL,
@@ -713,7 +427,7 @@ class DatabaseManager {
           `)
         } else {
           ;(client as Database.Database).exec(`
-            CREATE TABLE IF NOT EXISTS ${autoOptimalConfigurationsTable} (
+            CREATE TABLE IF NOT EXISTS auto_optimal_configurations (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               symbol_mode TEXT NOT NULL,
@@ -740,11 +454,9 @@ class DatabaseManager {
           `)
         }
 
-        // Preset configuration sets table (ALTER TABLE)
-        const presetConfigurationSetsTable = getTableName("preset_configuration_sets")
         if (isPostgres) {
           await (client as Pool).query(`
-            ALTER TABLE ${presetConfigurationSetsTable}
+            ALTER TABLE preset_configuration_sets
             ADD COLUMN IF NOT EXISTS last_evaluation_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS auto_disabled_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS auto_disabled_reason TEXT,
@@ -769,11 +481,11 @@ class DatabaseManager {
             try {
               let alterSQL = ""
               if (column === "last_evaluation_at" || column === "auto_disabled_at") {
-                alterSQL = `ALTER TABLE ${presetConfigurationSetsTable} ADD COLUMN ${column} DATETIME`
+                alterSQL = `ALTER TABLE preset_configuration_sets ADD COLUMN ${column} DATETIME`
               } else if (column === "auto_disabled_reason") {
-                alterSQL = `ALTER TABLE ${presetConfigurationSetsTable} ADD COLUMN ${column} TEXT`
+                alterSQL = `ALTER TABLE preset_configuration_sets ADD COLUMN ${column} TEXT`
               } else {
-                alterSQL = `ALTER TABLE ${presetConfigurationSetsTable} ADD COLUMN ${column} INTEGER DEFAULT 0`
+                alterSQL = `ALTER TABLE preset_configuration_sets ADD COLUMN ${column} INTEGER DEFAULT 0`
               }
               sqliteDb.exec(alterSQL)
             } catch (error: any) {
@@ -800,7 +512,6 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const systemSettingsTable = dbConfig.getTableName("system_settings")
 
     console.log("[v0] Inserting default settings...")
 
@@ -976,7 +687,7 @@ class DatabaseManager {
       await Promise.all(
         defaultSettings.map(async (setting) => {
           await (client as Pool).query(
-            `INSERT INTO ${systemSettingsTable} (key, value) VALUES ($1, $2)
+            `INSERT INTO system_settings (key, value) VALUES ($1, $2)
             ON CONFLICT (key) DO NOTHING`,
             [setting.key, setting.value],
           )
@@ -985,7 +696,7 @@ class DatabaseManager {
       )
     } else {
       const insertSetting = (client as Database.Database).prepare(`
-        INSERT OR IGNORE INTO ${systemSettingsTable} (key, value) VALUES (?, ?)
+        INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)
       `)
 
       defaultSettings.forEach((setting) => {
@@ -1017,26 +728,7 @@ class DatabaseManager {
 
   public async query(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], options?: any) {
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
-
-    if (this.shouldUseHighPerformanceRouter(entityType, options)) {
-      const tableName = this.hpRouter.routeEntityToTable(entityType, {
-        indicationType: options?.indication_type,
-        strategyType: options?.strategy_type,
-      })
-
-      // Execute query using the routed table name
-      return await this.dynamicOps.query(entityType, { ...options, tableName })
-    }
-
     return await this.dynamicOps.query(entityType, options)
-  }
-
-  private shouldUseHighPerformanceRouter(entityType: string, options?: any): boolean {
-    // Use HP router for position queries with indication_type or strategy_type filters
-    if (entityType === "pseudo_position" && options) {
-      return !!(options.indication_type || options.strategy_type)
-    }
-    return false
   }
 
   public async delete(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], id: string | number) {
@@ -1091,13 +783,12 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
-      const result = await (client as Pool).query(`SELECT * FROM ${connectionsTable} ORDER BY created_at DESC`)
+      const result = await (client as Pool).query("SELECT * FROM exchange_connections ORDER BY created_at DESC")
       return result.rows
     } else {
-      const stmt = (client as Database.Database).prepare(`SELECT * FROM ${connectionsTable} ORDER BY created_at DESC`)
+      const stmt = (client as Database.Database).prepare("SELECT * FROM exchange_connections ORDER BY created_at DESC")
       return stmt.all()
     }
   }
@@ -1106,11 +797,10 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       const result = await (client as Pool).query(
-        `UPDATE ${connectionsTable} 
+        `UPDATE exchange_connections 
         SET is_enabled = $1, is_live_trade = $2, updated_at = CURRENT_TIMESTAMP 
         WHERE id = $3 RETURNING *`,
         [is_enabled, is_live_trade, id],
@@ -1118,7 +808,7 @@ class DatabaseManager {
       return result.rows[0]
     } else {
       const stmt = (client as Database.Database).prepare(`
-        UPDATE ${connectionsTable} 
+        UPDATE exchange_connections 
         SET is_enabled = ?, is_live_trade = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
       `)
@@ -1169,14 +859,12 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const pseudoPositionsTable = dbConfig.getTableName("pseudo_positions")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     const result = new Map<string, any[]>()
 
     if (isPostgres) {
       const query = `
-        SELECT * FROM ${pseudoPositionsTable} 
+        SELECT * FROM pseudo_positions 
         WHERE status = $1 AND connection_id = ANY($2)
         ORDER BY connection_id, created_at DESC
         LIMIT $3
@@ -1193,7 +881,7 @@ class DatabaseManager {
     } else {
       const placeholders = connectionIds.map(() => "?").join(",")
       const stmt = (client as Database.Database).prepare(`
-        SELECT * FROM ${pseudoPositionsTable} 
+        SELECT * FROM pseudo_positions 
         WHERE status = "active" AND connection_id IN (${placeholders})
         ORDER BY connection_id, created_at DESC
         LIMIT ?
@@ -1220,12 +908,10 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const realPositionsTable = dbConfig.getTableName("real_positions")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       return await (client as Pool).query(
-        `INSERT INTO ${realPositionsTable} 
+        `INSERT INTO real_positions 
         (id, connection_id, exchange_position_id, symbol, strategy_type, volume, 
          entry_price, current_price, takeprofit, stoploss, profit_loss)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -1245,7 +931,7 @@ class DatabaseManager {
       )
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT INTO ${realPositionsTable} 
+        INSERT INTO real_positions 
         (id, connection_id, exchange_position_id, symbol, strategy_type, volume, 
          entry_price, current_price, takeprofit, stoploss, profit_loss)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1270,11 +956,9 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const realPositionsTable = dbConfig.getTableName("real_positions")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
-      let query = `SELECT * FROM ${realPositionsTable} WHERE status = $1`
+      let query = "SELECT * FROM real_positions WHERE status = $1"
       const params: any[] = ["open"]
 
       if (connection_id) {
@@ -1287,7 +971,7 @@ class DatabaseManager {
       const result = await (client as Pool).query(query, params)
       return result.rows
     } else {
-      let query = `SELECT * FROM ${realPositionsTable} WHERE status = "open"`
+      let query = 'SELECT * FROM real_positions WHERE status = "open"'
       const params: any[] = []
 
       if (connection_id) {
@@ -1307,13 +991,12 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const systemSettingsTable = dbConfig.getTableName("system_settings")
 
     if (isPostgres) {
-      const result = await (client as Pool).query(`SELECT value FROM ${systemSettingsTable} WHERE key = $1`, [key])
+      const result = await (client as Pool).query("SELECT value FROM system_settings WHERE key = $1", [key])
       return result.rows[0]?.value || null
     } else {
-      const stmt = (client as Database.Database).prepare(`SELECT value FROM ${systemSettingsTable} WHERE key = ?`)
+      const stmt = (client as Database.Database).prepare("SELECT value FROM system_settings WHERE key = ?")
       const result = stmt.get(key) as { value: string } | undefined
       return result?.value || null
     }
@@ -1323,11 +1006,10 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const systemSettingsTable = dbConfig.getTableName("system_settings")
 
     if (isPostgres) {
       const result = await (client as Pool).query(
-        `INSERT INTO ${systemSettingsTable} (key, value, updated_at) 
+        `INSERT INTO system_settings (key, value, updated_at) 
         VALUES ($1, $2, CURRENT_TIMESTAMP)
         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP
         RETURNING *`,
@@ -1336,7 +1018,7 @@ class DatabaseManager {
       return result.rows[0]
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT OR REPLACE INTO ${systemSettingsTable} (key, value, updated_at) 
+        INSERT OR REPLACE INTO system_settings (key, value, updated_at) 
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `)
       return stmt.run(key, value)
@@ -1347,17 +1029,16 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const systemSettingsTable = dbConfig.getTableName("system_settings")
 
     if (isPostgres) {
-      const result = await (client as Pool).query(`SELECT key, value FROM ${systemSettingsTable}`)
+      const result = await (client as Pool).query("SELECT key, value FROM system_settings")
       const settings: Record<string, string> = {}
       result.rows.forEach((row: any) => {
         settings[row.key] = row.value
       })
       return settings
     } else {
-      const stmt = (client as Database.Database).prepare(`SELECT key, value FROM ${systemSettingsTable}`)
+      const stmt = (client as Database.Database).prepare("SELECT key, value FROM system_settings")
       const rows = stmt.all() as Array<{ key: string; value: string }>
       const settings: Record<string, string> = {}
       rows.forEach((row) => {
@@ -1372,17 +1053,15 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const marketDataTable = dbConfig.getTableName("market_data")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       return await (client as Pool).query(
-        `INSERT INTO ${marketDataTable} (connection_id, symbol, price) VALUES ($1, $2, $3)`,
+        `INSERT INTO market_data (connection_id, symbol, price) VALUES ($1, $2, $3)`,
         [connection_id, symbol, price],
       )
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT INTO ${marketDataTable} (connection_id, symbol, price) VALUES (?, ?, ?)
+        INSERT INTO market_data (connection_id, symbol, price) VALUES (?, ?, ?)
       `)
       return stmt.run(connection_id, symbol, price)
     }
@@ -1392,12 +1071,10 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const marketDataTable = dbConfig.getTableName("market_data")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       const result = await (client as Pool).query(
-        `SELECT * FROM ${marketDataTable} 
+        `SELECT * FROM market_data 
         WHERE connection_id = $1 AND symbol = $2 
         AND timestamp > NOW() - INTERVAL '${hours} hours'
         ORDER BY timestamp DESC`,
@@ -1406,7 +1083,7 @@ class DatabaseManager {
       return result.rows
     } else {
       const stmt = (client as Database.Database).prepare(`
-        SELECT * FROM ${marketDataTable} 
+        SELECT * FROM market_data 
         WHERE connection_id = ? AND symbol = ? 
         AND timestamp > datetime('now', '-${hours} hours')
         ORDER BY timestamp DESC
@@ -1425,8 +1102,6 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const marketDataTable = dbConfig.getTableName("market_data")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       const values = dataPoints
@@ -1438,13 +1113,10 @@ class DatabaseManager {
 
       const params = dataPoints.flatMap((d) => [d.connection_id, d.symbol, d.price])
 
-      await (client as Pool).query(
-        `INSERT INTO ${marketDataTable} (connection_id, symbol, price) VALUES ${values}`,
-        params,
-      )
+      await (client as Pool).query(`INSERT INTO market_data (connection_id, symbol, price) VALUES ${values}`, params)
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT INTO ${marketDataTable} (connection_id, symbol, price) VALUES (?, ?, ?)
+        INSERT INTO market_data (connection_id, symbol, price) VALUES (?, ?, ?)
       `)
 
       const insertMany = (client as Database.Database).transaction((dataPoints: any[]) => {
@@ -1466,12 +1138,10 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const marketDataTable = dbConfig.getTableName("market_data")
-    const connectionsTable = dbConfig.getTableName("exchange_connections")
 
     if (isPostgres) {
       const query = `
-        SELECT * FROM ${marketDataTable} 
+        SELECT * FROM market_data 
         WHERE connection_id = ANY($1) AND symbol = $2 
         AND timestamp > NOW() - INTERVAL '${hours} hours'
         ORDER BY connection_id, timestamp DESC
@@ -1487,7 +1157,7 @@ class DatabaseManager {
     } else {
       const placeholders = connectionIds.map(() => "?").join(",")
       const stmt = (client as Database.Database).prepare(`
-        SELECT * FROM ${marketDataTable} 
+        SELECT * FROM market_data 
         WHERE connection_id IN (${placeholders}) AND symbol = ? 
         AND timestamp > datetime('now', '-${hours} hours')
         ORDER BY connection_id, timestamp DESC
@@ -1510,16 +1180,15 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const logsTable = dbConfig.getTableName("logs")
 
     if (isPostgres) {
       return await (client as Pool).query(
-        `INSERT INTO ${logsTable} (level, category, message, details) VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO logs (level, category, message, details) VALUES ($1, $2, $3, $4)`,
         [level, category, message, details || null],
       )
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT INTO ${logsTable} (level, category, message, details) VALUES (?, ?, ?, ?)
+        INSERT INTO logs (level, category, message, details) VALUES (?, ?, ?, ?)
       `)
       return stmt.run(level, category, message, details || null)
     }
@@ -1529,10 +1198,9 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const logsTable = dbConfig.getTableName("logs")
 
     if (isPostgres) {
-      let query = `SELECT * FROM ${logsTable} WHERE 1=1`
+      let query = "SELECT * FROM logs WHERE 1=1"
       const params: any[] = []
 
       if (level) {
@@ -1551,7 +1219,7 @@ class DatabaseManager {
       const result = await (client as Pool).query(query, params)
       return result.rows
     } else {
-      let query = `SELECT * FROM ${logsTable} WHERE 1=1`
+      let query = "SELECT * FROM logs WHERE 1=1"
       const params: any[] = []
 
       if (level) {
@@ -1576,17 +1244,16 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const logsTable = dbConfig.getTableName("logs")
 
     if (isPostgres) {
-      return await (client as Pool).query(`DELETE FROM ${logsTable} WHERE timestamp < NOW() - INTERVAL '1 day' * $1`, [
-        days,
-      ])
+      return await (client as Pool).query(`
+        DELETE FROM logs WHERE timestamp < NOW() - INTERVAL '${days} days'
+      `)
     } else {
       const stmt = (client as Database.Database).prepare(`
-        DELETE FROM ${logsTable} WHERE timestamp < datetime('now', '-' || ? || ' days')
+        DELETE FROM logs WHERE timestamp < datetime('now', '-${days} days')
       `)
-      return stmt.run(days)
+      return stmt.run()
     }
   }
 
@@ -1594,16 +1261,15 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const errorsTable = dbConfig.getTableName("errors")
 
     if (isPostgres) {
       return await (client as Pool).query(
-        `INSERT INTO ${errorsTable} (type, message, stack, context) VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO errors (type, message, stack, context) VALUES ($1, $2, $3, $4)`,
         [type, message, stack || null, context || null],
       )
     } else {
       const stmt = (client as Database.Database).prepare(`
-        INSERT INTO ${errorsTable} (type, message, stack, context) VALUES (?, ?, ?, ?)
+        INSERT INTO errors (type, message, stack, context) VALUES (?, ?, ?, ?)
       `)
       return stmt.run(type, message, stack || null, context || null)
     }
@@ -1613,17 +1279,16 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const errorsTable = dbConfig.getTableName("errors")
 
     if (isPostgres) {
       const result = await (client as Pool).query(
-        `SELECT * FROM ${errorsTable} WHERE resolved = $1 ORDER BY timestamp DESC LIMIT $2`,
+        `SELECT * FROM errors WHERE resolved = $1 ORDER BY timestamp DESC LIMIT $2`,
         [resolved, limit],
       )
       return result.rows
     } else {
       const stmt = (client as Database.Database).prepare(`
-        SELECT * FROM ${errorsTable} WHERE resolved = ? ORDER BY timestamp DESC LIMIT ?
+        SELECT * FROM errors WHERE resolved = ? ORDER BY timestamp DESC LIMIT ?
       `)
       return stmt.all(resolved ? 1 : 0, limit)
     }
@@ -1633,13 +1298,12 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const errorsTable = dbConfig.getTableName("errors")
 
     if (isPostgres) {
-      return await (client as Pool).query(`UPDATE ${errorsTable} SET resolved = true WHERE id = $1`, [id])
+      return await (client as Pool).query(`UPDATE errors SET resolved = true WHERE id = $1`, [id])
     } else {
       const stmt = (client as Database.Database).prepare(`
-        UPDATE ${errorsTable} SET resolved = 1 WHERE id = ?
+        UPDATE errors SET resolved = 1 WHERE id = ?
       `)
       return stmt.run(id)
     }
@@ -1649,28 +1313,17 @@ class DatabaseManager {
     const client = getClient()
     const dbType = getDatabaseType()
     const isPostgres = dbType === "postgresql" || dbType === "remote"
-    const errorsTable = dbConfig.getTableName("errors")
 
     if (isPostgres) {
-      return await (client as Pool).query(
-        `DELETE FROM ${errorsTable} WHERE resolved = true AND timestamp < NOW() - INTERVAL '1 day' * $1`,
-        [days],
-      )
+      return await (client as Pool).query(`
+        DELETE FROM errors WHERE resolved = true AND timestamp < NOW() - INTERVAL '${days} days'
+      `)
     } else {
       const stmt = (client as Database.Database).prepare(`
-        DELETE FROM ${errorsTable} WHERE resolved = 1 AND timestamp < datetime('now', '-' || ? || ' days')
+        DELETE FROM errors WHERE resolved = 1 AND timestamp < datetime('now', '-${days} days')
       `)
-      return stmt.run(days)
+      return stmt.run()
     }
-  }
-
-  public async getAggregatedStatistics(params: {
-    connectionId?: string
-    indicationType?: string
-    strategyType?: string
-    timeRange?: string
-  }): Promise<any> {
-    return await this.hpRouter.getAggregatedStats(params)
   }
 
   public async getConnectionStatistics(connectionId: string): Promise<any> {
@@ -1678,29 +1331,118 @@ class DatabaseManager {
     const cached = this.getFromCache(cacheKey)
     if (cached) return cached
 
-    // Use high-performance aggregation across all indication/strategy tables
-    const stats = await this.hpRouter.getAggregatedStats({ connectionId })
+    const client = getClient()
+    const dbType = getDatabaseType()
+    const isPostgres = dbType === "postgresql" || dbType === "remote"
+
+    const stats: any = {}
+
+    if (isPostgres) {
+      const [positionStats] = (
+        await (client as Pool).query(
+          `SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'active') as active,
+          COUNT(*) FILTER (WHERE status = 'closed') as closed,
+          AVG(profit_factor) as avg_profit_factor
+         FROM pseudo_positions WHERE connection_id = $1`,
+          [connectionId],
+        )
+      ).rows
+
+      const [marketDataCount] = (
+        await (client as Pool).query(
+          `SELECT COUNT(*) as count FROM market_data 
+         WHERE connection_id = $1 AND timestamp > NOW() - INTERVAL '24 hours'`,
+          [connectionId],
+        )
+      ).rows
+
+      stats.positions = positionStats
+      stats.marketDataPoints = marketDataCount.count
+    } else {
+      const positionStats = (client as Database.Database)
+        .prepare(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed,
+          AVG(profit_factor) as avg_profit_factor
+        FROM pseudo_positions WHERE connection_id = ?
+      `)
+        .get(connectionId)
+
+      const marketDataCount = (client as Database.Database)
+        .prepare(`
+        SELECT COUNT(*) as count FROM market_data 
+        WHERE connection_id = ? AND timestamp > datetime('now', '-24 hours')
+      `)
+        .get(connectionId) as { count: number } | undefined
+
+      stats.positions = positionStats
+      stats.marketDataPoints = (marketDataCount as any)?.count || 0
+    }
 
     this.setInCache(cacheKey, stats)
     return stats
   }
 
   public async getPositionStats(connectionId: string) {
-    return await this.hpRouter.getPositionStats(connectionId)
+    const client = getClient()
+    const dbType = getDatabaseType()
+    const isPostgres = dbType === "postgresql" || dbType === "remote"
+
+    // Query adapted to use available columns: profit_factor, position_cost, status ('active'/'closed')
+    // PnL is estimated as (profit_factor - 1) * position_cost
+    const query = `
+      SELECT 
+        COUNT(*) as total_positions,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_positions,
+        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_positions,
+        SUM(CASE WHEN status = 'active' THEN (profit_factor - 1) * position_cost ELSE 0 END) as total_pnl,
+        AVG(CASE WHEN status = 'closed' AND profit_factor > 1 THEN (profit_factor - 1) * position_cost ELSE NULL END) as avg_profit,
+        AVG(CASE WHEN status = 'closed' AND profit_factor < 1 THEN (profit_factor - 1) * position_cost ELSE NULL END) as avg_loss,
+        (SUM(CASE WHEN status = 'closed' AND profit_factor > 1 THEN 1 ELSE 0 END) * 100.0 / 
+         NULLIF(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0)) as win_rate
+      FROM pseudo_positions
+      WHERE connection_id = ?
+    `
+
+    if (isPostgres) {
+      const pgQuery = query.replace(/\?/g, "$1")
+      const result = await (client as Pool).query(pgQuery, [connectionId])
+      return result.rows[0]
+    } else {
+      const stmt = (client as Database.Database).prepare(query)
+      return stmt.get(connectionId)
+    }
   }
 
-  public async getIndicationStatistics(
-    indicationType: "active" | "direction" | "move",
-    connectionId?: string,
-  ): Promise<any> {
-    return await this.hpRouter.getIndicationStats(indicationType, connectionId)
-  }
+  public async getGlobalPositionStats() {
+    const client = getClient()
+    const dbType = getDatabaseType()
+    const isPostgres = dbType === "postgresql" || dbType === "remote"
 
-  public async getStrategyStatistics(
-    strategyType: "simple" | "advanced" | "step",
-    connectionId?: string,
-  ): Promise<any> {
-    return await this.hpRouter.getStrategyStats(strategyType, connectionId)
+    const query = `
+      SELECT 
+        COUNT(*) as total_positions,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_positions,
+        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_positions,
+        SUM(CASE WHEN status = 'active' THEN (profit_factor - 1) * position_cost ELSE 0 END) as total_pnl,
+        AVG(CASE WHEN status = 'closed' AND profit_factor > 1 THEN (profit_factor - 1) * position_cost ELSE NULL END) as avg_profit,
+        AVG(CASE WHEN status = 'closed' AND profit_factor < 1 THEN (profit_factor - 1) * position_cost ELSE NULL END) as avg_loss,
+        (SUM(CASE WHEN status = 'closed' AND profit_factor > 1 THEN 1 ELSE 0 END) * 100.0 / 
+         NULLIF(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0)) as win_rate
+      FROM pseudo_positions
+    `
+
+    if (isPostgres) {
+      const result = await (client as Pool).query(query)
+      return result.rows[0]
+    } else {
+      const stmt = (client as Database.Database).prepare(query)
+      return stmt.get()
+    }
   }
 
   public async insertAutoOptimalConfig(config: any) {
@@ -1758,7 +1500,6 @@ class DatabaseManager {
   }
 }
 
-export { DatabaseManager }
 export default DatabaseManager
 
 export const db = DatabaseManager.getInstance()

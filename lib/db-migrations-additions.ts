@@ -88,61 +88,6 @@ export function getPresetTradeEngineTablesSQL(): string {
 
       -- Add preset_type_id column to exchange_connections if not exists
       ALTER TABLE exchange_connections ADD COLUMN IF NOT EXISTS preset_type_id TEXT;
-
-      -- Archived Positions Table (for threshold cleanup)
-      CREATE TABLE IF NOT EXISTS archived_positions (
-        id SERIAL PRIMARY KEY,
-        original_id INTEGER NOT NULL,
-        connection_id TEXT NOT NULL,
-        table_name TEXT NOT NULL,
-        symbol TEXT NOT NULL,
-        status TEXT NOT NULL,
-        entry_price NUMERIC(20, 8),
-        current_price NUMERIC(20, 8),
-        profit_factor NUMERIC(20, 8),
-        position_cost NUMERIC(20, 8),
-        created_at TIMESTAMPTZ NOT NULL,
-        closed_at TIMESTAMPTZ,
-        archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        position_data JSONB
-      );
-
-      -- Data Cleanup Log Table
-      CREATE TABLE IF NOT EXISTS data_cleanup_log (
-        id SERIAL PRIMARY KEY,
-        cleanup_type TEXT NOT NULL,
-        table_name TEXT NOT NULL,
-        connection_id TEXT,
-        records_cleaned INTEGER DEFAULT 0,
-        records_archived INTEGER DEFAULT 0,
-        cleanup_started_at TIMESTAMPTZ NOT NULL,
-        cleanup_completed_at TIMESTAMPTZ,
-        status TEXT NOT NULL,
-        error_message TEXT
-      );
-
-      -- High-performance indexes for archived positions
-      CREATE INDEX IF NOT EXISTS idx_archived_positions_connection ON archived_positions(connection_id);
-      CREATE INDEX IF NOT EXISTS idx_archived_positions_table ON archived_positions(table_name);
-      CREATE INDEX IF NOT EXISTS idx_archived_positions_archived_at ON archived_positions(archived_at);
-      CREATE INDEX IF NOT EXISTS idx_archived_positions_symbol ON archived_positions(symbol);
-
-      -- Indexes for cleanup log
-      CREATE INDEX IF NOT EXISTS idx_cleanup_log_connection ON data_cleanup_log(connection_id);
-      CREATE INDEX IF NOT EXISTS idx_cleanup_log_table ON data_cleanup_log(table_name);
-      CREATE INDEX IF NOT EXISTS idx_cleanup_log_completed ON data_cleanup_log(cleanup_completed_at);
-
-      -- Add threshold settings to system_settings
-      INSERT INTO system_settings (key, value, description, category)
-      VALUES 
-        ('databaseSizeBase', '250', 'Base position limit per connection', 'database'),
-        ('databaseSizeMain', '250', 'Main position limit per connection', 'database'),
-        ('databaseSizeReal', '250', 'Real position limit per connection', 'database'),
-        ('databaseSizePreset', '250', 'Preset position limit per connection', 'database'),
-        ('databaseThresholdPercent', '20', 'Cleanup threshold percentage', 'database'),
-        ('maxDatabaseSizeGB', '20', 'Maximum database size in GB', 'database'),
-        ('enableThresholdMonitoring', 'true', 'Enable automatic threshold monitoring', 'database')
-      ON CONFLICT (key) DO NOTHING;
     `
   }
 
@@ -215,52 +160,6 @@ export function getPresetTradeEngineTablesSQL(): string {
     CREATE INDEX IF NOT EXISTS idx_preset_trades_connection ON preset_trades(connection_id);
     CREATE INDEX IF NOT EXISTS idx_preset_pseudo_positions_connection ON preset_pseudo_positions(connection_id);
     CREATE INDEX IF NOT EXISTS idx_preset_pseudo_positions_preset ON preset_pseudo_positions(preset_id);
-
-    -- Archived Positions Table (for threshold cleanup)
-    CREATE TABLE IF NOT EXISTS archived_positions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      original_id INTEGER NOT NULL,
-      connection_id TEXT NOT NULL,
-      table_name TEXT NOT NULL,
-      symbol TEXT NOT NULL,
-      status TEXT NOT NULL,
-      entry_price REAL,
-      current_price REAL,
-      profit_factor REAL,
-      position_cost REAL,
-      created_at DATETIME NOT NULL,
-      closed_at DATETIME,
-      archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      position_data TEXT
-    );
-
-    -- Data Cleanup Log Table
-    CREATE TABLE IF NOT EXISTS data_cleanup_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cleanup_type TEXT NOT NULL,
-      table_name TEXT NOT NULL,
-      connection_id TEXT,
-      records_cleaned INTEGER DEFAULT 0,
-      records_archived INTEGER DEFAULT 0,
-      cleanup_started_at DATETIME NOT NULL,
-      cleanup_completed_at DATETIME,
-      status TEXT NOT NULL,
-      error_message TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_archived_positions_connection ON archived_positions(connection_id);
-    CREATE INDEX IF NOT EXISTS idx_archived_positions_table ON archived_positions(table_name);
-    CREATE INDEX IF NOT EXISTS idx_cleanup_log_connection ON data_cleanup_log(connection_id);
-
-    INSERT OR IGNORE INTO system_settings (key, value, description, category)
-    VALUES 
-      ('databaseSizeBase', '250', 'Base position limit per connection', 'database'),
-      ('databaseSizeMain', '250', 'Main position limit per connection', 'database'),
-      ('databaseSizeReal', '250', 'Real position limit per connection', 'database'),
-      ('databaseSizePreset', '250', 'Preset position limit per connection', 'database'),
-      ('databaseThresholdPercent', '20', 'Cleanup threshold percentage', 'database'),
-      ('maxDatabaseSizeGB', '20', 'Maximum database size in GB', 'database'),
-      ('enableThresholdMonitoring', 'true', 'Enable automatic threshold monitoring', 'database');
   `
 }
 

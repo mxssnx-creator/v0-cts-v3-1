@@ -5,30 +5,30 @@ import { SystemLogger } from "@/lib/system-logger"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+/**
+ * POST /api/trade-engine/resume
+ * Resume the Global Trade Engine Coordinator
+ * Resumes all trading operations across all connections
+ */
 export async function POST() {
   try {
-    const engine = getTradeEngine()
+    const coordinator = getTradeEngine()
 
-    if (!engine) {
-      await SystemLogger.logError(
-        new Error("GlobalTradeEngineCoordinator not initialized"),
-        "trade-engine",
-        "resume-endpoint",
-      )
-      return NextResponse.json({ success: false, error: "Trade engine not initialized" }, { status: 503 })
+    if (!coordinator) {
+      return NextResponse.json({ success: false, error: "Trade engine coordinator not initialized" }, { status: 503 })
     }
 
-    await engine.resume()
-    await SystemLogger.logTradeEngine("Global trade engine resumed successfully", "info", { action: "resume" })
+    await coordinator.resume()
+    await SystemLogger.logTradeEngine("Global Trade Engine Coordinator resumed via API", "info")
 
-    return NextResponse.json({ success: true, message: "Trade engine resumed" })
+    return NextResponse.json({
+      success: true,
+      message: "Trade engine resumed successfully",
+    })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    await SystemLogger.logError(
-      error instanceof Error ? error : new Error(errorMessage),
-      "trade-engine",
-      "resume-endpoint",
-    )
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    await SystemLogger.logError(error, "trade-engine", "Resume API")
+
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }

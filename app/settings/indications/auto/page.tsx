@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "@/lib/simple-toast"
+import { toast } from "sonner"
 
 export default function AutoIndicationPage() {
   const [settings, setSettings] = useState<any>({
@@ -68,13 +68,13 @@ export default function AutoIndicationPage() {
         ...prev,
         [category]: {
           ...prev[category],
-          [field]: Number.parseFloat(value) || value,
+          [field]: parseFloat(value) || value,
         },
       }))
     } else {
       setSettings((prev: any) => ({
         ...prev,
-        [field]: Number.parseFloat(value) || value,
+        [field]: parseFloat(value) || value,
       }))
     }
   }
@@ -313,7 +313,7 @@ export default function AutoIndicationPage() {
           {/* Additional Settings */}
           <div className="border-t pt-6 space-y-4">
             <h3 className="text-lg font-semibold">Additional Configuration</h3>
-
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Minimum Positions</Label>
@@ -323,7 +323,9 @@ export default function AutoIndicationPage() {
                   value={settings.min_positions || 3}
                   onChange={(e) => updateSetting("", "min_positions", e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Minimum number of positions required for activation</p>
+                <p className="text-xs text-muted-foreground">
+                  Minimum number of positions required for activation
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -336,7 +338,9 @@ export default function AutoIndicationPage() {
                   value={settings.continuation_ratio || 0.6}
                   onChange={(e) => updateSetting("", "continuation_ratio", e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Ratio for continuation of active positions</p>
+                <p className="text-xs text-muted-foreground">
+                  Ratio for continuation of active positions
+                </p>
               </div>
             </div>
           </div>
@@ -354,7 +358,9 @@ export default function AutoIndicationPage() {
                   value={settings.interval || 1}
                   onChange={(e) => updateSetting("", "interval", e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Update interval for auto indication engine</p>
+                <p className="text-xs text-muted-foreground">
+                  Update interval for auto indication engine
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -366,7 +372,9 @@ export default function AutoIndicationPage() {
                   value={settings.timeout || 3}
                   onChange={(e) => updateSetting("", "timeout", e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Maximum execution time before timeout</p>
+                <p className="text-xs text-muted-foreground">
+                  Maximum execution time before timeout
+                </p>
               </div>
             </div>
           </div>

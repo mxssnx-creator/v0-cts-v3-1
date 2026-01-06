@@ -186,8 +186,8 @@ export class VolumeCalculator {
             })
 
             const balanceResult = await connector.getBalance()
-            if (balanceResult?.totalBalance) {
-              accountBalance = balanceResult.totalBalance
+            if (balanceResult?.balance) {
+              accountBalance = balanceResult.balance
 
               // Cache the balance
               await sql`

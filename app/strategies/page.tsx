@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { StrategyBar } from "@/components/strategies/strategy-bar"
 import { StrategyFilters } from "@/components/strategies/strategy-filters"
+import { StrategyEngine } from "@/lib/strategies"
 import type { StrategyResult } from "@/lib/strategies"
 import { Activity, TrendingUp, BarChart3, Settings, RefreshCw, Target } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
@@ -26,65 +27,71 @@ export default function StrategiesPage() {
     activeOnly: false,
     minTradesPerDay: 0,
   })
-  const [isLoading, setIsLoading] = useState(true)
+  const [hasRealConnections, setHasRealConnections] = useState(false)
 
   useEffect(() => {
     const loadStrategies = async () => {
       try {
-        const response = await fetch("/api/strategies")
-        if (response.ok) {
-          const data = await response.json()
-          setStrategies(data.strategies || [])
+        const connectionsResponse = await fetch("/api/settings/connections")
+        if (connectionsResponse.ok) {
+          const connectionsData = await connectionsResponse.json()
+          const enabledConnections = connectionsData.filter((c: any) => c.is_enabled)
+          setHasRealConnections(enabledConnections.length > 0)
+        }
+
+        const settingsResponse = await fetch("/api/settings")
+        const settingsData = await settingsResponse.json()
+
+        const strategyEngine = new StrategyEngine()
+
+        if (!hasRealConnections) {
+          const mockPseudoPositions = Array.from({ length: 100 }, (_, i) => ({
+            id: `pseudo-${i}`,
+            connection_id: "mock-connection",
+            symbol: "BTCUSDT",
+            indication_type: "direction" as const,
+            takeprofit_factor: 8 + Math.random() * 10,
+            stoploss_ratio: 0.5 + Math.random() * 1.5,
+            trailing_enabled: Math.random() > 0.5,
+            trail_start: 0.3 + Math.random() * 0.7,
+            trail_stop: 0.1 + Math.random() * 0.2,
+            entry_price: 45000 + Math.random() * 5000,
+            current_price: 45000 + Math.random() * 5000,
+            profit_factor: (Math.random() - 0.3) * 2,
+            position_cost: 0.001,
+            status: "active" as const,
+            created_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          }))
+
+          const generatedStrategies = strategyEngine.generateAllStrategies(
+            mockPseudoPositions,
+            Number.parseFloat(settingsData.blockAdjustmentRatio || "1"),
+            settingsData.blockAutoDisableEnabled === "true",
+            Number.parseInt(settingsData.blockAutoDisableComparisonWindow || "50"),
+          )
+          setStrategies(generatedStrategies)
+        } else {
+          console.log("[v0] Loading real strategies from API")
         }
       } catch (error) {
         console.error("[v0] Failed to load strategies:", error)
         toast.error("Failed to load strategies")
-      } finally {
-        setIsLoading(false)
       }
     }
 
     loadStrategies()
   }, [])
 
-  const handleToggleStrategy = async (id: string, active: boolean) => {
-    try {
-      const response = await fetch(`/api/strategies/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: active }),
-      })
-
-      if (response.ok) {
-        setStrategies((prev) =>
-          prev.map((strategy) => (strategy.id === id ? { ...strategy, isActive: active } : strategy)),
-        )
-        toast.success(`Strategy ${active ? "activated" : "deactivated"}`)
-      } else {
-        toast.error("Failed to update strategy")
-      }
-    } catch (error) {
-      console.error("[v0] Failed to toggle strategy:", error)
-      toast.error("Failed to update strategy")
-    }
+  const handleToggleStrategy = (id: string, active: boolean) => {
+    setStrategies((prev) => prev.map((strategy) => (strategy.id === id ? { ...strategy, isActive: active } : strategy)))
+    toast.success(`Strategy ${active ? "activated" : "deactivated"}`)
   }
 
-  const handleVolumeFactorChange = async (id: string, factor: number) => {
-    try {
-      const response = await fetch(`/api/strategies/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ volume_factor: factor }),
-      })
-
-      if (response.ok) {
-        setStrategies((prev) =>
-          prev.map((strategy) => (strategy.id === id ? { ...strategy, volume_factor: factor } : strategy)),
-        )
-      }
-    } catch (error) {
-      console.error("[v0] Failed to update volume factor:", error)
-    }
+  const handleVolumeFactorChange = (id: string, factor: number) => {
+    setStrategies((prev) =>
+      prev.map((strategy) => (strategy.id === id ? { ...strategy, volume_factor: factor } : strategy)),
+    )
   }
 
   const filteredStrategies = strategies.filter((strategy) => {
@@ -123,33 +130,22 @@ export default function StrategiesPage() {
     avgProfitFactor: strategies.reduce((sum, s) => sum + s.avg_profit_factor, 0) / strategies.length,
   }
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">Loading strategies...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (strategies.length === 0) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">
-          <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Strategies Available</h3>
-          <p className="text-muted-foreground mb-4">
-            Enable connections and generate pseudo-positions to create strategies.
-          </p>
-          <Button onClick={() => (window.location.href = "/settings")}>Go to Settings</Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {!hasRealConnections && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-yellow-500" />
+            <div>
+              <div className="font-semibold text-yellow-900 dark:text-yellow-100">Using Mock Data</div>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                No active exchange connections found. Enable a connection in Settings to see real strategies.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Strategies</h1>

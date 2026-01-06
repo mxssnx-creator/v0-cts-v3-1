@@ -123,22 +123,22 @@ async function main() {
   console.log(`   ℹ️  Selected: ${usePostgres ? "PostgreSQL" : "SQLite"}\n`)
 
   // PostgreSQL connection details
-  let pgConnectionString = `postgresql://project-name:00998877@83.229.86.105:5432/cts-v3`
+  let pgConnectionString = "postgresql://cts:00998877@83.229.86.105:5432/cts-v3"
   if (usePostgres) {
     console.log("📝 PostgreSQL Connection Setup")
     const useCustomPg = await askQuestion("   Use custom PostgreSQL connection? [y/N]: ")
 
     if (useCustomPg.toLowerCase() === "y" || useCustomPg.toLowerCase() === "yes") {
-      const pgHost = (await askQuestion("   PostgreSQL Host (default: 83.229.86.105): ")) || "83.229.86.105"
+      const pgHost = (await askQuestion("   PostgreSQL Host (default: localhost): ")) || "localhost"
       const pgPort = (await askQuestion("   PostgreSQL Port (default: 5432): ")) || "5432"
-      const pgUser = (await askQuestion("   PostgreSQL User (default: project-name): ")) || "project-name"
-      const pgPass = (await askQuestion("   PostgreSQL Password (default: 00998877): ")) || "00998877"
+      const pgUser = (await askQuestion("   PostgreSQL User (default: cts): ")) || "cts"
+      const pgPass = await askQuestion("   PostgreSQL Password: ")
       const pgDb = (await askQuestion("   PostgreSQL Database (default: cts-v3): ")) || "cts-v3"
 
       pgConnectionString = `postgresql://${pgUser}:${pgPass}@${pgHost}:${pgPort}/${pgDb}`
       console.log(`   ✅ Connection string configured\n`)
     } else {
-      console.log(`   ℹ️  Using default connection: project-name@83.229.86.105\n`)
+      console.log(`   ℹ️  Using default connection (can be changed later in .env.local)\n`)
     }
   }
 
@@ -276,15 +276,27 @@ WS_MAX_RECONNECT_ATTEMPTS=10
         })
       }
 
+      // Run the database initialization
       console.log("   → Initializing database schema...")
-      const { DatabaseInitializer } = require("./db-initializer.cjs")
-      const initResult = await DatabaseInitializer.initialize()
+      const { DatabaseInitializer } = require(path.join(process.cwd(), "lib/db-initializer"))
+      const initResult = await DatabaseInitializer.initialize(3, 60000)
 
       if (initResult) {
         console.log("   ✅ Database schema initialized")
-        console.log("   ✅ Essential tables created")
+
+        // Run migrations
+        console.log("   → Running migrations...")
+        const { DatabaseMigrations } = require(path.join(process.cwd(), "lib/db-migrations"))
+        await DatabaseMigrations.runPendingMigrations()
+        console.log("   ✅ Migrations completed")
+
+        // Run auto-migrations
+        console.log("   → Running auto-migrations...")
+        const { runAutoMigrations } = require(path.join(process.cwd(), "lib/auto-migrate"))
+        await runAutoMigrations()
+        console.log("   ✅ Auto-migrations completed")
+
         console.log("\n   ✅ Database fully initialized and ready!\n")
-        console.log("   ℹ️  Full migrations will run automatically when you start the app")
       } else {
         console.log("   ⚠️  Database initialization returned false")
         console.log("   ℹ️  Migrations will run automatically on first app start\n")
@@ -292,20 +304,7 @@ WS_MAX_RECONNECT_ATTEMPTS=10
     } catch (error) {
       console.log("   ⚠️  Database migration failed during setup")
       console.log("   Error:", error.message)
-
-      if (error.message.includes("password authentication failed")) {
-        console.log("\n   💡 Troubleshooting:")
-        console.log("   • Check your PostgreSQL credentials")
-        console.log("   • Verify the database user has proper permissions")
-        console.log("   • Ensure the database exists on the server")
-      } else if (error.message.includes("ECONNREFUSED")) {
-        console.log("\n   💡 Troubleshooting:")
-        console.log("   • Ensure PostgreSQL server is running")
-        console.log("   • Check if the host and port are correct")
-        console.log("   • Verify firewall settings allow the connection")
-      }
-
-      console.log("\n   ℹ️  Don't worry! Migrations will run automatically when you start the app")
+      console.log("   ℹ️  Don't worry! Migrations will run automatically when you start the app")
       console.log("   ℹ️  You can also run: npm run db:migrate\n")
     }
   } else {

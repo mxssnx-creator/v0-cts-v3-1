@@ -556,5 +556,3 @@ export class TradeEngineManager {
     }
   }
 }
-
-export { TradeEngineManager as EngineManager }

@@ -1,6 +1,6 @@
 {
-  "buildCommand": "bun run vercel-build",
-  "installCommand": "bun install",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install --legacy-peer-deps",
   "env": {
     "NODE_ENV": "production",
     "NODE_PG_FORCE_NATIVE": "false",

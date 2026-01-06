@@ -1,24 +1,10 @@
 import { NextResponse } from "next/server"
-import { db } from "@/lib/database"
+import { db } from "@/lib/database" // Updated import to use DatabaseManager
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const connectionId = searchParams.get("connection_id")
-    const indicationType = searchParams.get("indication_type") as "active" | "direction" | "move" | null
-    const strategyType = searchParams.get("strategy_type") as "simple" | "advanced" | "step" | null
-
-    let stats: any
-
-    if (indicationType) {
-      stats = await db.getIndicationStatistics(indicationType, connectionId || undefined)
-    } else if (strategyType) {
-      stats = await db.getStrategyStatistics(strategyType, connectionId || undefined)
-    } else if (connectionId) {
-      stats = await db.getPositionStats(connectionId)
-    } else {
-      stats = await db.getAggregatedStatistics({})
-    }
+    // Get position statistics
+    const stats: any = await db.getGlobalPositionStats() // Use the new getGlobalPositionStats method instead of direct db.prepare
 
     return NextResponse.json({
       stats: {
@@ -29,12 +15,6 @@ export async function GET(request: Request) {
         win_rate: stats?.win_rate || 0,
         avg_profit: stats?.avg_profit || 0,
         avg_loss: stats?.avg_loss || 0,
-      },
-      metadata: {
-        indicationType,
-        strategyType,
-        connectionId,
-        querySource: indicationType || strategyType ? "separated_tables" : "aggregated",
       },
     })
   } catch (error) {

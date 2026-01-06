@@ -11,13 +11,6 @@ import type { SymbolAnalysis } from "@/lib/position-calculator"
 import { CalculationDemo } from "@/components/analysis/calculation-demo"
 import { TrendingUp, TrendingDown, Activity, DollarSign, Clock, Target } from "lucide-react"
 
-interface Connection {
-  id: string
-  name: string
-  exchange: string
-  is_enabled: boolean
-}
-
 interface ActivePosition {
   id: string
   symbol: string
@@ -49,7 +42,7 @@ export default function AnalysisPage() {
   const [symbolAnalysis, setSymbolAnalysis] = useState<SymbolAnalysis | null>(null)
   const [activePositions, setActivePositions] = useState<ActivePosition[]>([])
   const [positionStats, setPositionStats] = useState<PositionStats | null>(null)
-  const [connections, setConnections] = useState<Connection[]>([])
+  const [connections, setConnections] = useState<any[]>([])
   const [selectedConnection, setSelectedConnection] = useState<string>("all")
   const [loading, setLoading] = useState(true)
 
@@ -74,10 +67,10 @@ export default function AnalysisPage() {
 
   const fetchConnections = async () => {
     try {
-      const res = await fetch("/api/connections/active")
+      const res = await fetch("/api/settings/connections")
       if (res.ok) {
         const data = await res.json()
-        setConnections(data || [])
+        setConnections(data.connections || [])
       }
     } catch (error) {
       console.error("[v0] Failed to fetch connections:", error)

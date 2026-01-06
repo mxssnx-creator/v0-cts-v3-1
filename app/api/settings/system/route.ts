@@ -2,8 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { successResponse, errorResponse } from "@/lib/api-toast"
 import { loadSettings, saveSettings } from "@/lib/file-storage"
 import { resetDatabaseClients } from "@/lib/db"
-import fs from "fs"
-import path from "path"
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +23,7 @@ export async function PATCH(request: NextRequest) {
     const currentSettings = loadSettings()
     const oldDbType = currentSettings.database_type
     const newDbType = body.database_type
-
+    
     if (newDbType && newDbType !== oldDbType) {
       console.log(`[v0] ========================================`)
       console.log(`[v0] DATABASE TYPE CHANGE DETECTED`)
@@ -33,34 +31,7 @@ export async function PATCH(request: NextRequest) {
       console.log(`[v0] New type: ${newDbType}`)
       console.log(`[v0] ========================================`)
     }
-
-    if (body.postgres_ssl_cert_file) {
-      try {
-        const certDir = path.join(process.cwd(), "certs")
-        if (!fs.existsSync(certDir)) {
-          fs.mkdirSync(certDir, { recursive: true })
-        }
-
-        const certPath = path.join(certDir, "postgres-ca.crt")
-
-        // If it's base64 encoded, decode it
-        let certContent = body.postgres_ssl_cert_file
-        if (certContent.includes("base64,")) {
-          const base64Data = certContent.split("base64,")[1]
-          certContent = Buffer.from(base64Data, "base64").toString("utf-8")
-        }
-
-        fs.writeFileSync(certPath, certContent)
-        console.log("[v0] SSL certificate saved to:", certPath)
-
-        // Store the path, not the content
-        body.postgres_ssl_cert_path = certPath
-        delete body.postgres_ssl_cert_file
-      } catch (error) {
-        console.error("[v0] Failed to save SSL certificate:", error)
-      }
-    }
-
+    
     const updatedSettings = { ...currentSettings, ...body }
     saveSettings(updatedSettings)
     console.log("[v0] Settings saved to file successfully")
@@ -71,7 +42,7 @@ export async function PATCH(request: NextRequest) {
       resetDatabaseClients()
       console.log("[v0] Database clients reset successfully")
       console.log("[v0] System will reconnect using new database type on next query")
-
+      
       // Also update environment variable for current process
       process.env.DATABASE_TYPE = newDbType
       console.log("[v0] Environment variable DATABASE_TYPE updated to:", newDbType)
@@ -80,8 +51,8 @@ export async function PATCH(request: NextRequest) {
     const updatedCount = Object.keys(body).length
 
     return successResponse(
-      { success: true, updated: updatedCount, dbTypeChanged: newDbType !== oldDbType },
-      `Successfully updated ${updatedCount} setting(s)${newDbType !== oldDbType ? ". Database type changed - system will reconnect." : ""}`,
+      { success: true, updated: updatedCount, dbTypeChanged: newDbType !== oldDbType }, 
+      `Successfully updated ${updatedCount} setting(s)${newDbType !== oldDbType ? '. Database type changed - system will reconnect.' : ''}`
     )
   } catch (error) {
     console.error("[v0] Failed to update system settings:", error)

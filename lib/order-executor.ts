@@ -1,198 +1,84 @@
-import { sql } from "./db"
-import { getExchangeConnector } from "./exchange-connectors"
-import { SystemLogger } from "./system-logger"
-import { getRateLimiter } from "./rate-limiter"
-import type { BaseExchangeConnector, OrderResult, OrderRow } from "./exchange-connector-types"
+// Order execution engine for trading bot
+import { query } from "./db"
 
 export interface OrderParams {
-  connection_id: string
-  symbol: string
+  user_id: number
+  portfolio_id: number
+  trading_pair_id: number
   order_type: "market" | "limit" | "stop_loss" | "take_profit"
   side: "buy" | "sell"
   price?: number
   quantity: number
   time_in_force?: "GTC" | "IOC" | "FOK"
-  reduce_only?: boolean
 }
 
 export interface ExecutionResult {
   success: boolean
-  order_id?: string
-  exchange_order_id?: string
+  order_id?: number
   filled_quantity?: number
   average_price?: number
-  status?: string
   error?: string
-  retries?: number
 }
 
 export class OrderExecutor {
-  private static activeOrders = new Map<string, boolean>()
-  private static maxRetries = 3
-  private static retryDelayMs = 1000
-
-  private static generateOrderKey(params: OrderParams): string {
-    return `${params.connection_id}-${params.symbol}-${params.side}-${params.quantity}-${Date.now()}`
-  }
-
-  private static isOrderInProgress(orderKey: string): boolean {
-    return this.activeOrders.has(orderKey)
-  }
-
-  private static markOrderInProgress(orderKey: string): void {
-    this.activeOrders.set(orderKey, true)
-  }
-
-  private static clearOrderInProgress(orderKey: string): void {
-    this.activeOrders.delete(orderKey)
-  }
-
   async executeOrder(params: OrderParams): Promise<ExecutionResult> {
-    const orderKey = OrderExecutor.generateOrderKey(params)
-
-    // Check for duplicate order
-    if (OrderExecutor.isOrderInProgress(orderKey)) {
-      console.warn("[v0] [OrderExecutor] Duplicate order detected, skipping:", params.symbol)
-      return {
-        success: false,
-        error: "Duplicate order detected",
-      }
-    }
-
-    OrderExecutor.markOrderInProgress(orderKey)
-
     try {
-      console.log("[v0] [OrderExecutor] Executing order:", params)
-      await SystemLogger.logTradeEngine(`Executing order: ${params.side} ${params.quantity} ${params.symbol}`, "info", {
-        ...params,
-      })
+      console.log("[v0] Executing order:", params)
 
-      // Get connection details
-      const [connection] = await sql`
-        SELECT * FROM exchange_connections
-        WHERE id = ${params.connection_id} AND is_enabled = true
-      `
-
-      if (!connection) {
-        throw new Error(`Connection ${params.connection_id} not found or not enabled`)
-      }
-
-      // Create order record in database FIRST (for tracking)
-      const [orderRecord] = await sql`
-        INSERT INTO orders (
-          connection_id, symbol, order_type, side, price, quantity, 
-          remaining_quantity, time_in_force, status, created_at
-        )
-        VALUES (
-          ${params.connection_id}, ${params.symbol}, ${params.order_type}, ${params.side},
-          ${params.price || null}, ${params.quantity}, ${params.quantity},
-          ${params.time_in_force || "GTC"}, 'pending', CURRENT_TIMESTAMP
-        )
-        RETURNING id
-      `
-
-      const orderId = orderRecord.id
-
-      // Execute with retry logic
-      let lastError: Error | null = null
-      let exchangeOrderId: string | undefined = undefined
-      let filledQuantity = 0
-      let averagePrice = 0
-
-      for (let attempt = 1; attempt <= OrderExecutor.maxRetries; attempt++) {
-        try {
-          console.log(`[v0] [OrderExecutor] Order execution attempt ${attempt}/${OrderExecutor.maxRetries}`)
-
-          // Get exchange connector
-          const connector = await getExchangeConnector(connection)
-
-          // Place order on exchange
-          const result = await this.placeOrderOnExchange(connector, connection.exchange, params)
-
-          if (result.success) {
-            exchangeOrderId = result.orderId
-            filledQuantity = result.filledQty || params.quantity
-            averagePrice = result.avgPrice || params.price || 0
-
-            // Update order record with success
-            await sql`
-              UPDATE orders
-              SET 
-                status = ${result.status},
-                exchange_order_id = ${exchangeOrderId || null},
-                filled_quantity = ${filledQuantity},
-                average_fill_price = ${averagePrice},
-                executed_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-              WHERE id = ${orderId}
-            `
-
-            console.log(`[v0] [OrderExecutor] Order executed successfully: ${exchangeOrderId}`)
-            await SystemLogger.logTradeEngine(
-              `Order executed: ${params.side} ${filledQuantity} ${params.symbol} @ ${averagePrice}`,
-              "info",
-              {
-                orderId,
-                exchangeOrderId,
-                filledQuantity,
-                averagePrice,
-              },
-            )
-
-            OrderExecutor.clearOrderInProgress(orderKey)
-            return {
-              success: true,
-              order_id: orderId,
-              exchange_order_id: exchangeOrderId,
-              filled_quantity: filledQuantity,
-              average_price: averagePrice,
-              status: result.status,
-              retries: attempt,
-            }
-          }
-
-          lastError = new Error(result.error || "Order execution failed")
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error("Unknown error")
-          console.error(`[v0] [OrderExecutor] Attempt ${attempt} failed:`, lastError.message)
-
-          if (attempt < OrderExecutor.maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, OrderExecutor.retryDelayMs * attempt))
-          }
-        }
-      }
-
-      // All retries failed
-      await sql`
-        UPDATE orders
-        SET 
-          status = 'failed',
-          error_message = ${lastError?.message || null},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${orderId}
-      `
-
-      await SystemLogger.logTradeEngine(
-        `Order failed after ${OrderExecutor.maxRetries} retries: ${params.symbol}`,
-        "error",
-        {
-          orderId,
-          error: lastError?.message,
-        },
+      // Create order in database
+      const orderResult = await query(
+        `INSERT INTO orders 
+         (user_id, portfolio_id, trading_pair_id, order_type, side, price, quantity, 
+          remaining_quantity, time_in_force, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9)
+         RETURNING id`,
+        [
+          params.user_id,
+          params.portfolio_id,
+          params.trading_pair_id,
+          params.order_type,
+          params.side,
+          params.price || null,
+          params.quantity,
+          params.time_in_force || "GTC",
+          "pending",
+        ],
       )
 
-      OrderExecutor.clearOrderInProgress(orderKey)
+      const orderId = orderResult[0].id
+
+      // Simulate order execution (in production, this would call exchange API)
+      const executionPrice = params.price || (await this.getMarketPrice(params.trading_pair_id))
+      const filledQuantity = params.quantity
+
+      // Update order status
+      await query(
+        `UPDATE orders
+         SET status = $1,
+             filled_quantity = $2,
+             average_fill_price = $3,
+             executed_at = CURRENT_TIMESTAMP
+         WHERE id = $4`,
+        ["filled", filledQuantity, executionPrice, orderId],
+      )
+
+      // Create trade record
+      await query(
+        `INSERT INTO trades (order_id, price, quantity, executed_at)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+        [orderId, executionPrice, filledQuantity],
+      )
+
+      console.log(`[v0] Order ${orderId} executed successfully`)
+
       return {
-        success: false,
+        success: true,
         order_id: orderId,
-        error: lastError?.message || "Order execution failed after retries",
-        retries: OrderExecutor.maxRetries,
+        filled_quantity: filledQuantity,
+        average_price: executionPrice,
       }
     } catch (error) {
-      OrderExecutor.clearOrderInProgress(orderKey)
-      console.error("[v0] [OrderExecutor] Fatal error:", error)
-      await SystemLogger.logError(error as Error, "trade-engine", "OrderExecutor.executeOrder")
-
+      console.error("[v0] Order execution error:", error)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -200,340 +86,51 @@ export class OrderExecutor {
     }
   }
 
-  private async placeOrderOnExchange(
-    connector: BaseExchangeConnector,
-    exchange: string,
-    params: OrderParams,
-  ): Promise<OrderResult> {
+  async cancelOrder(orderId: number, userId: number): Promise<boolean> {
     try {
-      const rateLimiter = getRateLimiter(exchange)
+      const result = await query(
+        `UPDATE orders
+         SET status = $1
+         WHERE id = $2 AND user_id = $3 AND status IN ($4, $5)
+         RETURNING id`,
+        ["cancelled", orderId, userId, "pending", "open"],
+      )
 
-      return await rateLimiter.execute(async () => {
-        // Use exchange-specific connector method
-        if (exchange === "bybit") {
-          return await this.placeBybitOrder(connector, params)
-        } else if (exchange === "binance") {
-          return await this.placeBinanceOrder(connector, params)
-        } else if (exchange === "bingx") {
-          return await this.placeBingXOrder(connector, params)
-        } else if (exchange === "pionex") {
-          return await this.placePionexOrder(connector, params)
-        } else if (exchange === "orangex") {
-          return await this.placeOrangeXOrder(connector, params)
-        } else {
-          throw new Error(`Exchange ${exchange} not supported`)
-        }
-      })
+      return result.length > 0
     } catch (error) {
-      console.error("[v0] [OrderExecutor] Exchange API error:", error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown exchange error",
-      }
-    }
-  }
-
-  private async placeBybitOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
-    const endpoint = connector.credentials.isTestnet ? "https://api-testnet.bybit.com" : "https://api.bybit.com"
-
-    const payload: Record<string, any> = {
-      category: "linear",
-      symbol: params.symbol,
-      side: params.side === "buy" ? "Buy" : "Sell",
-      orderType: params.order_type === "market" ? "Market" : "Limit",
-      qty: params.quantity.toString(),
-      timeInForce: params.time_in_force || "GTC",
-      reduceOnly: params.reduce_only || false,
-    }
-
-    if (params.price) {
-      payload.price = params.price.toString()
-    }
-
-    const timestamp = Date.now().toString()
-    const signature = connector.generateSignature(`${timestamp}${JSON.stringify(payload)}`)
-
-    const response = await fetch(`${endpoint}/v5/order/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-BAPI-API-KEY": connector.credentials.apiKey,
-        "X-BAPI-SIGN": signature,
-        "X-BAPI-TIMESTAMP": timestamp,
-        "X-BAPI-RECV-WINDOW": "5000",
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const data = await response.json()
-
-    if (data.retCode === 0) {
-      return {
-        success: true,
-        orderId: data.result.orderId,
-        status: data.result.orderStatus === "Filled" ? "filled" : "open",
-        filledQty: Number.parseFloat(data.result.cumExecQty || "0"),
-        avgPrice: Number.parseFloat(data.result.avgPrice || "0"),
-      }
-    }
-
-    return {
-      success: false,
-      error: data.retMsg || "Bybit order failed",
-    }
-  }
-
-  private async placeBinanceOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
-    const endpoint = connector.credentials.isTestnet ? "https://testnet.binancefuture.com" : "https://fapi.binance.com"
-
-    const timestamp = Date.now()
-
-    const queryParams: Record<string, any> = {
-      symbol: params.symbol,
-      side: params.side.toUpperCase(),
-      type: params.order_type.toUpperCase(),
-      quantity: params.quantity,
-      timestamp,
-    }
-
-    if (params.price) {
-      queryParams.price = params.price
-    }
-    if (params.time_in_force) {
-      queryParams.timeInForce = params.time_in_force
-    }
-    if (params.reduce_only) {
-      queryParams.reduceOnly = params.reduce_only
-    }
-
-    const queryString = Object.entries(queryParams)
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&")
-
-    const signature = connector.generateSignature(queryString)
-
-    const response = await fetch(`${endpoint}/fapi/v1/order?${queryString}&signature=${signature}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-MBX-APIKEY": connector.credentials.apiKey,
-      },
-    })
-
-    const data = await response.json()
-
-    if (data.orderId) {
-      return {
-        success: true,
-        orderId: data.orderId.toString(),
-        status: data.status === "FILLED" ? "filled" : "open",
-        filledQty: Number.parseFloat(data.executedQty || "0"),
-        avgPrice: Number.parseFloat(data.avgPrice || "0"),
-      }
-    }
-
-    return {
-      success: false,
-      error: data.msg || "Binance order failed",
-    }
-  }
-
-  private async placeBingXOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
-    const endpoint = "https://open-api.bingx.com"
-
-    const timestamp = Date.now()
-
-    const payload: Record<string, any> = {
-      symbol: params.symbol,
-      side: params.side.toUpperCase(),
-      type: params.order_type.toUpperCase(),
-      quantity: params.quantity,
-      timestamp,
-    }
-
-    if (params.price) {
-      payload.price = params.price
-    }
-
-    const queryString = Object.entries(payload)
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&")
-
-    const signature = connector.generateSignature(queryString)
-
-    const response = await fetch(`${endpoint}/openApi/swap/v2/trade/order?${queryString}&signature=${signature}`, {
-      method: "POST",
-      headers: {
-        "X-BX-APIKEY": connector.credentials.apiKey,
-      },
-    })
-
-    const data = await response.json()
-
-    if (data.code === 0 && data.data.order) {
-      return {
-        success: true,
-        orderId: data.data.order.orderId,
-        status: data.data.order.status === "FILLED" ? "filled" : "open",
-        filledQty: Number.parseFloat(data.data.order.executedQty || "0"),
-        avgPrice: Number.parseFloat(data.data.order.avgPrice || "0"),
-      }
-    }
-
-    return {
-      success: false,
-      error: data.msg || "BingX order failed",
-    }
-  }
-
-  private async placePionexOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
-    const endpoint = "https://api.pionex.com"
-
-    const timestamp = Date.now()
-
-    const payload: Record<string, any> = {
-      symbol: params.symbol,
-      side: params.side.toUpperCase(),
-      type: params.order_type.toUpperCase(),
-      amount: params.quantity,
-      timestamp,
-    }
-
-    if (params.price) {
-      payload.price = params.price
-    }
-
-    const queryString = Object.entries(payload)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&")
-
-    const signature = connector.generateSignature(queryString)
-
-    const response = await fetch(`${endpoint}/api/v1/perp/order?${queryString}&signature=${signature}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "PIONEX-KEY": connector.credentials.apiKey,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const data = await response.json()
-
-    if (data.result && data.result.orderId) {
-      return {
-        success: true,
-        orderId: data.result.orderId,
-        status: data.result.status === "FILLED" ? "filled" : "open",
-        filledQty: Number.parseFloat(data.result.filledAmount || "0"),
-        avgPrice: Number.parseFloat(data.result.avgPrice || "0"),
-      }
-    }
-
-    return {
-      success: false,
-      error: data.message || "Pionex order failed",
-    }
-  }
-
-  private async placeOrangeXOrder(connector: BaseExchangeConnector, params: OrderParams): Promise<OrderResult> {
-    const endpoint = "https://api.orangex.com"
-
-    const timestamp = Date.now()
-
-    const payload: Record<string, any> = {
-      symbol: params.symbol,
-      side: params.side.toUpperCase(),
-      orderType: params.order_type.toUpperCase(),
-      quantity: params.quantity,
-      timestamp,
-    }
-
-    if (params.price) {
-      payload.price = params.price
-    }
-
-    const signature = connector.generateSignature(JSON.stringify(payload))
-
-    const response = await fetch(`${endpoint}/v1/order/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "OX-ACCESS-KEY": connector.credentials.apiKey,
-        "OX-ACCESS-SIGN": signature,
-        "OX-ACCESS-TIMESTAMP": timestamp.toString(),
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const data = await response.json()
-
-    if (data.success && data.data.orderId) {
-      return {
-        success: true,
-        orderId: data.data.orderId,
-        status: data.data.status === "FILLED" ? "filled" : "open",
-        filledQty: Number.parseFloat(data.data.filledQty || "0"),
-        avgPrice: Number.parseFloat(data.data.avgPrice || "0"),
-      }
-    }
-
-    return {
-      success: false,
-      error: data.message || "OrangeX order failed",
-    }
-  }
-
-  async cancelOrder(orderId: string, connectionId: string): Promise<boolean> {
-    try {
-      const [order] = await sql`
-        SELECT * FROM orders WHERE id = ${orderId} AND connection_id = ${connectionId}
-      `
-
-      if (!order || !order.exchange_order_id) {
-        return false
-      }
-
-      const [connection] = await sql`
-        SELECT * FROM exchange_connections WHERE id = ${connectionId}
-      `
-
-      const connector = await getExchangeConnector(connection)
-
-      // TODO: Implement cancelOrder in exchange connectors
-      // await connector.cancelOrder(order.exchange_order_id, order.symbol)
-
-      // Update database to cancelled status
-      await sql`
-        UPDATE orders
-        SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${orderId}
-      `
-
-      await SystemLogger.logTradeEngine(`Order cancelled: ${order.symbol}`, "info", { orderId })
-      return true
-    } catch (error) {
-      console.error("[v0] [OrderExecutor] Cancel order error:", error)
+      console.error("[v0] Order cancellation error:", error)
       return false
     }
   }
 
-  async getOrderStatus(orderId: string, connectionId: string): Promise<OrderRow | null> {
-    try {
-      const [order] = await sql`
-        SELECT o.*, ec.exchange, ec.api_key, ec.api_secret, ec.testnet
-        FROM orders o
-        JOIN exchange_connections ec ON o.connection_id = ec.id
-        WHERE o.id = ${orderId} AND o.connection_id = ${connectionId}
-      `
+  private async getMarketPrice(tradingPairId: number): Promise<number> {
+    // In production, fetch from exchange API
+    // For now, get latest market data from database
+    const result = await query(
+      `SELECT close FROM market_data
+       WHERE trading_pair_id = $1
+       ORDER BY timestamp DESC
+       LIMIT 1`,
+      [tradingPairId],
+    )
 
-      return order || null
-    } catch (error) {
-      console.error("[v0] [OrderExecutor] Get order status error:", error)
-      return null
+    if (result.length > 0) {
+      return result[0].close
     }
+
+    // Fallback to a default price (should not happen in production)
+    return 50000
+  }
+
+  async getOrderStatus(orderId: number, userId: number) {
+    const result = await query(
+      `SELECT o.*, tp.symbol
+       FROM orders o
+       JOIN trading_pairs tp ON o.trading_pair_id = tp.id
+       WHERE o.id = $1 AND o.user_id = $2`,
+      [orderId, userId],
+    )
+
+    return result[0] || null
   }
 }
-
-export const orderExecutor = new OrderExecutor()

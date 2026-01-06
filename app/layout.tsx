@@ -6,10 +6,9 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { StyleInitializer } from "@/components/style-initializer"
 import { AuthProvider } from "@/lib/auth-context"
+import { Toaster } from "@/components/ui/sonner"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
-import { Toaster } from "sonner"
-import { ToastContainer } from "react-toastify"
-import "react-toastify/dist/ReactToastify.css"
+import { initializeApplication } from "@/lib/init-app"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -22,6 +21,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  initializeApplication().catch((error) => {
+    console.error("[v0] Failed to initialize application:", error)
+  })
+
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans">
@@ -40,8 +43,7 @@ export default function RootLayout({
               </SidebarProvider>
             </SiteLoggerProvider>
           </AuthProvider>
-          <Toaster position="top-right" expand richColors closeButton />
-          <ToastContainer position="top-right" theme="colored" closeButton={true} />
+          <Toaster position="top-right" expand={true} richColors closeButton />
         </ThemeProvider>
       </body>
     </html>

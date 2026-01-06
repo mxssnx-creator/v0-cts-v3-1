@@ -6,49 +6,6 @@ This directory contains backup copies of important files for recovery purposes.
 
 All backup files use the `.tmp` extension to prevent them from being compiled during the build process.
 
-## Single Backup System
-
-The backup system maintains a single complete backup in `backups/latest/` that gets overwritten each time:
-- Location: `backups/latest/`
-- Contains: All critical pages with full app structure
-- Created: Before every deployment and recovery operation
-- Metadata: `BACKUP_INFO.txt` tracks creation time and file count
-
-To restore from latest backup:
-```bash
-# Restore all pages
-cp -r backups/latest/app/* app/
-
-# Restore specific page
-cp backups/latest/app/settings/page.tsx app/settings/page.tsx
-```
-
-**Why single backup?**
-- Always contains the most recent working version
-- Prevents backup directory bloat
-- Simplifies recovery process
-- Metadata file tracks when backup was created
-
-## Automated Page Backups
-
-Timestamped backups of all critical pages are automatically created in subdirectories:
-- Format: `pages-YYYY-MM-DDTHH-MM-SS-MMMZ/`
-- Created on every deployment via `npm run vercel-build`
-- Contains complete app structure with all critical pages
-- Kept in Git for disaster recovery
-
-To restore from automated backup:
-```bash
-# List available backups
-ls -la backups/pages-*
-
-# Restore all pages
-cp -r backups/pages-[TIMESTAMP]/app/* app/
-
-# Restore specific page
-cp backups/pages-[TIMESTAMP]/app/settings/page.tsx app/settings/page.tsx
-```
-
 ## Current Backups
 
 - **trade-engine_backup_v3.1.ts.tmp** - Backup of original ContinuousTradeEngine before refactoring to GlobalTradeEngineCoordinator
@@ -65,16 +22,6 @@ To recover from a backup:
 2. Remove the `.tmp` extension
 3. Move to the appropriate location in the project
 4. Review and test thoroughly before deploying
-
-## Page Protection System
-
-The automated page protection system:
-1. Creates timestamped backups before every build
-2. Validates page integrity automatically
-3. Prevents deployment if corruption detected
-4. Auto-recovers from backups when needed
-
-See `PAGE_PROTECTION_POLICY.md` and `DEPLOYMENT_PROTECTION.md` for details.
 
 ## Important Notes
 

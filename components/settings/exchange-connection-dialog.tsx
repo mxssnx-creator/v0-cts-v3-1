@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConnectionPredefinitionSelector } from "./connection-predefinition-selector"
-import { Save, Loader2, ExternalLink, Info } from "lucide-react"
+import { Save, Loader2, ExternalLink, Info } from 'lucide-react'
 import { toast } from "sonner"
 import { EXCHANGE_CONFIGS, getExchangeConfig } from "@/lib/config"
 import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
@@ -348,7 +348,6 @@ interface ConnectionForm {
   connection_library: string
   api_key: string
   api_secret: string
-  api_passphrase?: string
   margin_type: string
   position_mode: string
   is_testnet: boolean
@@ -378,7 +377,6 @@ export function ExchangeConnectionDialog({
     connection_library: "pybit",
     api_key: "",
     api_secret: "",
-    api_passphrase: "",
     margin_type: "cross",
     position_mode: "hedge",
     is_testnet: false,
@@ -394,7 +392,6 @@ export function ExchangeConnectionDialog({
         connection_library: connection.connection_library || "pybit",
         api_key: connection.api_key || "",
         api_secret: connection.api_secret || "",
-        api_passphrase: connection.api_passphrase || "",
         margin_type: connection.margin_type || "cross",
         position_mode: connection.position_mode || "hedge",
         is_testnet: connection.is_testnet || false,
@@ -408,7 +405,6 @@ export function ExchangeConnectionDialog({
         connection_library: "pybit",
         api_key: "",
         api_secret: "",
-        api_passphrase: "",
         margin_type: "cross",
         position_mode: "hedge",
         is_testnet: false,
@@ -432,73 +428,40 @@ export function ExchangeConnectionDialog({
       toast.error("Please enter a connection name")
       return
     }
-    if (!form.exchange) {
-      toast.error("Please select an exchange")
+    if (!form.api_key.trim() || !form.api_secret.trim()) {
+      toast.error("Please enter API key and secret")
       return
     }
-    if (!form.api_key.trim()) {
-      toast.error("Please enter an API key")
-      return
-    }
-    if (!form.api_secret.trim()) {
-      toast.error("Please enter an API secret")
-      return
-    }
-
-    if (form.exchange === "okx" && !form.api_passphrase?.trim()) {
-      toast.error("OKX requires an API passphrase")
-      return
-    }
-
-    console.log("[v0] Saving connection:", {
-      name: form.name,
-      exchange: form.exchange,
-      api_type: form.api_type,
-      connection_method: form.connection_method,
-    })
 
     setSaving(true)
     try {
       const [indicationRes, strategyRes, settingsRes] = await Promise.all([
-        fetch("/api/settings/indications/main").catch((err) => {
-          console.error("[v0] Failed to fetch indication settings:", err)
-          return null
-        }),
-        fetch("/api/settings/strategy").catch((err) => {
-          console.error("[v0] Failed to fetch strategy settings:", err)
-          return null
-        }),
-        fetch("/api/settings").catch((err) => {
-          console.error("[v0] Failed to fetch global settings:", err)
-          return null
-        }),
+        fetch("/api/settings/indications/main"),
+        fetch("/api/settings/strategy"),
+        fetch("/api/settings"),
       ])
 
-      const indicationSettings = indicationRes && indicationRes.ok ? await indicationRes.json() : null
-      const strategySettings = strategyRes && strategyRes.ok ? await strategyRes.json() : null
-      const globalSettings = settingsRes && settingsRes.ok ? await settingsRes.json() : null
-
-      console.log("[v0] Loaded settings:", {
-        indication: !!indicationSettings,
-        strategy: !!strategySettings,
-        global: !!globalSettings,
-      })
+      const indicationSettings = indicationRes.ok ? await indicationRes.json() : null
+      const strategySettings = strategyRes.ok ? await strategyRes.json() : null
+      const globalSettings = settingsRes.ok ? await settingsRes.json() : null
 
       const url = connection ? `/api/settings/connections/${connection.id}` : "/api/settings/connections"
       const method = connection ? "PATCH" : "POST"
 
       const payload = {
         ...form,
-        api_passphrase: form.exchange === "okx" || form.exchange === "bitget" ? form.api_passphrase : undefined,
         connection_settings: {
+          // Volume factor only for active connections (not predefined)
           baseVolumeFactor: globalSettings?.base_volume_factor || 1.0,
           baseVolumeFactorLive: 1.0,
           baseVolumeFactorPreset: 1.0,
-
+          
+          // Use indication settings as defaults
           indicationTimeInterval: indicationSettings?.direction?.interval || 1,
           indicationTimeout: indicationSettings?.direction?.timeout || 3,
           indicationMinProfitFactor: globalSettings?.indication_min_profit_factor || 0.7,
-
+          
+          // Use strategy settings as defaults
           strategyMinProfitFactor: globalSettings?.strategy_min_profit_factor || 0.5,
           liveTradeProfitFactorMinBase: 0.6,
           liveTradeProfitFactorMinMain: 0.6,
@@ -508,7 +471,8 @@ export function ExchangeConnectionDialog({
           presetTradeProfitFactorMinMain: 0.6,
           presetTradeProfitFactorMinReal: 0.6,
           presetTradeDrawdownTimeHours: 12,
-
+          
+          // Strategy toggles from global settings
           trailingWithTrailing: strategySettings?.trailing_enabled ?? true,
           trailingOnly: false,
           blockEnabled: strategySettings?.block_enabled ?? true,
@@ -517,7 +481,8 @@ export function ExchangeConnectionDialog({
           dcaOnly: false,
           presetTradeBlockEnabled: true,
           presetTradeDcaEnabled: false,
-
+          
+          // Symbol settings
           useMainSymbols: globalSettings?.use_main_symbols ?? false,
           arrangementType: "market_cap_24h",
           arrangementCount: 10,
@@ -526,58 +491,23 @@ export function ExchangeConnectionDialog({
         },
       }
 
-      console.log("[v0] Sending request to:", url, "with method:", method)
-
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
 
-      console.log("[v0] Response status:", response.status, response.statusText)
-
       if (!response.ok) {
-        let errorData: any
-        try {
-          errorData = await response.json()
-          console.error("[v0] Error response data:", errorData)
-        } catch (parseError) {
-          console.error("[v0] Failed to parse error response:", parseError)
-          const text = await response.text()
-          console.error("[v0] Raw error response:", text)
-          throw new Error(`HTTP ${response.status}: ${text || response.statusText}`)
-        }
-
-        const errorMessage = errorData.details || errorData.error || errorData.message || "Failed to save connection"
-        throw new Error(errorMessage)
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        throw new Error(errorData.details || errorData.error || "Failed to save connection")
       }
-
-      const result = await response.json()
-      console.log("[v0] Connection saved successfully:", result)
 
       toast.success(connection ? "Connection updated successfully" : "Connection added successfully")
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      console.error("[v0] Failed to save connection - Full error:", error)
-
-      let errorMessage = "Failed to save connection"
-
-      if (error instanceof Error) {
-        if (error.message.includes("fetch")) {
-          errorMessage = "Network error: Unable to reach the server. Please check your connection."
-        } else if (error.message.includes("HTTP 400")) {
-          errorMessage = "Invalid connection data. Please check all fields are filled correctly."
-        } else if (error.message.includes("HTTP 401") || error.message.includes("HTTP 403")) {
-          errorMessage = "Authentication error. Please check your API credentials."
-        } else if (error.message.includes("HTTP 500")) {
-          errorMessage = "Server error. Please try again later or contact support."
-        } else {
-          errorMessage = error.message
-        }
-      }
-
-      toast.error(errorMessage)
+      console.error("[v0] Failed to save connection:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to save connection")
     } finally {
       setSaving(false)
     }
@@ -601,7 +531,6 @@ export function ExchangeConnectionDialog({
       connection_library: predefinition.id.split("-")[0] === "bybit" ? "pybit" : "bingx-trading-api",
       api_key: predefinition.apiKey || "",
       api_secret: predefinition.apiSecret || "",
-      api_passphrase: predefinition.apiPassphrase || "",
       margin_type: predefinition.marginType,
       position_mode: predefinition.positionMode,
       is_testnet: false,
@@ -609,9 +538,9 @@ export function ExchangeConnectionDialog({
   }
 
   const existingConnectionIds = existingConnections.map((conn) => conn.id)
-
+  
   const availablePredefinedCount = CONNECTION_PREDEFINITIONS.filter(
-    (pred) => !existingConnectionIds.includes(pred.id),
+    (pred) => !existingConnectionIds.includes(pred.id)
   ).length
 
   const selectedExchangeConfig = EXCHANGE_API_CONFIGS[form.exchange]
@@ -619,7 +548,7 @@ export function ExchangeConnectionDialog({
   const selectedConnectionMethod = selectedExchangeConfig?.connection_methods.find(
     (m) => m.value === form.connection_method,
   )
-
+  
   const exchangeInfo = getExchangeConfig(form.exchange)
 
   return (
@@ -697,9 +626,7 @@ export function ExchangeConnectionDialog({
                   <div className="p-2 bg-muted rounded-md space-y-1">
                     <div className="flex items-center gap-2">
                       <Info className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium">
-                        {exchangeInfo.displayName} - {exchangeInfo.type}
-                      </span>
+                      <span className="text-xs font-medium">{exchangeInfo.displayName} - {exchangeInfo.type}</span>
                       {exchangeInfo.status === "failing" && (
                         <Badge variant="destructive" className="text-xs">
                           Known Issues
@@ -737,7 +664,6 @@ export function ExchangeConnectionDialog({
                   value={form.api_key}
                   onChange={(e) => setForm({ ...form, api_key: e.target.value })}
                 />
-                <p className="text-xs text-muted-foreground">Your {selectedExchangeConfig?.name} API key</p>
               </div>
 
               <div className="space-y-2">
@@ -749,26 +675,7 @@ export function ExchangeConnectionDialog({
                   value={form.api_secret}
                   onChange={(e) => setForm({ ...form, api_secret: e.target.value })}
                 />
-                <p className="text-xs text-muted-foreground">Your {selectedExchangeConfig?.name} API secret</p>
               </div>
-
-              {(form.exchange === "okx" || form.exchange === "bitget" || form.exchange === "kucoin") && (
-                <div className="space-y-2">
-                  <Label htmlFor="api-passphrase">API Passphrase {form.exchange === "okx" ? "*" : "(Optional)"}</Label>
-                  <Input
-                    id="api-passphrase"
-                    type="password"
-                    placeholder="Enter API passphrase"
-                    value={form.api_passphrase || ""}
-                    onChange={(e) => setForm({ ...form, api_passphrase: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {form.exchange === "okx"
-                      ? "Required for OKX API authentication"
-                      : "Optional passphrase for additional security"}
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center space-x-2">
@@ -802,7 +709,7 @@ export function ExchangeConnectionDialog({
                 </Select>
                 {selectedApiType && (
                   <div className="p-2 bg-muted rounded-md">
-                    <p className="text-xs font-medium">{selectedApiType.description}</p>
+                    <p className="text-xs font-medium mb-1">{selectedApiType.description}</p>
                     <div className="flex flex-wrap gap-1">
                       {selectedApiType.capabilities.map((cap) => (
                         <Badge key={cap} variant="secondary" className="text-xs">

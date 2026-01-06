@@ -1,117 +1,35 @@
-import fs from "fs"
-import path from "path"
+import fs from "fs/promises"
 import { EventEmitter } from "events"
+import path from "path"
 
-const DATA_DIR =
-  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
-    ? path.join("/tmp", "data")
-    : path.join(process.cwd(), "data")
-
-const CONNECTION_STATE_FILE = path.join(DATA_DIR, "connection-state.json")
-const CONNECTION_SYNC_LOG_FILE = path.join(DATA_DIR, "connection-sync-log.json")
-
-interface ConnectionState {
-  connection_id: string
-  is_active: boolean
-  volume_factor_live: number
-  volume_factor_preset: number
-  test_results: any
-  last_sync_at: string
-  created_at: string
-  updated_at: string
-}
-
-interface SyncLogEntry {
-  id: number
-  connection_id: string
-  action: string
-  data: any
-  created_at: string
-}
-
-function ensureDataDir() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true })
-    }
-  } catch (error) {
-    console.error("[ConnectionStateManager] Failed to create data directory:", error)
-  }
-}
-
-function loadStateFromFile(): ConnectionState[] {
-  try {
-    ensureDataDir()
-    if (fs.existsSync(CONNECTION_STATE_FILE)) {
-      const data = fs.readFileSync(CONNECTION_STATE_FILE, "utf-8")
-      if (data && data.trim()) {
-        return JSON.parse(data)
-      }
-    }
-    return []
-  } catch (error) {
-    console.error("[ConnectionStateManager] Failed to load state from file:", error)
-    return []
-  }
-}
-
-function saveStateToFile(states: ConnectionState[]): void {
-  try {
-    ensureDataDir()
-    fs.writeFileSync(CONNECTION_STATE_FILE, JSON.stringify(states, null, 2), "utf-8")
-  } catch (error) {
-    console.error("[ConnectionStateManager] Failed to save state to file:", error)
-    throw error
-  }
-}
-
-function loadSyncLogFromFile(): SyncLogEntry[] {
-  try {
-    ensureDataDir()
-    if (fs.existsSync(CONNECTION_SYNC_LOG_FILE)) {
-      const data = fs.readFileSync(CONNECTION_SYNC_LOG_FILE, "utf-8")
-      if (data && data.trim()) {
-        return JSON.parse(data)
-      }
-    }
-    return []
-  } catch (error) {
-    console.error("[ConnectionStateManager] Failed to load sync log from file:", error)
-    return []
-  }
-}
-
-function saveSyncLogToFile(logs: SyncLogEntry[]): void {
-  try {
-    ensureDataDir()
-    // Keep only last 1000 entries
-    const trimmedLogs = logs.slice(-1000)
-    fs.writeFileSync(CONNECTION_SYNC_LOG_FILE, JSON.stringify(trimmedLogs, null, 2), "utf-8")
-  } catch (error) {
-    console.error("[ConnectionStateManager] Failed to save sync log to file:", error)
-  }
-}
+const STATE_DIR = path.join(process.cwd(), ".state")
+const ACTIVE_CONNECTION_FILE = path.join(STATE_DIR, "ACTIVE_CONNECTION_STATE.txt")
+const SYNC_LOG_FILE = path.join(STATE_DIR, "CONNECTION_SYNC_LOG.txt")
+const VOLUME_CACHE_FILE = path.join(STATE_DIR, "VOLUME_FACTOR_CACHE.txt")
+const TEST_RESULTS_FILE = path.join(STATE_DIR, "CONNECTION_TEST_RESULTS.txt")
 
 class ConnectionStateManager extends EventEmitter {
   private initialized = false
-  private stateCache: Map<string, any> = new Map()
 
-  async initialize(): Promise<void> {
+  async initialize() {
     if (this.initialized) return
 
     try {
-      ensureDataDir()
+      await fs.mkdir(STATE_DIR, { recursive: true })
 
-      // Ensure files exist
-      if (!fs.existsSync(CONNECTION_STATE_FILE)) {
-        saveStateToFile([])
-      }
-      if (!fs.existsSync(CONNECTION_SYNC_LOG_FILE)) {
-        saveSyncLogToFile([])
+      // Initialize files if they don't exist
+      const files = [ACTIVE_CONNECTION_FILE, SYNC_LOG_FILE, VOLUME_CACHE_FILE, TEST_RESULTS_FILE]
+
+      for (const file of files) {
+        try {
+          await fs.access(file)
+        } catch {
+          await fs.writeFile(file, "", "utf-8")
+        }
       }
 
       this.initialized = true
-      console.log("[ConnectionStateManager] Initialized with file-based backend")
+      console.log("[ConnectionStateManager] Initialized successfully")
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to initialize:", error)
       throw error
@@ -121,15 +39,10 @@ class ConnectionStateManager extends EventEmitter {
   async getActiveConnection(): Promise<string | null> {
     try {
       await this.initialize()
-
-      const states = loadStateFromFile()
-      const activeState = states
-        .filter((s) => s.is_active)
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
-
-      return activeState?.connection_id || null
+      const content = await fs.readFile(ACTIVE_CONNECTION_FILE, "utf-8")
+      return content.trim() || null
     } catch (error) {
-      console.error("[ConnectionStateManager] Failed to get active connection:", error)
+      console.error("[ConnectionStateManager] Failed to read active connection:", error)
       return null
     }
   }
@@ -137,47 +50,8 @@ class ConnectionStateManager extends EventEmitter {
   async setActiveConnection(connectionId: string): Promise<void> {
     try {
       await this.initialize()
-
-      const states = loadStateFromFile()
-
-      // Deactivate all connections
-      states.forEach((s) => {
-        s.is_active = false
-        s.updated_at = new Date().toISOString()
-      })
-
-      // Find or create the connection state
-      const state = states.find((s) => s.connection_id === connectionId)
-      if (state) {
-        state.is_active = true
-        state.updated_at = new Date().toISOString()
-      } else {
-        states.push({
-          connection_id: connectionId,
-          is_active: true,
-          volume_factor_live: 1.0,
-          volume_factor_preset: 1.0,
-          test_results: null,
-          last_sync_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      }
-
-      saveStateToFile(states)
-
-      // Log the action
-      const logs = loadSyncLogFromFile()
-      logs.push({
-        id: logs.length + 1,
-        connection_id: connectionId,
-        action: "set_active",
-        data: { timestamp: new Date().toISOString() },
-        created_at: new Date().toISOString(),
-      })
-      saveSyncLogToFile(logs)
-
-      this.stateCache.set("active", connectionId)
+      await fs.writeFile(ACTIVE_CONNECTION_FILE, connectionId, "utf-8")
+      await this.logSync("set_active", { connectionId, timestamp: new Date().toISOString() })
       this.emit("activeConnectionChanged", connectionId)
       console.log("[ConnectionStateManager] Active connection set:", connectionId)
     } catch (error) {
@@ -189,18 +63,14 @@ class ConnectionStateManager extends EventEmitter {
   async getVolumeFactor(connectionId: string): Promise<{ live: number; preset: number } | null> {
     try {
       await this.initialize()
+      const content = await fs.readFile(VOLUME_CACHE_FILE, "utf-8")
 
-      const states = loadStateFromFile()
-      const state = states.find((s) => s.connection_id === connectionId)
+      if (!content.trim()) return null
 
-      if (!state) return null
-
-      return {
-        live: Number(state.volume_factor_live),
-        preset: Number(state.volume_factor_preset),
-      }
+      const cache = JSON.parse(content)
+      return cache[connectionId] || null
     } catch (error) {
-      console.error("[ConnectionStateManager] Failed to get volume factor:", error)
+      console.error("[ConnectionStateManager] Failed to read volume factor:", error)
       return null
     }
   }
@@ -209,41 +79,23 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const states = loadStateFromFile()
-      const state = states.find((s) => s.connection_id === connectionId)
+      let cache: Record<string, { live: number; preset: number }> = {}
 
-      if (state) {
-        state.volume_factor_live = live
-        state.volume_factor_preset = preset
-        state.updated_at = new Date().toISOString()
-      } else {
-        states.push({
-          connection_id: connectionId,
-          is_active: false,
-          volume_factor_live: live,
-          volume_factor_preset: preset,
-          test_results: null,
-          last_sync_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+      try {
+        const content = await fs.readFile(VOLUME_CACHE_FILE, "utf-8")
+        if (content.trim()) {
+          cache = JSON.parse(content)
+        }
+      } catch {
+        // File doesn't exist or invalid JSON, start fresh
       }
 
-      saveStateToFile(states)
+      cache[connectionId] = { live, preset }
 
-      // Log the action
-      const logs = loadSyncLogFromFile()
-      logs.push({
-        id: logs.length + 1,
-        connection_id: connectionId,
-        action: "update_volume",
-        data: { live, preset, timestamp: new Date().toISOString() },
-        created_at: new Date().toISOString(),
-      })
-      saveSyncLogToFile(logs)
-
+      await fs.writeFile(VOLUME_CACHE_FILE, JSON.stringify(cache, null, 2), "utf-8")
+      await this.logSync("update_volume", { connectionId, live, preset, timestamp: new Date().toISOString() })
       this.emit("volumeFactorChanged", connectionId, live, preset)
-      console.log("[ConnectionStateManager] Volume factor updated:", connectionId, { live, preset })
+      console.log("[ConnectionStateManager] Volume factor updated:", connectionId)
     } catch (error) {
       console.error("[ConnectionStateManager] Failed to set volume factor:", error)
       throw error
@@ -253,13 +105,14 @@ class ConnectionStateManager extends EventEmitter {
   async getTestResults(connectionId: string): Promise<any> {
     try {
       await this.initialize()
+      const content = await fs.readFile(TEST_RESULTS_FILE, "utf-8")
 
-      const states = loadStateFromFile()
-      const state = states.find((s) => s.connection_id === connectionId)
+      if (!content.trim()) return null
 
-      return state?.test_results || null
+      const results = JSON.parse(content)
+      return results[connectionId] || null
     } catch (error) {
-      console.error("[ConnectionStateManager] Failed to get test results:", error)
+      console.error("[ConnectionStateManager] Failed to read test results:", error)
       return null
     }
   }
@@ -268,32 +121,23 @@ class ConnectionStateManager extends EventEmitter {
     try {
       await this.initialize()
 
-      const states = loadStateFromFile()
-      const state = states.find((s) => s.connection_id === connectionId)
+      let cache: Record<string, any> = {}
 
-      const resultsWithTimestamp = {
+      try {
+        const content = await fs.readFile(TEST_RESULTS_FILE, "utf-8")
+        if (content.trim()) {
+          cache = JSON.parse(content)
+        }
+      } catch {
+        // Start fresh
+      }
+
+      cache[connectionId] = {
         ...results,
         timestamp: new Date().toISOString(),
       }
 
-      if (state) {
-        state.test_results = resultsWithTimestamp
-        state.updated_at = new Date().toISOString()
-      } else {
-        states.push({
-          connection_id: connectionId,
-          is_active: false,
-          volume_factor_live: 1.0,
-          volume_factor_preset: 1.0,
-          test_results: resultsWithTimestamp,
-          last_sync_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      }
-
-      saveStateToFile(states)
-
+      await fs.writeFile(TEST_RESULTS_FILE, JSON.stringify(cache, null, 2), "utf-8")
       this.emit("testResultsUpdated", connectionId, results)
       console.log("[ConnectionStateManager] Test results saved:", connectionId)
     } catch (error) {
@@ -302,51 +146,39 @@ class ConnectionStateManager extends EventEmitter {
     }
   }
 
-  async getSyncLog(limit = 100): Promise<SyncLogEntry[]> {
+  private async logSync(action: string, data: any): Promise<void> {
+    try {
+      const logEntry = `[${new Date().toISOString()}] ${action}: ${JSON.stringify(data)}\n`
+      await fs.appendFile(SYNC_LOG_FILE, logEntry, "utf-8")
+    } catch (error) {
+      console.error("[ConnectionStateManager] Failed to write sync log:", error)
+    }
+  }
+
+  async getSyncLog(limit = 100): Promise<string[]> {
     try {
       await this.initialize()
-
-      const logs = loadSyncLogFromFile()
-      return logs.slice(-limit).reverse()
+      const content = await fs.readFile(SYNC_LOG_FILE, "utf-8")
+      const lines = content.trim().split("\n").filter(Boolean)
+      return lines.slice(-limit)
     } catch (error) {
-      console.error("[ConnectionStateManager] Failed to get sync log:", error)
+      console.error("[ConnectionStateManager] Failed to read sync log:", error)
       return []
     }
   }
 
   async clearCache(): Promise<void> {
-    this.stateCache.clear()
-    console.log("[ConnectionStateManager] Memory cache cleared")
-  }
-
-  async updateHeartbeat(connectionId: string): Promise<void> {
     try {
-      const states = loadStateFromFile()
-      const state = states.find((s) => s.connection_id === connectionId)
-
-      if (state) {
-        state.last_sync_at = new Date().toISOString()
-        saveStateToFile(states)
-      }
+      await this.initialize()
+      await fs.writeFile(VOLUME_CACHE_FILE, "", "utf-8")
+      await fs.writeFile(TEST_RESULTS_FILE, "", "utf-8")
+      await this.logSync("clear_cache", { timestamp: new Date().toISOString() })
+      console.log("[ConnectionStateManager] Cache cleared")
     } catch (error) {
-      console.error("[ConnectionStateManager] Failed to update heartbeat:", error)
-    }
-  }
-
-  async getStaleConnections(): Promise<string[]> {
-    try {
-      const states = loadStateFromFile()
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-
-      return states.filter((s) => s.is_active && new Date(s.last_sync_at) < fiveMinutesAgo).map((s) => s.connection_id)
-    } catch (error) {
-      console.error("[ConnectionStateManager] Failed to get stale connections:", error)
-      return []
+      console.error("[ConnectionStateManager] Failed to clear cache:", error)
+      throw error
     }
   }
 }
 
-const connectionStateManager = new ConnectionStateManager()
-
-export { ConnectionStateManager }
-export default connectionStateManager
+export const connectionStateManager = new ConnectionStateManager()

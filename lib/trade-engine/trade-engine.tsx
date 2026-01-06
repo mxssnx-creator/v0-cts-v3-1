@@ -17,8 +17,6 @@ import { IndicationStateManager } from "@/lib/indication-state-manager"
 import { PositionFlowCoordinator } from "@/lib/position-flow-coordinator"
 import { getDataCleanupManager } from "@/lib/data-cleanup-manager"
 
-export { getTradeEngine } from "../trade-engine"
-
 export const TRADE_SERVICE_NAME = "TradeEngine-PerConnection"
 
 export interface TradeEngineConfig {

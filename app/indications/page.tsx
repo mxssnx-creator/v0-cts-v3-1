@@ -6,71 +6,288 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { IndicationBar } from "@/components/indications/indication-bar"
-import { IndicationFilters as Filters } from "@/components/indications/indication-filters"
-import { Activity, TrendingUp, BarChart3, Settings, RefreshCw } from "lucide-react"
+import { IndicationFilters } from "@/components/indications/indication-filters"
+import { Activity, TrendingUp, BarChart3, Settings, RefreshCw, AlertTriangle } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-
-interface Indication {
-  id: string
-  symbol: string
-  type: "active" | "direction" | "move"
-  range: number
-  profitFactor: number
-  isActive: boolean
-  stats: {
-    last8Avg: number
-    last20Avg: number
-    last50Avg: number
-    positionsPerDay: number
-    drawdownHours: number
-  }
-  subConfigurations?: Array<{
-    trailingEnabled: boolean
-    blockEnabled: boolean
-    dcaEnabled: boolean
-  }>
-}
-
-interface IndicationFilters {
-  type: string[]
-  rangeMin: number
-  rangeMax: number
-  profitFactorMin: number
-  symbolFilter: string
-  trailingFilter: "no" | "yes" | "only"
-  adjustBlock: "no" | "yes" | "only"
-  adjustDca: "no" | "yes" | "only"
-  activeOnly: boolean
-}
 
 export default function IndicationsPage() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [hasRealConnections, setHasRealConnections] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [minimalProfitFactor, setMinimalProfitFactor] = useState(0.5)
-  const [filters, setFilters] = useState<IndicationFilters>({
-    type: [],
+  const [filters, setFilters] = useState({
+    type: [] as string[],
     rangeMin: 3,
     rangeMax: 30,
     profitFactorMin: 0.5,
     symbolFilter: "",
-    trailingFilter: "no",
-    adjustBlock: "no",
-    adjustDca: "no",
+    trailingFilter: "no" as "no" | "yes" | "only",
+    adjustBlock: "no" as "no" | "yes" | "only",
+    adjustDca: "no" as "no" | "yes" | "only",
     activeOnly: false,
   })
 
-  const [indications, setIndications] = useState<Indication[]>([])
+  const [indications, setIndications] = useState([
+    {
+      id: "dir-btc-15",
+      type: "direction" as const,
+      symbol: "BTCUSDT",
+      range: 15,
+      isActive: true,
+      profitFactor: 0.75,
+      stats: {
+        last8Avg: 0.82,
+        last20Avg: 0.71,
+        last50Avg: 0.68,
+        positionsPerDay: 12,
+        drawdownHours: 4.2,
+      },
+      subConfigurations: [
+        {
+          id: "dir-btc-15-tp8-sl0.5",
+          takeProfitFactor: 8,
+          stopLossRatio: 0.5,
+          trailingEnabled: false,
+          blockEnabled: false,
+          dcaEnabled: false,
+          profitFactor: 0.85,
+          isActive: true,
+        },
+        {
+          id: "dir-btc-15-tp12-sl0.8-trail",
+          takeProfitFactor: 12,
+          stopLossRatio: 0.8,
+          trailingEnabled: true,
+          blockEnabled: true,
+          dcaEnabled: false,
+          profitFactor: 0.92,
+          isActive: true,
+        },
+      ],
+    },
+    {
+      id: "move-eth-8",
+      type: "move" as const,
+      symbol: "ETHUSDT",
+      range: 8,
+      isActive: false,
+      profitFactor: 0.42,
+      stats: {
+        last8Avg: 0.38,
+        last20Avg: 0.45,
+        last50Avg: 0.41,
+        positionsPerDay: 18,
+        drawdownHours: 6.8,
+      },
+      subConfigurations: [
+        {
+          id: "move-eth-8-tp6-sl0.4",
+          takeProfitFactor: 6,
+          stopLossRatio: 0.4,
+          trailingEnabled: false,
+          blockEnabled: false,
+          dcaEnabled: true,
+          profitFactor: 0.45,
+          isActive: false,
+        },
+      ],
+    },
+    {
+      id: "active-xrp-5",
+      type: "active" as const,
+      symbol: "XRPUSDT",
+      range: 5,
+      isActive: true,
+      profitFactor: 1.24,
+      stats: {
+        last8Avg: 1.31,
+        last20Avg: 1.18,
+        last50Avg: 1.15,
+        positionsPerDay: 25,
+        drawdownHours: 2.1,
+      },
+      subConfigurations: [
+        {
+          id: "active-xrp-5-tp10-sl0.6-all",
+          takeProfitFactor: 10,
+          stopLossRatio: 0.6,
+          trailingEnabled: true,
+          blockEnabled: true,
+          dcaEnabled: true,
+          profitFactor: 1.28,
+          isActive: true,
+        },
+      ],
+    },
+    {
+      id: "dir-bch-20",
+      type: "direction" as const,
+      symbol: "BCHUSDT",
+      range: 20,
+      isActive: true,
+      profitFactor: 0.89,
+      stats: {
+        last8Avg: 0.95,
+        last20Avg: 0.87,
+        last50Avg: 0.83,
+        positionsPerDay: 8,
+        drawdownHours: 3.5,
+      },
+      subConfigurations: [
+        {
+          id: "dir-bch-20-tp15-sl0.7",
+          takeProfitFactor: 15,
+          stopLossRatio: 0.7,
+          trailingEnabled: false,
+          blockEnabled: true,
+          dcaEnabled: false,
+          profitFactor: 0.91,
+          isActive: true,
+        },
+      ],
+    },
+  ])
 
   useEffect(() => {
     const loadIndications = async () => {
       try {
-        const response = await fetch("/api/indications")
-        if (response.ok) {
-          const data = await response.json()
-          setIndications(data.indications || [])
+        const response = await fetch("/api/settings/connections")
+        const data = await response.json()
+        const activeConnections = data.connections?.filter((c: any) => c.is_enabled) || []
+        setHasRealConnections(activeConnections.length > 0)
+
+        if (activeConnections.length === 0) {
+          // Use mock data only when no connections exist
+          setIndications([
+            {
+              id: "dir-btc-15",
+              type: "direction" as const,
+              symbol: "BTCUSDT",
+              range: 15,
+              isActive: true,
+              profitFactor: 0.75,
+              stats: {
+                last8Avg: 0.82,
+                last20Avg: 0.71,
+                last50Avg: 0.68,
+                positionsPerDay: 12,
+                drawdownHours: 4.2,
+              },
+              subConfigurations: [
+                {
+                  id: "dir-btc-15-tp8-sl0.5",
+                  takeProfitFactor: 8,
+                  stopLossRatio: 0.5,
+                  trailingEnabled: false,
+                  blockEnabled: false,
+                  dcaEnabled: false,
+                  profitFactor: 0.85,
+                  isActive: true,
+                },
+                {
+                  id: "dir-btc-15-tp12-sl0.8-trail",
+                  takeProfitFactor: 12,
+                  stopLossRatio: 0.8,
+                  trailingEnabled: true,
+                  blockEnabled: true,
+                  dcaEnabled: false,
+                  profitFactor: 0.92,
+                  isActive: true,
+                },
+              ],
+            },
+            {
+              id: "move-eth-8",
+              type: "move" as const,
+              symbol: "ETHUSDT",
+              range: 8,
+              isActive: false,
+              profitFactor: 0.42,
+              stats: {
+                last8Avg: 0.38,
+                last20Avg: 0.45,
+                last50Avg: 0.41,
+                positionsPerDay: 18,
+                drawdownHours: 6.8,
+              },
+              subConfigurations: [
+                {
+                  id: "move-eth-8-tp6-sl0.4",
+                  takeProfitFactor: 6,
+                  stopLossRatio: 0.4,
+                  trailingEnabled: false,
+                  blockEnabled: false,
+                  dcaEnabled: true,
+                  profitFactor: 0.45,
+                  isActive: false,
+                },
+              ],
+            },
+            {
+              id: "active-xrp-5",
+              type: "active" as const,
+              symbol: "XRPUSDT",
+              range: 5,
+              isActive: true,
+              profitFactor: 1.24,
+              stats: {
+                last8Avg: 1.31,
+                last20Avg: 1.18,
+                last50Avg: 1.15,
+                positionsPerDay: 25,
+                drawdownHours: 2.1,
+              },
+              subConfigurations: [
+                {
+                  id: "active-xrp-5-tp10-sl0.6-all",
+                  takeProfitFactor: 10,
+                  stopLossRatio: 0.6,
+                  trailingEnabled: true,
+                  blockEnabled: true,
+                  dcaEnabled: true,
+                  profitFactor: 1.28,
+                  isActive: true,
+                },
+              ],
+            },
+            {
+              id: "dir-bch-20",
+              type: "direction" as const,
+              symbol: "BCHUSDT",
+              range: 20,
+              isActive: true,
+              profitFactor: 0.89,
+              stats: {
+                last8Avg: 0.95,
+                last20Avg: 0.87,
+                last50Avg: 0.83,
+                positionsPerDay: 8,
+                drawdownHours: 3.5,
+              },
+              subConfigurations: [
+                {
+                  id: "dir-bch-20-tp15-sl0.7",
+                  takeProfitFactor: 15,
+                  stopLossRatio: 0.7,
+                  trailingEnabled: false,
+                  blockEnabled: true,
+                  dcaEnabled: false,
+                  profitFactor: 0.91,
+                  isActive: true,
+                },
+              ],
+            },
+          ])
+        } else {
+          // Fetch real indications from API
+          const indicationsResponse = await fetch("/api/indications")
+          if (indicationsResponse.ok) {
+            const indicationsData = await indicationsResponse.json()
+            setIndications(indicationsData.indications || [])
+          }
         }
       } catch (error) {
-        console.error("[v0] Failed to load indications:", error)
+        console.error("Failed to load indications:", error)
       } finally {
         setIsLoading(false)
       }
@@ -79,24 +296,9 @@ export default function IndicationsPage() {
     loadIndications()
   }, [])
 
-  const handleToggleIndication = async (id: string, active: boolean) => {
-    try {
-      const response = await fetch(`/api/indications/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: active }),
-      })
-
-      if (response.ok) {
-        setIndications((prev) => prev.map((ind) => (ind.id === id ? { ...ind, isActive: active } : ind)))
-        toast.success(`Indication ${active ? "activated" : "deactivated"}`)
-      } else {
-        toast.error("Failed to update indication")
-      }
-    } catch (error) {
-      console.error("[v0] Failed to toggle indication:", error)
-      toast.error("Failed to update indication")
-    }
+  const handleToggleIndication = (id: string, active: boolean) => {
+    setIndications((prev) => prev.map((ind) => (ind.id === id ? { ...ind, isActive: active } : ind)))
+    toast.success(`Indication ${active ? "activated" : "deactivated"}`)
   }
 
   const filteredIndications = indications.filter((indication) => {
@@ -107,9 +309,9 @@ export default function IndicationsPage() {
       return false
     if (filters.activeOnly && !indication.isActive) return false
 
-    const hasTrailing = indication.subConfigurations?.some((sub: { trailingEnabled: boolean }) => sub.trailingEnabled)
-    const hasBlock = indication.subConfigurations?.some((sub: { blockEnabled: boolean }) => sub.blockEnabled)
-    const hasDca = indication.subConfigurations?.some((sub: { dcaEnabled: boolean }) => sub.dcaEnabled)
+    const hasTrailing = indication.subConfigurations?.some((sub) => sub.trailingEnabled)
+    const hasBlock = indication.subConfigurations?.some((sub) => sub.blockEnabled)
+    const hasDca = indication.subConfigurations?.some((sub) => sub.dcaEnabled)
 
     if (filters.trailingFilter === "only" && !hasTrailing) return false
     if (filters.trailingFilter === "yes" && hasTrailing) return true
@@ -146,19 +348,6 @@ export default function IndicationsPage() {
     )
   }
 
-  if (indications.length === 0) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">
-          <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Indications Available</h3>
-          <p className="text-muted-foreground mb-4">Configure indications in Settings to start trading.</p>
-          <Button onClick={() => (window.location.href = "/settings")}>Go to Settings</Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -172,6 +361,21 @@ export default function IndicationsPage() {
           Refresh
         </Button>
       </div>
+
+      {/* Warning Banner */}
+      {!hasRealConnections && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            <div>
+              <div className="font-semibold text-yellow-700 dark:text-yellow-400">Using Mock Data</div>
+              <div className="text-sm text-yellow-600 dark:text-yellow-500">
+                No active exchange connections found. Enable a connection in Settings to see real indications.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -228,7 +432,7 @@ export default function IndicationsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Filters */}
         <div className="lg:col-span-1">
-          <Filters filters={filters} onFiltersChange={setFilters} />
+          <IndicationFilters filters={filters} onFiltersChange={setFilters} />
         </div>
 
         {/* Indications List */}

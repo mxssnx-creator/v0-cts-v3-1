@@ -25,9 +25,6 @@ interface SystemOverviewProps {
     strategiesActive: number
     systemLoad: number
     databaseSize: number
-    memoryUsage: number
-    cpuUsage: number
-    databaseLoad: number
   }
 }
 
@@ -166,25 +163,25 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>CPU Usage</span>
-              <span>{stats.cpuUsage}%</span>
+              <span>{stats.systemLoad}%</span>
             </div>
-            <Progress value={stats.cpuUsage} className="h-2" />
+            <Progress value={stats.systemLoad} className="h-2" />
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Memory Usage</span>
-              <span>{stats.memoryUsage}%</span>
+              <span>65%</span>
             </div>
-            <Progress value={stats.memoryUsage} className="h-2" />
+            <Progress value={65} className="h-2" />
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Database Load</span>
-              <span>{stats.databaseLoad}%</span>
+              <span>42%</span>
             </div>
-            <Progress value={stats.databaseLoad} className="h-2" />
+            <Progress value={42} className="h-2" />
           </div>
 
           <div className="flex gap-2 pt-2">

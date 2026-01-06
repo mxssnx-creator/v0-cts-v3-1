@@ -10,7 +10,6 @@ import type { PresetType, PresetConfigurationSet, PresetCoordinationResult } fro
 import { calculateIndicators, type IndicatorConfig } from "./indicators"
 import crypto from "crypto"
 import { PresetPseudoPositionManager } from "./preset-pseudo-position-manager"
-import { DatabaseManager } from "@/lib/database"
 
 export interface PresetCoordinationConfig {
   connectionId: string
@@ -29,7 +28,6 @@ export class PresetCoordinationEngine {
   private positionLimits: Map<string, number> = new Map()
   private lastPositionTime: Map<string, number> = new Map()
   private pseudoPositionManager: PresetPseudoPositionManager
-  private db: any
 
   private readonly BATCH_SIZE = 10
   private readonly MAX_CONCURRENT_SYMBOLS = 5
@@ -40,7 +38,6 @@ export class PresetCoordinationEngine {
     this.connectionId = connectionId
     this.presetTypeId = presetTypeId
     this.pseudoPositionManager = new PresetPseudoPositionManager(connectionId, presetTypeId)
-    this.db = DatabaseManager.getInstance()
   }
 
   /**
@@ -870,8 +867,8 @@ export class PresetCoordinationEngine {
       losingTrades,
       avgProfit,
       avgLoss,
-      maxDrawdown: this.calculateMaxDrawdown(trades),
-      drawdownTimeHours: this.calculateDrawdownTime(trades),
+      maxDrawdown: 0, // TODO: Calculate
+      drawdownTimeHours: 0, // TODO: Calculate
       profitFactorLast25,
       profitFactorLast50,
       positionsPer24h,
@@ -894,21 +891,14 @@ export class PresetCoordinationEngine {
   }
 
   private async getHistoricalData(symbol: string, days: number): Promise<any[]> {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - days)
-
-    const allData = await this.db.query("preset_historical_data", {
-      where: {
-        connection_id: this.connectionId,
-        symbol: symbol,
-      },
-      select: ["*"],
-    })
-
-    // Filter in JavaScript to avoid SQL INTERVAL issues
-    return allData
-      .filter((row: any) => new Date(row.timestamp) > cutoffDate)
-      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    const result = await sql`
+      SELECT * FROM preset_historical_data
+      WHERE connection_id = ${this.connectionId}
+        AND symbol = ${symbol}
+        AND timestamp > NOW() - INTERVAL '${days} days'
+      ORDER BY timestamp ASC
+    `
+    return result
   }
 
   private async getCurrentMarketSignal(result: PresetCoordinationResult): Promise<any> {
@@ -991,56 +981,6 @@ export class PresetCoordinationEngine {
 
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  }
-
-  private calculateMaxDrawdown(positions: any[]): number {
-    if (positions.length === 0) return 0
-
-    let peak = 0
-    let maxDrawdown = 0
-    let cumulativePnL = 0
-
-    for (const position of positions) {
-      cumulativePnL += Number.parseFloat(position.profit_loss || position.pnl || "0")
-
-      if (cumulativePnL > peak) {
-        peak = cumulativePnL
-      }
-
-      const drawdown = peak - cumulativePnL
-      if (drawdown > maxDrawdown) {
-        maxDrawdown = drawdown
-      }
-    }
-
-    return maxDrawdown
-  }
-
-  private calculateDrawdownTime(positions: any[]): number {
-    if (positions.length === 0) return 0
-
-    let peak = 0
-    let peakTime = 0
-    let maxDrawdownTime = 0
-    let cumulativePnL = 0
-
-    for (let i = 0; i < positions.length; i++) {
-      const position = positions[i]
-      cumulativePnL += Number.parseFloat(position.profit_loss || position.pnl || "0")
-
-      if (cumulativePnL > peak) {
-        peak = cumulativePnL
-        peakTime = i
-      } else {
-        const drawdownTime = i - peakTime
-        if (drawdownTime > maxDrawdownTime) {
-          maxDrawdownTime = drawdownTime
-        }
-      }
-    }
-
-    // Convert to hours (assuming each position is roughly 1 hour apart on average)
-    return maxDrawdownTime
   }
 }
 

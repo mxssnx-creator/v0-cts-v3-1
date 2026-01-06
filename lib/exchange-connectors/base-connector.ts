@@ -1,14 +1,16 @@
-import { getRateLimiter } from "@/lib/rate-limiter"
-import type {
-  ExchangeCredentials,
-  OrderParams,
-  OrderResult,
-  BalanceResult,
-  PositionResult,
-  ConnectionTestResult,
-} from "@/lib/exchange-connector-types"
+/**
+ * Base Exchange Connector Interface
+ * All exchange connectors must implement this interface for consistency
+ */
 
-export type { ExchangeCredentials, OrderParams, OrderResult, BalanceResult, PositionResult, ConnectionTestResult }
+import { getRateLimiter } from "@/lib/rate-limiter"
+
+export interface ExchangeCredentials {
+  apiKey: string
+  apiSecret: string
+  apiPassphrase?: string
+  isTestnet: boolean
+}
 
 export interface ExchangeBalance {
   asset: string
@@ -27,15 +29,13 @@ export interface ExchangeConnectorResult {
 }
 
 export abstract class BaseExchangeConnector {
-  public credentials: ExchangeCredentials
+  protected credentials: ExchangeCredentials
   protected logs: string[] = []
   protected timeout = 10000 // 10 seconds
   protected rateLimiter: ReturnType<typeof getRateLimiter>
-  public exchange: string
 
   constructor(credentials: ExchangeCredentials, exchange: string) {
     this.credentials = credentials
-    this.exchange = exchange
     this.rateLimiter = getRateLimiter(exchange)
   }
 
@@ -67,32 +67,12 @@ export abstract class BaseExchangeConnector {
         return response
       } catch (error) {
         clearTimeout(timeoutId)
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new Error(`Request timeout after ${this.timeout}ms`)
-        }
         throw error
       }
     })
   }
 
-  protected resetLogs(): void {
-    this.logs = []
-  }
-
-  abstract generateSignature(data: string | Record<string, unknown>): string
-
-  abstract testConnection(): Promise<ConnectionTestResult>
-  abstract getBalance(): Promise<BalanceResult>
+  abstract testConnection(): Promise<ExchangeConnectorResult>
+  abstract getBalance(): Promise<ExchangeConnectorResult>
   abstract getCapabilities(): string[]
-  abstract placeOrder(params: OrderParams): Promise<OrderResult>
-
-  async cancelOrder(orderId: string, symbol: string): Promise<boolean> {
-    this.logError(`cancelOrder not implemented for ${this.exchange}`)
-    return false
-  }
-
-  async getPositions(): Promise<PositionResult[]> {
-    this.logError(`getPositions not implemented for ${this.exchange}`)
-    return []
-  }
 }
