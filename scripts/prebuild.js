@@ -12,6 +12,13 @@ const rootDir = process.cwd()
 
 console.log("CTS v3.1 Pre-build Cache Clearing...\n")
 
+const isVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true"
+if (isVercel) {
+  console.log("  🚀 Vercel optimized build mode enabled")
+  console.log("  → Skipping native module rebuilds")
+  console.log("  → Using bun for faster script execution\n")
+}
+
 const cacheDirs = [
   path.join(rootDir, ".next"),
   path.join(rootDir, ".turbopack"),
