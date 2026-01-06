@@ -6,6 +6,29 @@ This directory contains backup copies of important files for recovery purposes.
 
 All backup files use the `.tmp` extension to prevent them from being compiled during the build process.
 
+## Single Backup System
+
+The backup system maintains a single complete backup in `backups/latest/` that gets overwritten each time:
+- Location: `backups/latest/`
+- Contains: All critical pages with full app structure
+- Created: Before every deployment and recovery operation
+- Metadata: `BACKUP_INFO.txt` tracks creation time and file count
+
+To restore from latest backup:
+```bash
+# Restore all pages
+cp -r backups/latest/app/* app/
+
+# Restore specific page
+cp backups/latest/app/settings/page.tsx app/settings/page.tsx
+```
+
+**Why single backup?**
+- Always contains the most recent working version
+- Prevents backup directory bloat
+- Simplifies recovery process
+- Metadata file tracks when backup was created
+
 ## Automated Page Backups
 
 Timestamped backups of all critical pages are automatically created in subdirectories:

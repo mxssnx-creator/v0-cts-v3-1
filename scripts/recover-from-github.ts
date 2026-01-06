@@ -6,6 +6,8 @@
  * This script helps recover specific files from previous GitHub commits
  * without reverting the entire codebase, preserving all TypeScript fixes.
  *
+ * ALWAYS creates timestamped backups before recovery!
+ *
  * Usage:
  *   bun scripts/recover-from-github.ts <commit-hash> <file-path>
  *   bun scripts/recover-from-github.ts --list-commits
@@ -15,6 +17,7 @@
 import { exec } from "child_process"
 import { promisify } from "util"
 import fs from "fs/promises"
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "fs"
 import path from "path"
 
 const execAsync = promisify(exec)
@@ -28,6 +31,12 @@ interface RecoveryTarget {
 
 // Known good versions from v279 (before the settings page was destroyed)
 const RECOVERY_TARGETS: RecoveryTarget[] = [
+  {
+    commitHash: "b8c8a3ce27ff6169ed0c2e1a096cd1aa5063e958", // v75 - Last confirmed working settings page
+    filePath: "app/settings/page.tsx",
+    outputPath: "app/settings/page-v75-recovered.tsx",
+    description: "Recover Settings Page v75 with tabbed interface",
+  },
   {
     commitHash: "9cb416d", // v279 - Last known good version
     filePath: "app/settings/page.tsx",
@@ -80,6 +89,51 @@ async function fetchFileFromCommit(commitHash: string, filePath: string): Promis
   }
 }
 
+async function createBackupBeforeRecovery(filePaths: string[]): Promise<string> {
+  const backupDir = path.resolve(process.cwd(), "backups/latest")
+
+  // Remove old backup if exists
+  if (existsSync(backupDir)) {
+    console.log(`\n🗑️  Removing old backup...`)
+    rmSync(backupDir, { recursive: true, force: true })
+  }
+
+  console.log(`\n📦 Creating backup before recovery: ${backupDir}`)
+
+  let backed = 0
+
+  for (const filePath of filePaths) {
+    try {
+      const sourcePath = path.resolve(process.cwd(), filePath)
+
+      if (!existsSync(sourcePath)) {
+        console.log(`   ⚠️  ${filePath} - doesn't exist (new file)`)
+        continue
+      }
+
+      const content = readFileSync(sourcePath, "utf-8")
+      const backupPath = path.resolve(backupDir, filePath)
+      const backupDirPath = path.dirname(backupPath)
+
+      mkdirSync(backupDirPath, { recursive: true })
+      writeFileSync(backupPath, content)
+
+      console.log(`   ✅ ${filePath} (${content.length} bytes)`)
+      backed++
+    } catch (error) {
+      console.error(`   ❌ ${filePath} - ERROR: ${error}`)
+    }
+  }
+
+  const metadataPath = path.resolve(backupDir, "RECOVERY_INFO.txt")
+  const metadata = `Recovery backup created: ${new Date().toISOString()}\nFiles backed up: ${backed}\n`
+  writeFileSync(metadataPath, metadata)
+
+  console.log(`   📊 ${backed} file(s) backed up\n`)
+
+  return backupDir
+}
+
 async function recoverFile(target: RecoveryTarget): Promise<boolean> {
   console.log(`\n🔄 Recovering: ${target.description}`)
   console.log(`   From: ${target.commitHash}`)
@@ -109,6 +163,12 @@ async function recoverAllSettings(): Promise<void> {
   console.log("🚀 Starting Settings Pages Recovery from v279\n")
   console.log("=".repeat(60))
 
+  // Create backup first
+  const filesToRecover = RECOVERY_TARGETS.map((t) => t.outputPath)
+  const backupDir = await createBackupBeforeRecovery(filesToRecover)
+  console.log(`💾 Backup created at: ${backupDir}`)
+  console.log("=".repeat(60))
+
   let successCount = 0
   let failCount = 0
 
@@ -126,10 +186,12 @@ async function recoverAllSettings(): Promise<void> {
   console.log(`   ✅ Successful: ${successCount}`)
   console.log(`   ❌ Failed: ${failCount}`)
   console.log(`   📁 Total: ${RECOVERY_TARGETS.length}`)
+  console.log(`   💾 Backup: ${backupDir}`)
 
   if (successCount > 0) {
     console.log("\n✨ Recovery complete! Your settings pages have been restored.")
     console.log("   All TypeScript fixes are preserved in other files.")
+    console.log(`   Original files backed up in: ${backupDir}`)
   }
 }
 
@@ -137,6 +199,9 @@ async function recoverCustomFile(commitHash: string, filePath: string): Promise<
   console.log(`\n🔄 Custom file recovery:`)
   console.log(`   Commit: ${commitHash}`)
   console.log(`   File: ${filePath}`)
+
+  // Create backup first
+  await createBackupBeforeRecovery([filePath])
 
   const content = await fetchFileFromCommit(commitHash, filePath)
 

@@ -35,7 +35,10 @@
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
+    "backup:create": "bun scripts/create-project-backup.ts",
+    "backup:list": "bun scripts/restore-from-backup.ts",
     "backup:pages": "bun scripts/backup-pages.ts",
+    "backup:restore": "bun scripts/restore-from-backup.ts",
     "prebuild": "node scripts/prebuild.js",
     "build": "npm run validate:pages && next build",
     "certbot:install": "sudo bash scripts/install-certbot.sh",
@@ -73,6 +76,8 @@
     "recover:custom": "bun scripts/recover-from-github.ts",
     "recover:list": "bun scripts/recover-from-github.ts --list-commits",
     "recover:settings": "bun scripts/recover-from-github.ts --recover-settings || echo 'Recovery skipped - files may already exist'",
+    "recover:v75": "bun scripts/recover-v75-settings.ts",
+    "recover:v75:force": "bun scripts/recover-v75-settings.ts && bun scripts/integrate-threshold-to-v75.ts",
     "setup": "node scripts/setup.js",
     "start": "next start -p ${PORT:-3000}",
     "system:check": "node scripts/system-check.js",

@@ -2,10 +2,10 @@
 
 /**
  * Page Backup System
- * Creates timestamped backups of all critical pages
+ * Creates a single complete backup that gets overwritten each time
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs"
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "fs"
 import { resolve, dirname } from "path"
 
 const CRITICAL_PAGES = [
@@ -29,8 +29,12 @@ const CRITICAL_PAGES = [
 ] as const
 
 function createBackup() {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  const backupDir = resolve(process.cwd(), `backups/pages-${timestamp}`)
+  const backupDir = resolve(process.cwd(), "backups/latest")
+
+  if (existsSync(backupDir)) {
+    console.log(`🗑️  Removing old backup...\n`)
+    rmSync(backupDir, { recursive: true, force: true })
+  }
 
   console.log(`📦 Creating backup: ${backupDir}\n`)
 
@@ -62,6 +66,10 @@ function createBackup() {
     }
   }
 
+  const metadataPath = resolve(backupDir, "BACKUP_INFO.txt")
+  const metadata = `Backup created: ${new Date().toISOString()}\nTotal files: ${backed}\nFailed: ${failed}\n`
+  writeFileSync(metadataPath, metadata)
+
   console.log(`\n📊 Backup Summary:`)
   console.log(`   ✅ Backed up: ${backed}`)
   console.log(`   ❌ Failed: ${failed}`)
@@ -70,6 +78,5 @@ function createBackup() {
   return { backed, failed }
 }
 
-// Main execution
 const result = createBackup()
 process.exit(result.failed > 0 ? 1 : 0)
