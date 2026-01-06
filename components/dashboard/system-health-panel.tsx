@@ -55,16 +55,35 @@ export function SystemHealthPanel() {
   const loadHealthStatus = async () => {
     try {
       setLoading(true)
+      console.log("[v0] Loading health status...")
       const response = await fetch("/api/health")
-      const data = await response.json()
 
-      if (data.success) {
+      if (!response.ok) {
+        console.error("[v0] Health API returned error:", response.status)
+        setOverallStatus("unknown")
+        setHealthChecks([])
+        toast.error(`Failed to load system health: ${response.status}`)
+        return
+      }
+
+      const data = await response.json()
+      console.log("[v0] Health data received:", data)
+
+      if (data.success && Array.isArray(data.checks)) {
         setHealthChecks(data.checks)
         setOverallStatus(data.status)
+        console.log("[v0] Health status loaded successfully:", data.checks.length, "checks")
+      } else {
+        console.error("[v0] Invalid health data format:", data)
+        setOverallStatus("unknown")
+        setHealthChecks([])
+        toast.error("Invalid health data format received")
       }
     } catch (error) {
-      console.error("Failed to load health status:", error)
-      toast.error("Failed to load system health")
+      console.error("[v0] Failed to load health status:", error)
+      setOverallStatus("unknown")
+      setHealthChecks([])
+      toast.error("Failed to load system health: " + (error instanceof Error ? error.message : "Unknown error"))
     } finally {
       setLoading(false)
     }
