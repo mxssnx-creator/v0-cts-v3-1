@@ -4,7 +4,7 @@
  */
 
 import { sql } from "@/lib/db"
-import { fetch } from "node-fetch" // Assuming node-fetch is used for HTTP requests
+import fetch from "node-fetch"
 
 interface BacktestTrade {
   symbol: string

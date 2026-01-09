@@ -81,7 +81,7 @@ export function PresetTradeStats({ filter, positions }: PresetTradeStatsProps) {
         let maxDrawdown = 0
 
         for (const pos of closedPositions.sort(
-          (a, b) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
+          (a: TradingPosition, b: TradingPosition) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
         )) {
           cumulativePnl += pos.profit_loss || 0
           if (cumulativePnl > peak) {
@@ -97,7 +97,7 @@ export function PresetTradeStats({ filter, positions }: PresetTradeStatsProps) {
         // Calculate average duration
         const avgDuration =
           closedPositions.length > 0
-            ? closedPositions.reduce((sum, p) => {
+            ? closedPositions.reduce((sum: number, p: TradingPosition) => {
                 const duration = p.closed_at
                   ? (new Date(p.closed_at).getTime() - new Date(p.opened_at).getTime()) / (1000 * 60)
                   : 0
