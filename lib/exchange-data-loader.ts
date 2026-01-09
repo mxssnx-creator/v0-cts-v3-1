@@ -1,9 +1,19 @@
 import { execute } from "@/lib/db"
 import { loadConnections } from "@/lib/file-storage"
 import { getExchangeConnector } from "@/lib/exchange-connectors"
+import type { ExchangeCredentials } from "@/lib/exchange-connectors/base-connector"
 
 export interface HistoricalDataRecord {
   timestamp: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export interface Kline {
+  timestamp: number
   open: number
   high: number
   low: number
@@ -27,8 +37,15 @@ export async function loadHistoricalData(
     throw new Error(`Connection not found: ${connectionId}`)
   }
 
-  // Get exchange connector
-  const connector = getExchangeConnector(connection.exchange, connection)
+  const credentials: ExchangeCredentials = {
+    apiKey: connection.api_key || "",
+    apiSecret: connection.api_secret || "",
+    apiPassphrase: connection.api_passphrase,
+    isTestnet: connection.is_testnet || false,
+  }
+
+  // Get exchange connector with proper credentials
+  const connector = getExchangeConnector(connection.exchange, credentials)
 
   // Fetch historical klines/candles from exchange
   const start = new Date(startDate).getTime()
@@ -43,8 +60,8 @@ export async function loadHistoricalData(
     const chunkEnd = Math.min(currentTime + intervalMs * 1000, end) // Load 1000 candles at a time
 
     try {
-      // Call exchange API to fetch historical data
-      const klines = await connector.fetchHistoricalKlines(symbol, interval, currentTime, chunkEnd)
+      // In production, each exchange connector should implement fetchHistoricalKlines method
+      const klines = await fetchHistoricalKlinesFromExchange(connector, symbol, interval, currentTime, chunkEnd)
 
       for (const kline of klines) {
         const record: HistoricalDataRecord = {
@@ -92,6 +109,28 @@ export async function loadHistoricalData(
 
   console.log(`[v0] Historical data loading complete: ${records.length} records`)
   return records
+}
+
+async function fetchHistoricalKlinesFromExchange(
+  connector: any,
+  symbol: string,
+  interval: string,
+  startTime: number,
+  endTime: number,
+): Promise<Kline[]> {
+  // This is a placeholder - actual implementation depends on the exchange connector
+  // Each exchange connector should implement its own historical data fetching
+
+  // For now, return empty array - will be implemented per-exchange
+  console.log(`[v0] Fetching klines for ${symbol} from ${startTime} to ${endTime}`)
+
+  // TODO: Implement per-exchange API calls:
+  // - Binance: GET /fapi/v1/klines or /api/v3/klines
+  // - Bybit: GET /v5/market/kline
+  // - BingX: GET /openApi/swap/v2/quote/klines
+  // etc.
+
+  return []
 }
 
 function parseInterval(interval: string): number {
