@@ -40,11 +40,6 @@ const nextConfig = {
   compress: true,
   output: 'standalone',
   swcMinify: true,
-  modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
-    },
-  },
 }
 
 export default nextConfig
