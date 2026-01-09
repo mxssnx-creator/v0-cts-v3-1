@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { toast } from "sonner"
-import { Activity, AlertCircle, CheckCircle, ChevronDown, ChevronRight, Info, RefreshCw } from "lucide-react"
+import { Activity, AlertCircle, CheckCircle, ChevronDown, ChevronRight, Info, RefreshCw, Settings } from "lucide-react"
 import type { ExchangeConnection } from "@/lib/types"
+import { PrehistoricDataLoader } from "./prehistoric-data-loader"
 
 interface ActiveConnectionsProps {
   onConnectionsChange?: () => void
@@ -23,21 +25,19 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
 
   useEffect(() => {
     loadConnections()
-    const interval = setInterval(loadConnections, 5000) // Refresh every 5 seconds
+    const interval = setInterval(loadConnections, 5000) // Refresh every 5 seconds to show real-time data
     return () => clearInterval(interval)
   }, [])
 
   const loadConnections = async () => {
     try {
-      const response = await fetch("/api/settings/connections")
+      const response = await fetch("/api/active-connections")
       if (response.ok) {
         const data = await response.json()
-        // Filter only enabled connections for "Active Connections"
-        const activeConnections = data.filter((c: ExchangeConnection) => c.is_enabled)
-        setConnections(activeConnections)
+        setConnections(data)
       }
     } catch (error) {
-      console.error("[v0] Failed to load connections:", error)
+      console.error("[v0] Failed to load active connections:", error)
     } finally {
       setLoading(false)
     }
@@ -71,6 +71,45 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
     } catch (error) {
       console.error("[v0] Failed to toggle live trade:", error)
       toast.error("Failed to toggle live trade")
+    }
+  }
+
+  const handleTogglePresetTrade = async (id: string, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/settings/connections/${id}/active`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_preset_trade: enabled }),
+      })
+
+      if (!response.ok) throw new Error("Failed to toggle preset trade")
+
+      toast.success(enabled ? "Preset trading enabled" : "Preset trading disabled")
+      await loadConnections()
+      onConnectionsChange?.()
+    } catch (error) {
+      console.error("[v0] Failed to toggle preset trade:", error)
+      toast.error("Failed to toggle preset trade")
+    }
+  }
+
+  const handleVolumeFactorChange = async (id: string, factor: number) => {
+    try {
+      const response = await fetch("/api/active-connections", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: id,
+          settings: { volumeFactor: factor },
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update volume factor")
+
+      await loadConnections()
+    } catch (error) {
+      console.error("[v0] Failed to update volume factor:", error)
+      toast.error("Failed to update volume factor")
     }
   }
 
@@ -137,9 +176,13 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
       return <Badge className="text-xs bg-green-500">Live Trading</Badge>
     }
 
+    if (connection.is_preset_trade) {
+      return <Badge className="text-xs bg-blue-500">Preset Trading</Badge>
+    }
+
     return (
       <Badge variant="outline" className="text-xs">
-        Enabled
+        Enabled (No Trading)
       </Badge>
     )
   }
@@ -149,7 +192,7 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
       <Card>
         <CardHeader>
           <CardTitle>Active Connections</CardTitle>
-          <CardDescription>Loading active exchange connections...</CardDescription>
+          <CardDescription>Loading active trading connections...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -169,7 +212,10 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
-            <p>Enable connections in Settings to start trading</p>
+            <p>Enable connections in Settings → Connections to start trading</p>
+            <p className="text-sm mt-2">
+              Active connections are enabled base connections ready for live or preset trading
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -180,7 +226,9 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
     <Card>
       <CardHeader>
         <CardTitle>Active Connections</CardTitle>
-        <CardDescription>{connections.length} active connection(s)</CardDescription>
+        <CardDescription>
+          {connections.length} active trading connection(s) - Trade settings and controls
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {connections.map((connection) => (
@@ -211,17 +259,26 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
                         <Badge variant="outline" className="text-xs">
                           {connection.api_type}
                         </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {connection.connection_method}
-                        </Badge>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusBadge(connection)}
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-4">{getStatusBadge(connection)}</div>
+                </div>
+              </CardHeader>
+
+              <CollapsibleContent>
+                <CardContent className="pt-0 space-y-4">
+                  {/* Trade Settings - Volume Factor and Trade Types */}
+                  <div className="border rounded-md p-4 bg-muted/30 space-y-4">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Trade Settings
+                    </Label>
+
+                    {/* Live Trade Toggle */}
+                    <div className="flex items-center justify-between">
                       <Label htmlFor={`live-trade-${connection.id}`} className="text-sm">
-                        Live Trade
+                        Live Trading
                       </Label>
                       <Switch
                         id={`live-trade-${connection.id}`}
@@ -229,18 +286,44 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
                         onCheckedChange={(checked) => handleToggleLiveTrade(connection.id, checked)}
                       />
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
 
-              <CollapsibleContent>
-                <CardContent className="pt-0 space-y-4">
+                    {/* Preset Trade Toggle */}
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={`preset-trade-${connection.id}`} className="text-sm">
+                        Preset Trading
+                      </Label>
+                      <Switch
+                        id={`preset-trade-${connection.id}`}
+                        checked={connection.is_preset_trade || false}
+                        onCheckedChange={(checked) => handleTogglePresetTrade(connection.id, checked)}
+                      />
+                    </div>
+
+                    {/* Volume Factor Slider */}
+                    <div className="space-y-2">
+                      <Label className="text-sm">Volume Factor: {(connection.volume_factor || 1.0).toFixed(2)}x</Label>
+                      <Slider
+                        value={[connection.volume_factor || 1.0]}
+                        onValueChange={([value]) => handleVolumeFactorChange(connection.id, value)}
+                        min={0.1}
+                        max={5.0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Adjust trading volume multiplier (0.1x to 5.0x)
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Connection Info */}
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <Label className="text-xs text-muted-foreground">Last Test</Label>
                       <div className="font-medium">
-                        {connection.last_test_at ? new Date(connection.last_test_at).toLocaleString() : "Never tested"}
+                        {connection.last_test_timestamp
+                          ? new Date(connection.last_test_timestamp).toLocaleString()
+                          : "Never tested"}
                       </div>
                     </div>
                     <div>
@@ -251,28 +334,15 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
                     </div>
                   </div>
 
-                  {/* Test Connection Button */}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleTestConnection(connection.id, connection.exchange)}
-                      disabled={testingConnections.has(connection.id)}
-                      className="flex-1"
-                    >
-                      {testingConnections.has(connection.id) ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Testing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Test Connection
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  {/* Prehistoric Data Loader */}
+                  <PrehistoricDataLoader
+                    connectionId={connection.id}
+                    symbol="BTCUSDT"
+                    onComplete={() => {
+                      toast.success("Historical data loaded successfully")
+                      loadConnections()
+                    }}
+                  />
 
                   {/* Connection Logs */}
                   {connection.last_test_log && connection.last_test_log.length > 0 && (
@@ -290,13 +360,6 @@ export function ActiveConnections({ onConnectionsChange }: ActiveConnectionsProp
                       </div>
                     </div>
                   )}
-
-                  {/* BTC Price Info (if available) */}
-                  <div className="border-t pt-3">
-                    <div className="text-xs text-muted-foreground">
-                      Capabilities: {connection.api_capabilities || "Not tested"}
-                    </div>
-                  </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>
