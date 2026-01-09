@@ -776,14 +776,11 @@ export interface ConnectionEngineState {
 }
 
 export interface SystemStats {
+  totalConnections: number
   activeConnections: number
   totalPositions: number
-  dailyPnL: number
-  totalBalance: number
-  indicationsActive: number
-  strategiesActive: number
-  systemLoad: number
-  databaseSize: number
+  totalProfit: number
+  successRate: number
 }
 
 export interface MonitoringStats {
@@ -808,4 +805,17 @@ export interface MonitoringStats {
   recentActivity: Array<{ minute: string; level: string; count: number }>
 }
 
-export type { EngineStatus, ConnectionStatus, HealthStatus } from "./trade-engine"
+export interface EngineStatus {
+  status: "running" | "paused" | "stopped"
+  startedAt?: Date
+  stoppedAt?: Date
+  errorMessage?: string
+  healthStatus?: "healthy" | "degraded" | "unhealthy"
+  mainEngineEnabled?: boolean
+  presetEngineEnabled?: boolean
+  errorCount?: number
+  successCount?: number
+  lastCycleDuration?: number
+}
+
+export type { ConnectionStatus, HealthStatus } from "./trade-engine"

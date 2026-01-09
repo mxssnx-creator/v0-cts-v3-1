@@ -118,18 +118,19 @@ async function fetchHistoricalKlinesFromExchange(
   startTime: number,
   endTime: number,
 ): Promise<Kline[]> {
-  // This is a placeholder - actual implementation depends on the exchange connector
-  // Each exchange connector should implement its own historical data fetching
+  console.log(
+    `[ExchangeDataLoader] Fetching klines for ${symbol} from ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`,
+  )
 
-  // For now, return empty array - will be implemented per-exchange
-  console.log(`[v0] Fetching klines for ${symbol} from ${startTime} to ${endTime}`)
+  // Check if connector has fetchHistoricalKlines method
+  if (typeof connector.fetchHistoricalKlines === "function") {
+    return await connector.fetchHistoricalKlines(symbol, interval, startTime, endTime)
+  }
 
-  // TODO: Implement per-exchange API calls:
-  // - Binance: GET /fapi/v1/klines or /api/v3/klines
-  // - Bybit: GET /v5/market/kline
-  // - BingX: GET /openApi/swap/v2/quote/klines
-  // etc.
-
+  // Fallback: Return empty array if method not implemented
+  console.warn(
+    `[ExchangeDataLoader] fetchHistoricalKlines not implemented for connector, skipping historical data load`,
+  )
   return []
 }
 

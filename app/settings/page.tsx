@@ -1,4 +1,6 @@
 "use client"
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,11 +11,11 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
+import InstallManager from "@/components/settings/install-manager"
 import { toast } from "sonner"
-import { Save, RefreshCw, X, Plus, Info } from "lucide-react"
+import { Save, Download, Upload, RefreshCw, Info } from "lucide-react"
 import type { ExchangeConnection } from "@/lib/types"
 import { LogsViewer } from "@/components/settings/logs-viewer"
-import { Badge } from "@/components/ui/badge"
 import { AuthGuard } from "@/components/auth-guard"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -39,10 +41,225 @@ const EXCHANGE_MAX_POSITIONS: Record<string, number> = {
   bitget: 150,
   mexc: 100,
   bingx: 100,
+  coinex: 75,
+  lbank: 50,
+  bitmart: 50,
 }
 
-// Define Settings type for better type safety
+interface SystemSettings {
+  database_type: string
+  trade_interval?: number
+  engine_speed?: number
+  monitoring_interval?: number
+  tradeMode?: string
+  marketTimeframe?: number
+  prehistoricDataDays?: number
+  positionCost?: number
+  useMaximalLeverage?: boolean
+  leveragePercentage?: number
+  mainSymbols?: string[]
+  forcedSymbols?: string[]
+  symbolsCount?: number
+  maxPositionsPerExchange?: Record<string, number>
+  stepRelationMinRatio?: number
+  stepRelationMaxRatio?: number
+  minimumConnectInterval?: number
+  symbolsExchangeCount?: number
+  defaultMarginType?: string
+  defaultPositionMode?: string
+  rateLimitDelay?: number
+  maxConcurrentConnections?: number
+  testnetEnabled?: boolean
+  monitoringEnabled?: boolean
+  metricsRetention?: number
+  strategyMinProfitFactor?: number
+  indicationMinProfitFactor?: number
+  profitFactorMultiplier?: number
+  baseVolumeFactor?: number
+  strategyTrailingEnabled?: boolean
+  strategyBlockEnabled?: boolean
+  strategyDcaEnabled?: boolean
+  blockAutoDisableEnabled?: boolean
+  blockAdjustmentRatio?: number
+  blockAutoDisableMinBlocks?: number
+  blockAutoDisableComparisonWindow?: number
+  minWinRate?: number
+  maxDrawdownHours?: number
+  adjustStrategyDrawdownPositions?: number
+  positionsAverage?: number
+  volumeRangePercentage?: number
+  rateLimitPerSecond?: number
+  connectionTimeout?: number
+  arrangementType?: string
+  arrangementCount?: number
+  baseVolumeFactorLive?: number
+  profitFactorMinMain?: number
+  drawdownTimeMain?: number
+  trailingEnabled?: boolean
+  trailingOnly?: boolean
+  blockEnabled?: boolean
+  blockOnly?: boolean
+  dcaEnabled?: boolean
+  presetTrailingEnabled?: boolean
+  presetTrailingOnly?: boolean
+  presetBlockEnabled?: boolean
+  presetBlockOnly?: boolean
+  presetDcaEnabled?: boolean
+  baseVolumeFactorPreset?: number
+  profitFactorMinPreset?: number
+  drawdownTimePreset?: number
+  mainTradeInterval?: number
+  presetTradeInterval?: number
+  maxPseudoPositions?: number
+  marketDataRetention?: number
+  indication_time_interval?: number
+  indication_range_min?: number
+  indication_range_max?: number
+  indication_min_profit_factor?: number
+  baseProfitFactor?: number
+  maxDrawdownTimeHours?: number
+  baseValueRangeMin?: number
+  baseValueRangeMax?: number
+  baseRatioMin?: number
+  baseRatioMax?: number
+  blockAdjustment?: boolean
+  dcaAdjustment?: boolean
+  mainEngineEnabled?: boolean
+  presetEngineEnabled?: boolean
+  database_url?: string
+  // Common Indicators
+  rsiEnabled?: boolean
+  rsiPeriod?: number
+  rsiOversold?: number
+  rsiOverbought?: number
+  rsiPeriodFrom?: number
+  rsiPeriodTo?: number
+  rsiPeriodStep?: number
+  rsiOversoldFrom?: number
+  rsiOversoldTo?: number
+  rsiOversoldStep?: number
+  rsiOverboughtFrom?: number
+  rsiOverboughtTo?: number
+  rsiOverboughtStep?: number
+  macdEnabled?: boolean
+  macdFastPeriod?: number
+  macdSlowPeriod?: number
+  macdSignalPeriod?: number
+  macdFastPeriodFrom?: number
+  macdFastPeriodTo?: number
+  macdFastPeriodStep?: number
+  macdSlowPeriodFrom?: number
+  macdSlowPeriodTo?: number
+  macdSlowPeriodStep?: number
+  macdSignalPeriodFrom?: number
+  macdSignalPeriodTo?: number
+  macdSignalPeriodStep?: number
+  bollingerEnabled?: boolean
+  bollingerPeriod?: number
+  bollingerStdDev?: number
+  bollingerPeriodFrom?: number
+  bollingerPeriodTo?: number
+  bollingerPeriodStep?: number
+  bollingerStdDevFrom?: number
+  bollingerStdDevTo?: number
+  bollingerStdDevStep?: number
+  emaEnabled?: boolean
+  emaShortPeriod?: number
+  emaLongPeriod?: number
+  emaShortPeriodFrom?: number
+  emaShortPeriodTo?: number
+  emaShortPeriodStep?: number
+  emaLongPeriodFrom?: number
+  emaLongPeriodTo?: number
+  emaLongPeriodStep?: number
+  smaEnabled?: boolean
+  smaShortPeriod?: number
+  smaLongPeriod?: number
+  smaShortPeriodFrom?: number
+  smaShortPeriodTo?: number
+  smaShortPeriodStep?: number
+  smaLongPeriodFrom?: number
+  smaLongPeriodTo?: number
+  smaLongPeriodStep?: number
+  stochasticEnabled?: boolean
+  stochasticKPeriod?: number
+  stochasticDPeriod?: number
+  stochasticSlowing?: number
+  stochasticKPeriodFrom?: number
+  stochasticKPeriodTo?: number
+  stochasticKPeriodStep?: number
+  stochasticDPeriodFrom?: number
+  stochasticDPeriodTo?: number
+  stochasticDPeriodStep?: number
+  stochasticSlowingFrom?: number
+  stochasticSlowingTo?: number
+  stochasticSlowingStep?: number
+  adxEnabled?: boolean
+  adxPeriod?: number
+  adxThreshold?: number
+  adxPeriodFrom?: number
+  adxPeriodTo?: number
+  adxPeriodStep?: number
+  adxThresholdFrom?: number
+  adxThresholdTo?: number
+  adxThresholdStep?: number
+  atrEnabled?: boolean
+  atrPeriod?: number
+  atrMultiplier?: number
+  atrPeriodFrom?: number
+  atrPeriodTo?: number
+  atrPeriodStep?: number
+  atrMultiplierFrom?: number
+  atrMultiplierTo?: number
+  atrMultiplierStep?: number
+  parabolicSAREnabled?: boolean
+  parabolicSARAcceleration?: number
+  parabolicSARMaximum?: number
+  parabolicSARAccelerationFrom?: number
+  parabolicSARAccelerationTo?: number
+  parabolicSARAccelerationStep?: number
+  parabolicSARMaximumFrom?: number
+  parabolicSARMaximumTo?: number
+  parabolicSARMaximumStep?: number
+  autoRestartOnError?: boolean
+  restartCooldownMinutes?: number
+  maxRestartAttempts?: number
+  exchangeDirectionEnabled?: boolean
+  exchangeMoveEnabled?: boolean
+  exchangeActiveEnabled?: boolean
+  exchangeOptimalEnabled?: boolean
+  exchangeBaseStrategyEnabled?: boolean
+  exchangeMainStrategyEnabled?: boolean
+  exchangeRealStrategyEnabled?: boolean
+  exchangeTrailingEnabled?: boolean
+  exchangeBlockEnabled?: boolean
+  exchangeDcaEnabled?: boolean
+  // The following properties are common to both old and new settings
+  // They should be present in the new SystemSettings interface as well
+  // to avoid TypeScript errors when loading settings from the backend.
+  overallDatabaseSizeGB?: number
+  databasePositionLengthBase?: number
+  databasePositionLengthMain?: number
+  databasePositionLengthReal?: number
+  databasePositionLengthPreset?: number
+  databaseThresholdPercent?: number
+  symbolsPerExchange?: number
+  enableTestnetByDefault?: boolean
+  logsLevel?: string
+  logsCategory?: string
+  logsLimit?: number
+  enableSystemMonitoring?: boolean
+  metricsRetentionDays?: number
+  mainEngineEnabled?: boolean
+  presetEngineEnabled?: boolean
+  // Add more properties from the old Settings interface if they are not
+  // covered by the new SystemSettings interface and are still relevant.
+  [key: string]: any
+}
+
+// Define Settings interface for backward compatibility with initialSettings
 interface Settings {
+  // Overall / Main
   base_volume_factor: number
   positions_average: number
   max_leverage: number
@@ -59,74 +276,114 @@ interface Settings {
   positionCost: number
   exchangePositionCost: number
   useMaximalLeverage: boolean
+  min_volume_enforcement: boolean
+
+  // Base Strategy
   baseValueRangeMin: number
   baseValueRangeMax: number
   baseRatioMin: number
   baseRatioMax: number
   trailingOption: boolean
+
+  // Main Strategy
   previousPositionsCount: number
   lastStateCount: number
+
+  // Trailing Configuration
   trailingEnabled: boolean
   trailingStartValues: string
   trailingStopValues: string
+
+  // Adjustment Strategies
   blockAdjustment: boolean
   dcaAdjustment: boolean
+  block_enabled: boolean
+  dca_enabled: boolean
+
+  // Symbol Selection
   arrangementType: string
-  numberOfSymbolsToSelect: number
   quoteAsset: string
+
+  // Minimum Profit Factor Requirements
   baseProfitFactor: number
   mainProfitFactor: number
   realProfitFactor: number
+
+  // Risk Management
   trailingStopLoss: boolean
   maxDrawdownTimeHours: number
+
+  // Trade Engine Intervals (milliseconds)
   mainEngineIntervalMs: number
   presetEngineIntervalMs: number
   activeOrderHandlingIntervalMs: number
-  databasePositionLengthBase: number
-  databasePositionLengthMain: number
-  databasePositionLengthReal: number
-  databasePositionLengthPreset: number
-  databaseThresholdPercent: number
-  overallDatabaseSizeGB: number
+
+  databasePositionLengthBase?: number
+  databasePositionLengthMain?: number
+  databasePositionLengthReal?: number
+  databasePositionLengthPreset?: number
+  databaseThresholdPercent?: number
+  overallDatabaseSizeGB?: number
+
+  // Trade Engine Configuration
   positionCooldownMs: number
   maxPositionsPerConfigDirection: number
   maxConcurrentOperations: number
+
+  // System Configuration
   autoRestartOnErrors: boolean
   logLevel: string
+
+  // Database Management
   automaticDatabaseCleanup: boolean
   automaticDatabaseBackups: boolean
-  backupInterval: string
+  backupInterval: "daily" | "weekly" | "monthly"
+
+  // Connection Settings
   minimumConnectIntervalMs: number
   symbolsPerExchange: number
+
+  // Connection Defaults
   defaultMarginType: string
   defaultPositionMode: string
   rateLimitDelayMs: number
   maxConcurrentConnections: number
   enableTestnetByDefault: boolean
+
+  // Application Logs
   logsLevel: string
   logsCategory: string
   logsLimit: number
+
+  // Monitoring Configuration
   enableSystemMonitoring: boolean
   metricsRetentionDays: number
+
   mainEngineEnabled: boolean
   presetEngineEnabled: boolean
-  maxPositionsPerExchange: Record<string, number>
+
   mainSymbols: string[]
   forcedSymbols: string[]
+
   useMainSymbols: boolean
+  numberOfSymbolsToSelect: number
   symbolOrderType: string
   symbolUpdateIntervalHours: number
   volatilityCalculationHours: number
+
+  // Indication
   indication_time_interval: number
   indication_range_min: number
   indication_range_max: number
   indication_min_profit_factor: number
+
+  // Strategy
   strategy_time_interval: number
   strategy_min_profit_factor: number
   stepRelationMinRatio: number
   stepRelationMaxRatio: number
-  block_enabled: boolean
-  dca_enabled: boolean
+
+  // Main Indication Settings
   marketActivityEnabled: boolean
   marketActivityCalculationRange: number
   marketActivityPositionCostRatio: number
@@ -141,11 +398,14 @@ interface Settings {
   activeEnabled: boolean
   activeInterval: number
   activeTimeout: number
+
+  // Optimal Indication Settings
   optimalCoordinationEnabled: boolean
   trailingOptimalRanges: boolean
   simultaneousTrading: boolean
   positionIncrementAfterSituation: boolean
-  // Common Indicators
+
+  // Common Indicators (all enabled by default)
   rsiEnabled: boolean
   rsiPeriod: number
   rsiOversold: number
@@ -159,6 +419,7 @@ interface Settings {
   rsiOverboughtFrom: number
   rsiOverboughtTo: number
   rsiOverboughtStep: number
+
   macdEnabled: boolean
   macdFastPeriod: number
   macdSlowPeriod: number
@@ -172,6 +433,7 @@ interface Settings {
   macdSignalPeriodFrom: number
   macdSignalPeriodTo: number
   macdSignalPeriodStep: number
+
   bollingerEnabled: boolean
   bollingerPeriod: number
   bollingerStdDev: number
@@ -181,6 +443,7 @@ interface Settings {
   bollingerStdDevFrom: number
   bollingerStdDevTo: number
   bollingerStdDevStep: number
+
   emaEnabled: boolean
   emaShortPeriod: number
   emaLongPeriod: number
@@ -190,6 +453,7 @@ interface Settings {
   emaLongPeriodFrom: number
   emaLongPeriodTo: number
   emaLongPeriodStep: number
+
   smaEnabled: boolean
   smaShortPeriod: number
   smaLongPeriod: number
@@ -199,6 +463,7 @@ interface Settings {
   smaLongPeriodFrom: number
   smaLongPeriodTo: number
   smaLongPeriodStep: number
+
   stochasticEnabled: boolean
   stochasticKPeriod: number
   stochasticDPeriod: number
@@ -212,6 +477,7 @@ interface Settings {
   stochasticSlowingFrom: number
   stochasticSlowingTo: number
   stochasticSlowingStep: number
+
   adxEnabled: boolean
   adxPeriod: number
   adxThreshold: number
@@ -221,6 +487,7 @@ interface Settings {
   adxThresholdFrom: number
   adxThresholdTo: number
   adxThresholdStep: number
+
   atrEnabled: boolean
   atrPeriod: number
   atrMultiplier: number
@@ -230,6 +497,7 @@ interface Settings {
   atrMultiplierFrom: number
   atrMultiplierTo: number
   atrMultiplierStep: number
+
   parabolicSAREnabled: boolean
   parabolicSARAcceleration: number
   parabolicSARMaximum: number
@@ -239,96 +507,28 @@ interface Settings {
   parabolicSARMaximumFrom: number
   parabolicSARMaximumTo: number
   parabolicSARMaximumStep: number
+
   autoRestartOnError: boolean
   restartCooldownMinutes: number
   maxRestartAttempts: number
-  min_volume_enforcement: boolean
+
   exchangeDirectionEnabled: boolean
   exchangeMoveEnabled: boolean
   exchangeActiveEnabled: boolean
-  exchangeOptimalEnabled: false
+  exchangeOptimalEnabled: boolean
   exchangeBaseStrategyEnabled: boolean
   exchangeMainStrategyEnabled: boolean
   exchangeRealStrategyEnabled: boolean
   exchangeTrailingEnabled: boolean
   exchangeBlockEnabled: boolean
   exchangeDcaEnabled: boolean
-  profitFactorMinMain?: number
-  drawdownTimeMain?: number
-  mainDirectionEnabled?: boolean
-  mainMoveEnabled?: boolean
-  mainActiveEnabled?: boolean
-  mainOptimalEnabled?: boolean
-  mainTrailingStrategy?: boolean
-  mainBlockStrategy?: boolean
-  mainDcaStrategy?: boolean
-  profitFactorMinPreset?: number
-  drawdownTimePreset?: number
-  presetTrailingEnabled?: boolean
-  presetBlockEnabled?: boolean
-  presetDcaEnabled?: boolean
-  presetDirectionEnabled?: boolean
-  presetMoveEnabled?: boolean
-  presetActiveEnabled?: boolean
-  presetOptimalEnabled?: boolean
-  presetTrailingStrategy?: boolean
-  presetBlockStrategy?: boolean
-  presetDcaStrategy?: boolean
-  tradeMode?: string
-  exchangePositionCost: number
-  baseVolumeFactorLive?: number
-  baseVolumeFactorPreset?: number
-  strategyTrailingEnabled?: boolean
-  strategyBlockEnabled?: boolean
-  strategyDcaEnabled?: boolean
-  directionRangeStep: number
-  directionDrawdownValues: string
-  directionMarketChangeFrom: number
-  directionMarketChangeTo: number
-  directionMarketChangeStep: number
-  directionMinCalcTime: number
-  directionLastPartRatio: number
-  directionRatioFactorFrom: number
-  directionRatioFactorTo: number
-  directionRatioFactorStep: number
-  moveRangeFrom: number
-  moveRangeTo: number
-  moveRangeStep: number
-  moveDrawdownValues: string
-  moveMarketChangeFrom: number
-  moveMarketChangeTo: number
-  moveMarketChangeStep: number
-  moveMinCalcTime: number
-  moveLastPartRatio: number
-  moveRatioFactorFrom: number
-  moveRatioFactorTo: number
-  moveRatioFactorStep: number
-  activeRangeFrom: number
-  activeRangeTo: number
-  activeRangeStep: number
-  activeDrawdownValues: string
-  activeMarketChangeFrom: number
-  activeMarketChangeTo: number
-  activeMarketChangeStep: number
-  activeMinCalcTime: number
-  activeLastPartRatio: number
-  activeRatioFactorFrom: number
-  activeRatioFactorTo: number
-  activeRatioFactorStep: number
-  activeCalculatedFrom: number
-  activeCalculatedTo: number
-  activeCalculatedStep: number
-  activeLastPartFrom: number
-  activeLastPartTo: number
-  activeLastPartStep: number
-  database_type: string
-  database_url: string
-  // Legacy fields for backward compatibility
-  databaseSizeBase?: number
-  databaseSizeMain?: number
-  databaseSizeReal?: number
-  databaseSizePreset?: number
-  maxDatabaseSizeMB?: number
+
+  // New fields added to SystemSettings should be mapped here as well for consistency
+  // if they are intended to be part of the legacy Settings interface for any reason.
+  // Otherwise, the SystemSettings interface should be the primary source.
+
+  // Add more properties from the old Settings interface if they are not
+  // covered by the new SystemSettings interface and are still relevant.
   [key: string]: any
 }
 
@@ -653,43 +853,224 @@ const initialSettings: Settings = {
 }
 
 export default function SettingsPage() {
-  const [newMainSymbol, setNewMainSymbol] = useState("")
-  const [newForcedSymbol, setNewForcedSymbol] = useState("")
-  const [databaseType, setDatabaseType] = useState<"sqlite" | "postgresql" | "remote">("sqlite")
-  const [showMainEngineDisableConfirm, setShowMainEngineDisableConfirm] = useState(false)
-  const [showPresetEngineDisableConfirm, setShowPresetEngineDisableConfirm] = useState(false)
-
-  const [settings, setSettings] = useState<Settings>({
-    ...initialSettings,
-    positionCost: initialSettings.positionCost ?? 0.1,
-    exchangePositionCost: initialSettings.exchangePositionCost ?? 0.1,
-    baseVolumeFactorLive: initialSettings.baseVolumeFactorLive ?? 1.0,
-    baseVolumeFactorPreset: initialSettings.baseVolumeFactorPreset ?? 1.0,
-    profitFactorMinMain: initialSettings.profitFactorMinMain ?? 0.6,
-    drawdownTimeMain: initialSettings.drawdownTimeMain ?? 300,
-    mainDirectionEnabled: initialSettings.mainDirectionEnabled ?? true,
-    mainMoveEnabled: initialSettings.mainMoveEnabled ?? true,
-    mainActiveEnabled: initialSettings.mainActiveEnabled ?? true,
-    mainOptimalEnabled: initialSettings.mainOptimalEnabled ?? false,
-    mainTrailingStrategy: initialSettings.mainTrailingStrategy ?? true,
-    mainBlockStrategy: initialSettings.mainBlockStrategy ?? true,
-    mainDcaStrategy: initialSettings.mainDcaStrategy ?? false,
-    profitFactorMinPreset: initialSettings.profitFactorMinPreset ?? 0.6,
-    drawdownTimePreset: initialSettings.drawdownTimePreset ?? 24,
-    presetTrailingEnabled: initialSettings.presetTrailingEnabled ?? false,
-    presetBlockEnabled: initialSettings.presetBlockEnabled ?? false,
-    presetDcaEnabled: initialSettings.presetDcaEnabled ?? false,
-    presetDirectionEnabled: initialSettings.presetDirectionEnabled ?? true,
-    presetMoveEnabled: initialSettings.presetMoveEnabled ?? true,
-    presetActiveEnabled: initialSettings.presetActiveEnabled ?? true,
-    presetOptimalEnabled: initialSettings.presetOptimalEnabled ?? false,
-    presetTrailingStrategy: initialSettings.presetTrailingStrategy ?? true,
-    presetBlockStrategy: initialSettings.presetBlockStrategy ?? true,
-    presetDcaStrategy: initialSettings.presetDcaStrategy ?? false,
-    tradeMode: initialSettings.tradeMode ?? "main",
-    strategyTrailingEnabled: initialSettings.strategyTrailingEnabled ?? true,
-    strategyBlockEnabled: initialSettings.strategyBlockEnabled ?? true,
-    strategyDcaEnabled: initialSettings.strategyDcaEnabled ?? false,
+  // Initialize settings state with SystemSettings, merging with initialSettings for backward compatibility
+  const [settings, setSettings] = useState<SystemSettings>(() => {
+    const baseSystemSettings: SystemSettings = {
+      database_type: "sqlite",
+      positionCost: 0.1,
+      symbolsExchangeCount: 30,
+      positionsAverage: 50,
+      baseVolumeFactor: 1.0,
+      mainSymbols: ["bch", "xrp", "eth", "link", "doge", "h"],
+      forcedSymbols: ["xrp", "bch"],
+      prehistoricDataDays: 5,
+      marketTimeframe: 1,
+      maxPositionsPerExchange: {
+        bybit: 200,
+        binance: 200,
+        okx: 150,
+        kucoin: 150,
+        gateio: 150,
+        bitget: 150,
+        mexc: 100,
+        bingx: 100,
+        lbank: 50,
+        bitmart: 50,
+      },
+      trade_interval: 5,
+      engine_speed: 1,
+      monitoring_interval: 30,
+      tradeMode: "both",
+      stepRelationMinRatio: 0.5,
+      stepRelationMaxRatio: 2.0,
+      minimumConnectInterval: 200,
+      defaultMarginType: "isolated",
+      defaultPositionMode: "one-way",
+      rateLimitDelay: 1000,
+      maxConcurrentConnections: 5,
+      testnetEnabled: false,
+      monitoringEnabled: true,
+      metricsRetention: 30,
+      strategyMinProfitFactor: 0.5,
+      indicationMinProfitFactor: 0.7,
+      profitFactorMultiplier: 1.0,
+      strategyTrailingEnabled: true,
+      strategyBlockEnabled: true,
+      strategyDcaEnabled: false,
+      blockAutoDisableEnabled: true,
+      blockAdjustmentRatio: 1.0,
+      blockAutoDisableMinBlocks: 2,
+      blockAutoDisableComparisonWindow: 50,
+      minWinRate: 45,
+      maxDrawdownHours: 24,
+      adjustStrategyDrawdownPositions: 80,
+      volumeRangePercentage: 20,
+      rateLimitPerSecond: 10,
+      connectionTimeout: 30,
+      arrangementType: "market_cap",
+      baseVolumeFactorLive: 1.0,
+      profitFactorMinMain: 0.6,
+      drawdownTimeMain: 300,
+      trailingEnabled: false,
+      trailingOnly: false,
+      blockEnabled: false,
+      blockOnly: false,
+      dcaEnabled: false,
+      presetTrailingEnabled: false,
+      presetTrailingOnly: false,
+      presetBlockEnabled: false,
+      presetBlockOnly: false,
+      presetDcaEnabled: false,
+      baseVolumeFactorPreset: 1.0,
+      profitFactorMinPreset: 0.6,
+      drawdownTimePreset: 300,
+      mainTradeInterval: 1,
+      presetTradeInterval: 2,
+      maxPseudoPositions: 250,
+      marketDataRetention: 24,
+      // Common Indicators
+      rsiEnabled: true,
+      rsiPeriod: 14,
+      rsiOversold: 30,
+      rsiOverbought: 70,
+      rsiPeriodFrom: 7,
+      rsiPeriodTo: 21,
+      rsiPeriodStep: 1,
+      rsiOversoldFrom: 15,
+      rsiOversoldTo: 45,
+      rsiOversoldStep: 5,
+      rsiOverboughtFrom: 55,
+      rsiOverboughtTo: 85,
+      rsiOverboughtStep: 5,
+      macdEnabled: true,
+      macdFastPeriod: 12,
+      macdSlowPeriod: 26,
+      macdSignalPeriod: 9,
+      macdFastPeriodFrom: 6,
+      macdFastPeriodTo: 18,
+      macdFastPeriodStep: 2,
+      macdSlowPeriodFrom: 13,
+      macdSlowPeriodTo: 39,
+      macdSlowPeriodStep: 2,
+      macdSignalPeriodFrom: 5,
+      macdSignalPeriodTo: 13,
+      macdSignalPeriodStep: 1,
+      bollingerEnabled: true,
+      bollingerPeriod: 20,
+      bollingerStdDev: 2.0,
+      bollingerPeriodFrom: 10,
+      bollingerPeriodTo: 30,
+      bollingerPeriodStep: 2,
+      bollingerStdDevFrom: 1.0,
+      bollingerStdDevTo: 3.0,
+      bollingerStdDevStep: 0.5,
+      emaEnabled: true,
+      emaShortPeriod: 9,
+      emaLongPeriod: 21,
+      emaShortPeriodFrom: 5,
+      emaShortPeriodTo: 13,
+      emaShortPeriodStep: 1,
+      emaLongPeriodFrom: 11,
+      emaLongPeriodTo: 31,
+      emaLongPeriodStep: 2,
+      smaEnabled: true,
+      smaShortPeriod: 10,
+      smaLongPeriod: 50,
+      smaShortPeriodFrom: 5,
+      smaShortPeriodTo: 15,
+      smaShortPeriodStep: 1,
+      smaLongPeriodFrom: 25,
+      smaLongPeriodTo: 75,
+      smaLongPeriodStep: 5,
+      stochasticEnabled: true,
+      stochasticKPeriod: 14,
+      stochasticDPeriod: 3,
+      stochasticSlowing: 3,
+      stochasticKPeriodFrom: 7,
+      stochasticKPeriodTo: 21,
+      stochasticKPeriodStep: 1,
+      stochasticDPeriodFrom: 2,
+      stochasticDPeriodTo: 4,
+      stochasticDPeriodStep: 1,
+      stochasticSlowingFrom: 2,
+      stochasticSlowingTo: 4,
+      stochasticSlowingStep: 1,
+      adxEnabled: true,
+      adxPeriod: 14,
+      adxThreshold: 25,
+      adxPeriodFrom: 7,
+      adxPeriodTo: 21,
+      adxPeriodStep: 1,
+      adxThresholdFrom: 13,
+      adxThresholdTo: 37,
+      adxThresholdStep: 2,
+      atrEnabled: true,
+      atrPeriod: 14,
+      atrMultiplier: 1.5,
+      atrPeriodFrom: 7,
+      atrPeriodTo: 21,
+      atrPeriodStep: 1,
+      atrMultiplierFrom: 1.0,
+      atrMultiplierTo: 3.0,
+      atrMultiplierStep: 0.5,
+      parabolicSAREnabled: false,
+      parabolicSARAcceleration: 0.02,
+      parabolicSARMaximum: 0.2,
+      parabolicSARAccelerationFrom: 0.01,
+      parabolicSARAccelerationTo: 0.03,
+      parabolicSARAccelerationStep: 0.005,
+      parabolicSARMaximumFrom: 0.1,
+      parabolicSARMaximumTo: 0.3,
+      parabolicSARMaximumStep: 0.05,
+      autoRestartOnError: true,
+      restartCooldownMinutes: 5,
+      maxRestartAttempts: 3,
+      exchangeDirectionEnabled: true,
+      exchangeMoveEnabled: true,
+      exchangeActiveEnabled: true,
+      exchangeOptimalEnabled: false,
+      exchangeBaseStrategyEnabled: true,
+      exchangeMainStrategyEnabled: true,
+      exchangeRealStrategyEnabled: true,
+      exchangeTrailingEnabled: true,
+      exchangeBlockEnabled: true,
+      exchangeDcaEnabled: true,
+      // The following properties are common to both old and new settings
+      // They should be present in the new SystemSettings interface as well
+      // to avoid TypeScript errors when loading settings from the backend.
+      overallDatabaseSizeGB: 20,
+      databasePositionLengthBase: 250,
+      databasePositionLengthMain: 250,
+      databasePositionLengthReal: 250,
+      databasePositionLengthPreset: 250,
+      databaseThresholdPercent: 20,
+      symbolsPerExchange: 50,
+      enableTestnetByDefault: false,
+      logsLevel: "all",
+      logsCategory: "all",
+      logsLimit: 100,
+      enableSystemMonitoring: true,
+      metricsRetentionDays: 30,
+      mainEngineEnabled: true,
+      presetEngineEnabled: true,
+      // ADDED PROPERTIES FROM UPDATES:
+      indication_time_interval: 1,
+      indication_range_min: 3,
+      indication_range_max: 30,
+      indication_min_profit_factor: 0.7,
+      baseProfitFactor: 0.6,
+      maxDrawdownTimeHours: 24,
+      baseValueRangeMin: 0.5,
+      baseValueRangeMax: 2.5,
+      baseRatioMin: 0.2,
+      baseRatioMax: 1,
+      blockAdjustment: true,
+      dcaAdjustment: false,
+      database_url: "",
+    }
+    // Merge with initialSettings to preserve legacy values if not present in the new interface
+    const merged = { ...initialSettings, ...baseSystemSettings } as SystemSettings
+    return merged
   })
 
   const [originalDatabaseType, setOriginalDatabaseType] = useState("sqlite")
@@ -698,64 +1079,445 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [connections, setConnections] = useState<ExchangeConnection[]>([])
   const [activeTab, setActiveTab] = useState("overall")
+  const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [initializing, setInitializing] = useState(false)
+  const [migrating, setMigrating] = useState(false)
+  const [currentTab, setCurrentTab] = useState("overall")
+  const [selectedExchange, setSelectedExchange] = useState<string>("")
+  const [newMainSymbol, setNewMainSymbol] = useState("")
+  const [newForcedSymbol, setNewForcedSymbol] = useState("")
+  const [exchanges, setExchanges] = useState<any[]>([])
+  const [presets, setPresets] = useState<any[]>([])
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string>("")
+  const [connectionSettings, setConnectionSettings] = useState<any>({})
+  const [activeIndications, setActiveIndications] = useState<string[]>([])
+  const [activeStrategies, setActiveStrategies] = useState<string[]>([])
+  const [databaseStatus, setDatabaseStatus] = useState<any>(null) // Initialize databaseStatus
+  const [databaseType, setDatabaseType] = useState<"sqlite" | "postgresql" | "remote">("sqlite")
+  const [showMainEngineDisableConfirm, setShowMainEngineDisableConfirm] = useState(false)
+  const [showPresetEngineDisableConfirm, setShowPresetEngineDisableConfirm] = useState(false)
 
   useEffect(() => {
-    loadSettings()
-    loadConnections()
+    const initialize = async () => {
+      console.log("[v0] Settings page initializing...")
+
+      await Promise.all([
+        loadConnections(),
+        loadSettings(),
+        initializePredefinedConnections(),
+        loadExchanges(),
+        loadPresets(),
+        loadDatabaseStatus(),
+      ]).catch((error) => {
+        console.error("[v0] Settings initialization error:", error)
+      })
+    }
+
+    initialize()
   }, [])
+
+  useEffect(() => {
+    if (selectedConnectionId && currentTab === "exchange") {
+      loadConnectionSettings()
+      loadConnectionIndications()
+      loadConnectionStrategies()
+    }
+  }, [selectedConnectionId, currentTab])
 
   useEffect(() => {
     setDatabaseChanged(settings.database_type !== originalDatabaseType)
   }, [settings.database_type, originalDatabaseType])
 
-  const loadSettings = async () => {
+  const initializePredefinedConnections = async () => {
     try {
-      setIsLoading(true)
-      const response = await fetch("/api/settings")
+      console.log("[v0] Checking for predefined connections...")
+      const response = await fetch("/api/settings/connections/init-predefined", {
+        method: "POST",
+      })
+
       if (response.ok) {
         const data = await response.json()
-        // Migrate old database size fields to new position length fields
-        const migratedSettings = {
-          ...initialSettings,
-          ...data,
-          databasePositionLengthBase: data.databasePositionLengthBase ?? data.databaseSizeBase ?? 250,
-          databasePositionLengthMain: data.databasePositionLengthMain ?? data.databaseSizeMain ?? 250,
-          databasePositionLengthReal: data.databasePositionLengthReal ?? data.databaseSizeReal ?? 250,
-          databasePositionLengthPreset: data.databasePositionLengthPreset ?? data.databaseSizePreset ?? 250,
-          databaseThresholdPercent: data.databaseThresholdPercent ?? 20,
-          overallDatabaseSizeGB: data.overallDatabaseSizeGB ?? 20,
-          symbolUpdateIntervalHours: data.symbolUpdateIntervalHours ?? 1,
-          volatilityCalculationHours: data.volatilityCalculationHours ?? 1,
-          risk_percentage: data.risk_percentage ?? data.negativeChangePercent ?? initialSettings.risk_percentage,
+        console.log("[v0] Predefined connections check:", data.message)
+        if (data.connections) {
+          await loadConnections()
         }
-        setSettings(migratedSettings)
-        setOriginalDatabaseType(data.database_type || "sqlite")
       }
     } catch (error) {
-      console.error("Failed to load settings:", error)
-      toast.error("Failed to load settings")
-    } finally {
-      setIsLoading(false)
+      console.error("[v0] Failed to initialize predefined connections:", error)
     }
   }
 
   const loadConnections = async () => {
     try {
+      console.log("[v0] Loading connections...")
       const response = await fetch("/api/settings/connections")
       if (response.ok) {
         const data = await response.json()
-        setConnections(data)
+        if (Array.isArray(data)) {
+          setConnections(data)
+
+          const dashboardSelection = localStorage.getItem("selectedExchange")
+          if (dashboardSelection && data.some((conn: ExchangeConnection) => conn.id === dashboardSelection)) {
+            setSelectedConnectionId(dashboardSelection)
+          } else if (data.length > 0) {
+            setSelectedConnectionId(data[0].id)
+          } else {
+            setSelectedConnectionId("")
+          }
+          console.log("[v0] Connections loaded:", data.length)
+        } else {
+          console.log("[v0] Invalid connections data")
+          setConnections([])
+          setSelectedConnectionId("")
+        }
       }
     } catch (error) {
-      console.error("Failed to load connections:", error)
+      console.error("[v0] Failed to load connections:", error)
+      setConnections([])
+      setSelectedConnectionId("")
     }
   }
 
-  const handleSettingChange = (key: keyof Settings, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
+  const handleSettingChange = (key: keyof SystemSettings, value: any) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleExchangeChange = (value: string) => {
+    setSelectedExchange(value)
+    localStorage.setItem("selectedExchange", value)
+  }
+
+  const loadSettings = async () => {
+    try {
+      console.log("[v0] Loading settings...")
+      const response = await fetch("/api/settings/system")
+
+      if (!response.ok) {
+        const text = await response.text()
+        console.error("[v0] Failed to load settings, status:", response.status, "body:", text)
+        return
+      }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("[v0] Invalid response type:", contentType, "body:", text)
+        return
+      }
+
+      const data = await response.json()
+      if (data && typeof data === "object") {
+        console.log("[v0] Settings loaded:", Object.keys(data).length, "keys")
+        setSettings((prev) => {
+          const newSettings: SystemSettings = { ...prev }
+          for (const key in data) {
+            if (key in newSettings) {
+              ;(newSettings as any)[key] = data[key]
+            }
+          }
+          // Ensure all properties from initialSettings that might be missing in the loaded data
+          // are still present, using default values. This is crucial for backward compatibility.
+          for (const key in initialSettings) {
+            if (!(key in newSettings) || newSettings[key as keyof SystemSettings] === undefined) {
+              newSettings[key as keyof SystemSettings] = initialSettings[key as keyof Settings] as any
+            }
+          }
+          return newSettings
+        })
+        // Set the original database type after loading settings
+        setOriginalDatabaseType(data.database_type || "sqlite")
+      } else {
+        console.log("[v0] Invalid settings data")
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load settings:", error)
+      toast.error("Failed to load settings")
+    } finally {
+      setIsLoading(false) // Set isLoading to false after attempt to load settings
+    }
+  }
+
+  const loadExchanges = async () => {
+    try {
+      const response = await fetch("/api/settings/exchanges")
+      if (response.ok) {
+        const data = await response.json()
+        setExchanges(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load exchanges:", error)
+    }
+  }
+
+  const loadPresets = async () => {
+    try {
+      const response = await fetch("/api/settings/presets")
+      if (response.ok) {
+        const data = await response.json()
+        setPresets(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load presets:", error)
+    }
+  }
+
+  const loadDatabaseStatus = async () => {
+    try {
+      console.log("[v0] Loading database status...")
+      const response = await fetch("/api/settings/database-status")
+      if (response.ok) {
+        const status = await response.json()
+        setDatabaseStatus(status)
+        console.log("[v0] Database status:", status)
+      } else {
+        console.error("[v0] Failed to load database status:", response.statusText)
+        setDatabaseStatus(null)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load database status:", error)
+      setDatabaseStatus(null)
+    }
+  }
+
+  const loadConnectionSettings = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/settings`)
+      if (response.ok) {
+        const data = await response.json()
+        setConnectionSettings(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection settings:", error)
+    }
+  }
+
+  const loadConnectionIndications = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/active-indications`)
+      if (response.ok) {
+        const data = await response.json()
+        setActiveIndications(data.indications || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection indications:", error)
+    }
+  }
+
+  const loadConnectionStrategies = async () => {
+    if (!selectedConnectionId) return
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/active-strategies`)
+      if (response.ok) {
+        const data = await response.json()
+        setActiveStrategies(data.strategies || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connection strategies:", error)
+      setActiveStrategies([])
+    }
+  }
+
+  const handleConnectionSettingChange = async (key: string, value: any) => {
+    if (!selectedConnectionId) return
+
+    const updatedSettings = { ...connectionSettings, [key]: value }
+    setConnectionSettings(updatedSettings)
+
+    try {
+      const response = await fetch(`/api/settings/connections/${selectedConnectionId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSettings),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update connection settings")
+      }
+
+      toast.success("Connection setting updated")
+    } catch (error) {
+      console.error("[v0] Failed to update connection setting:", error)
+      toast.error("Failed to update connection setting")
+      setConnectionSettings(connectionSettings)
+    }
+  }
+
+  const initializeDatabase = async () => {
+    setInitializing(true)
+    try {
+      console.log("[v0] Calling database init API...")
+      const response = await fetch("/api/install/database/init", {
+        method: "POST",
+      })
+      const data = await response.json()
+
+      console.log("[v0] Database init response:", data)
+
+      if (response.ok && data.success) {
+        toast.success(data.message || `Database initialized: ${data.tables_created} tables created`)
+
+        if (data.logs) {
+          console.log("[v0] Init logs:", data.logs)
+        }
+
+        await loadDatabaseStatus()
+      } else {
+        toast.error(data.details || data.error || "Failed to initialize database")
+
+        if (data.logs) {
+          console.error("[v0] Init error logs:", data.logs)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Database initialization failed:", error)
+      toast.error("Failed to initialize database")
+    } finally {
+      setInitializing(false)
+    }
+  }
+
+  const runMigrations = async () => {
+    setMigrating(true)
+    try {
+      console.log("[v0] Calling database migrate API...")
+      const response = await fetch("/api/install/database/migrate", {
+        method: "POST",
+      })
+      const data = await response.json()
+
+      console.log("[v0] Migration response:", data)
+
+      if (response.ok && data.success) {
+        if (data.errors && data.errors.length > 0) {
+          toast.error(`Migrations completed with ${data.errors.length} errors`)
+        } else {
+          toast.success(data.message || `Migrations complete: ${data.migrations_applied} applied`)
+        }
+
+        if (data.logs) {
+          console.log("[v0] Migration logs:", data.logs)
+          data.logs.forEach((log: string) => console.log(`  ${log}`))
+        }
+
+        await loadDatabaseStatus()
+      } else {
+        toast.error(data.details || data.error || "Failed to run migrations")
+
+        if (data.logs) {
+          console.error("[v0] Migration error logs:", data.logs)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Migration failed:", error)
+      toast.error("Failed to run migrations")
+    } finally {
+      setMigrating(false)
+    }
+  }
+
+  const saveAllSettings = async () => {
+    setSaving(true)
+    try {
+      console.log("[v0] Saving all settings...")
+
+      const response = await fetch("/api/settings/system", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save system settings")
+      }
+
+      const result = await response.json()
+      console.log("[v0] Settings save response:", result)
+
+      toast.success("Settings saved successfully")
+
+      await loadDatabaseStatus()
+      await fetch("/api/trade-engine/reload-settings", { method: "POST" })
+
+      if (result.dbTypeChanged) {
+        toast.info("Database type changed. System reconnected successfully.")
+      }
+      // Update originalDatabaseType after successful save
+      setOriginalDatabaseType(settings.database_type)
+      setDatabaseChanged(false)
+    } catch (error) {
+      console.error("[v0] Failed to save settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const exportSettings = async () => {
+    setExporting(true)
+    try {
+      const response = await fetch("/api/settings/export", {
+        method: "GET",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to export settings")
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `cts-settings-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success("Settings exported successfully")
+    } catch (error) {
+      console.error("[v0] Failed to export settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to export settings")
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const importSettings = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const importedSettings = JSON.parse(text)
+
+      const response = await fetch("/api/settings/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(importedSettings),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to import settings")
+      }
+
+      await loadSettings()
+      toast.success("Settings imported successfully")
+    } catch (error) {
+      console.error("[v0] Failed to import settings:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to import settings")
+    } finally {
+      setImporting(false)
+      event.target.value = ""
+    }
   }
 
   // Handlers for engine enable/disable with confirmation
@@ -788,8 +1550,8 @@ export default function SettingsPage() {
   }
 
   const saveSettings = async () => {
+    setIsSaving(true)
     try {
-      setIsSaving(true)
       const response = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -855,95 +1617,88 @@ export default function SettingsPage() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col w-full min-h-screen bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
+      <div className="flex h-screen w-full flex-col">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
           <SidebarTrigger />
           <h1 className="text-lg font-semibold">Settings</h1>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadSettings}>
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Reload
+            <input type="file" id="import-settings" accept=".json" onChange={importSettings} className="hidden" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => document.getElementById("import-settings")?.click()}
+              disabled={importing}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {importing ? "Importing..." : "Import"}
             </Button>
-            <Button size="sm" onClick={saveSettings} disabled={isSaving}>
-              <Save className="h-4 w-4 mr-1" />
-              {isSaving ? "Saving..." : "Save Changes"}
+            <Button variant="outline" size="sm" onClick={exportSettings} disabled={exporting}>
+              <Download className="mr-2 h-4 w-4" />
+              {exporting ? "Exporting..." : "Export"}
+            </Button>
+            <Button size="sm" onClick={saveAllSettings} disabled={saving}>
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? "Saving..." : "Save All"}
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+        <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <Tabs
+            defaultValue="overall"
+            className="w-full"
+            value={activeTab}
+            onValueChange={(val) => {
+              setActiveTab(val)
+              setCurrentTab(val)
+            }}
+          >
+            <TabsList className="w-full justify-start h-auto flex-wrap">
               <TabsTrigger value="overall">Overall</TabsTrigger>
-              <TabsTrigger value="connections">Connections</TabsTrigger>
+              <TabsTrigger value="exchange">Exchange</TabsTrigger>
               <TabsTrigger value="indication">Indication</TabsTrigger>
               <TabsTrigger value="strategy">Strategy</TabsTrigger>
               <TabsTrigger value="system">System</TabsTrigger>
               <TabsTrigger value="statistics">Statistics</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overall" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Main Settings</CardTitle>
-                  <CardDescription>Configure core trading parameters</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Symbol Management</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
+            <TabsContent value="overall" className="space-y-6">
+              <Tabs defaultValue="main" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="main">Main</TabsTrigger>
+                  <TabsTrigger value="connection">Connection</TabsTrigger>
+                  <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+                  <TabsTrigger value="install">Install</TabsTrigger>
+                </TabsList>
+
+                {/* Main Section */}
+                <TabsContent value="main" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Trade Mode Configuration</CardTitle>
+                      <CardDescription>Configure trading mode and market data parameters</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
                       <div className="space-y-2">
-                        <Label>Symbol Update Interval (Hours)</Label>
-                        <div className="flex items-center gap-4">
-                          <Slider
-                            min={1}
-                            max={24}
-                            step={1}
-                            value={[settings.symbolUpdateIntervalHours || 1]}
-                            onValueChange={([value]) => handleSettingChange("symbolUpdateIntervalHours", value)}
-                            className="flex-1"
-                          />
-                          <span className="text-sm font-medium w-12 text-right">
-                            {settings.symbolUpdateIntervalHours || 1}h
-                          </span>
-                        </div>
+                        <Label>Trade Mode</Label>
+                        <Select
+                          value={settings.tradeMode || "both"}
+                          onValueChange={(value) => handleSettingChange("tradeMode", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="main">Main Trading Only</SelectItem>
+                            <SelectItem value="preset">Preset Trading Only</SelectItem>
+                            <SelectItem value="both">Both (Main + Preset)</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <p className="text-xs text-muted-foreground">
-                          How often to update symbols from exchange (default: 1 hour)
+                          Select trading mode (default: both). Determines which trading engines are active.
                         </p>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Volatility Calculation Period (Hours)</Label>
-                        <div className="flex items-center gap-4">
-                          <Slider
-                            min={1}
-                            max={24}
-                            step={1}
-                            value={[settings.volatilityCalculationHours || 1]}
-                            onValueChange={([value]) => handleSettingChange("volatilityCalculationHours", value)}
-                            className="flex-1"
-                          />
-                          <span className="text-sm font-medium w-12 text-right">
-                            {settings.volatilityCalculationHours || 1}h
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Period for calculating volatility (default: 1 hour instead of 24h)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Existing Overall tab content from here */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Data & Timeframe Configuration</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure historical data retrieval and market timeframes
-                    </p>
-
-                    <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label>Days of Prehistoric Data</Label>
@@ -955,352 +1710,107 @@ export default function SettingsPage() {
                           step={1}
                           value={[settings.prehistoricDataDays || 5]}
                           onValueChange={([value]) => handleSettingChange("prehistoricDataDays", value)}
+                          className="flex-1"
                         />
-                        <p className="text-xs text-muted-foreground">Historical data to load on startup (1-15 days)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Number of days of historical market data to retrieve on startup (1-15 days, default: 5)
+                        </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Market Timeframe</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Market Data Timeframe</Label>
+                          <span className="text-sm font-medium">{settings.marketTimeframe || 1} second(s)</span>
+                        </div>
                         <Select
                           value={String(settings.marketTimeframe || 1)}
                           onValueChange={(value) => handleSettingChange("marketTimeframe", Number.parseInt(value))}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select timeframe" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 second</SelectItem>
-                            <SelectItem value="5">5 seconds</SelectItem>
-                            <SelectItem value="15">15 seconds</SelectItem>
-                            <SelectItem value="30">30 seconds</SelectItem>
-                            <SelectItem value="60">1 minute</SelectItem>
-                            <SelectItem value="300">5 minutes</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">Market data update interval</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Volume Configuration</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure volume factors and position calculation settings
-                    </p>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Base Volume Factor</Label>
-                          <span className="text-sm font-medium">{settings.base_volume_factor || 1}</span>
-                        </div>
-                        <Slider
-                          min={0.5}
-                          max={10}
-                          step={0.5}
-                          value={[settings.base_volume_factor || 1]}
-                          onValueChange={([value]) => handleSettingChange("base_volume_factor", value)}
-                        />
-                        <p className="text-xs text-muted-foreground">Position volume multiplier (0.5-10)</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Range Percentage (Loss Trigger)</Label>
-                          <span className="text-sm font-medium">{settings.negativeChangePercent || 20}%</span>
-                        </div>
-                        <Slider
-                          min={5}
-                          max={30}
-                          step={5}
-                          value={[settings.negativeChangePercent || 20]}
-                          onValueChange={([value]) => {
-                            handleSettingChange("negativeChangePercent", value)
-                            // Update risk_percentage when negativeChangePercent changes
-                            handleSettingChange("risk_percentage", value)
-                          }}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Market price change % to trigger loss calculation (5-30%)
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Positions Average</Label>
-                          <span className="text-sm font-medium">{settings.positions_average || 50}</span>
-                        </div>
-                        <Slider
-                          min={20}
-                          max={300}
-                          step={10}
-                          value={[settings.positions_average || 50]}
-                          onValueChange={([value]) => handleSettingChange("positions_average", value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Target positions count for volume averaging calculation (20-300)
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <Label>Minimum Volume Enforcement</Label>
-                          <p className="text-xs text-muted-foreground">Require minimum trading volume for positions</p>
-                        </div>
-                        <Switch
-                          checked={settings.min_volume_enforcement !== false}
-                          onCheckedChange={(checked) => handleSettingChange("min_volume_enforcement", checked)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Position Configuration</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Position cost as ratio/percentage used for pseudo position calculations (Base/Main/Real levels).
-                      Volume is calculated ONLY at Exchange level when orders are executed. This value is
-                      account-balance independent.
-                    </p>
-
-                    <div className="space-y-2">
-                      <Label>Position Cost Percentage (0.01% - 1.0%)</Label>
-                      <div className="flex items-center gap-4">
-                        <Slider
-                          min={0.01}
-                          max={1.0}
-                          step={0.01}
-                          value={[settings.exchangePositionCost ?? settings.positionCost ?? 0.1]}
-                          onValueChange={([value]) => {
-                            handleSettingChange("exchangePositionCost", value)
-                            // Sync with Position Configuration settings
-                            handleSettingChange("positionCost", value)
-                          }}
-                          className="flex-1"
-                        />
-                        <span className="text-sm font-medium w-16 text-right">
-                          {(settings.exchangePositionCost ?? settings.positionCost ?? 0.1).toFixed(2)}%
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Position cost ratio used for Base/Main/Real pseudo position calculations (count-based, no
-                        volume). Volume is calculated at Exchange level: volume = (accountBalance × positionCost) /
-                        (entryPrice × leverage). Range: 0.01% - 1.0%, Default: 0.1%
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Leverage Configuration</h3>
-                    <p className="text-sm text-muted-foreground">Configure leverage settings and limits</p>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Leverage Percentage</Label>
-                          <span className="text-sm font-medium">{settings.leveragePercentage || 100}%</span>
-                        </div>
-                        <Slider
-                          min={5}
-                          max={100}
-                          step={5}
-                          value={[settings.leveragePercentage || 100]}
-                          onValueChange={([value]) => handleSettingChange("leveragePercentage", value)}
-                        />
-                        <p className="text-xs text-muted-foreground">Percentage of max leverage to use (5-100%)</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Max Leverage</Label>
-                          <span className="text-sm font-medium">{settings.max_leverage || 125}x</span>
-                        </div>
-                        <Slider
-                          min={1}
-                          max={125}
-                          step={1}
-                          value={[settings.max_leverage || 125]}
-                          onValueChange={([value]) => handleSettingChange("max_leverage", value)}
-                        />
-                        <p className="text-xs text-muted-foreground">Maximum leverage allowed (1-125x)</p>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <Label>Use Maximal Leverage</Label>
-                          <p className="text-xs text-muted-foreground">Always use maximum available leverage</p>
-                        </div>
-                        <Switch
-                          checked={settings.useMaximalLeverage !== false}
-                          onCheckedChange={(checked) => handleSettingChange("useMaximalLeverage", checked)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Symbol Configuration</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure symbol selection and ordering from exchanges
-                    </p>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label>Symbol Order Type</Label>
-                        <Select
-                          value={settings.symbolOrderType || "volume24h"}
-                          onValueChange={(value) => handleSettingChange("symbolOrderType", value)}
-                        >
-                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="volume24h">24h Volume (Highest First)</SelectItem>
-                            <SelectItem value="marketCap">Market Cap (Largest First)</SelectItem>
-                            <SelectItem value="priceChange24h">24h Price Change</SelectItem>
-                            <SelectItem value="volatility">Volatility (Most Volatile)</SelectItem>
-                            <SelectItem value="trades24h">24h Trades (Most Active)</SelectItem>
-                            <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
+                            <SelectItem value="1">1 Second</SelectItem>
+                            <SelectItem value="2">2 Seconds</SelectItem>
+                            <SelectItem value="3">3 Seconds</SelectItem>
+                            <SelectItem value="5">5 Seconds</SelectItem>
+                            <SelectItem value="10">10 Seconds</SelectItem>
+                            <SelectItem value="15">15 Seconds</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">Order symbols retrieved from exchange</p>
+                        <p className="text-xs text-muted-foreground">Real-time market data update interval</p>
                       </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Number of Symbols</Label>
-                          <span className="text-sm font-medium">{settings.numberOfSymbolsToSelect || 8}</span>
-                        </div>
-                        <Slider
-                          min={2}
-                          max={30}
-                          step={1}
-                          value={[settings.numberOfSymbolsToSelect || 8]}
-                          onValueChange={([value]) => handleSettingChange("numberOfSymbolsToSelect", value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Count of symbols to retrieve from exchange (2-30)
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Quote Asset</Label>
+                {/* Connection Section */}
+                <TabsContent value="connection" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Connection Settings</CardTitle>
+                      <CardDescription>Configure connection parameters</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">Connection settings content goes here...</p>
+                      {/* Placeholder for connection settings details */}
+                      <div className="mt-4">
+                        <Label>Exchange Connections</Label>
                         <Select
-                          value={settings.quoteAsset || "USDT"}
-                          onValueChange={(value) => handleSettingChange("quoteAsset", value)}
+                          value={selectedConnectionId}
+                          onValueChange={(value) => {
+                            setSelectedConnectionId(value)
+                            setCurrentTab("exchange") // Navigate to exchange tab for detailed settings
+                          }}
                         >
-                          <SelectTrigger>
-                            <SelectValue />
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select an exchange connection..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USDT">USDT</SelectItem>
-                            <SelectItem value="USDC">USDC</SelectItem>
-                            <SelectItem value="BUSD">BUSD</SelectItem>
-                            <SelectItem value="BTC">BTC</SelectItem>
-                            <SelectItem value="ETH">ETH</SelectItem>
+                            {connections.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No connections found
+                              </SelectItem>
+                            ) : (
+                              connections.map((conn) => (
+                                <SelectItem key={conn.id} value={conn.id}>
+                                  {conn.name} ({conn.exchange})
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">Quote currency for trading pairs</p>
                       </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <Label>Use Main Symbols Only</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Trade only configured main symbols instead of exchange retrieval
-                          </p>
-                        </div>
-                        <Switch
-                          id="useMainSymbols"
-                          checked={settings.useMainSymbols || false}
-                          onCheckedChange={(checked) => handleSettingChange("useMainSymbols", checked)}
-                        />
-                      </div>
-                    </div>
+                {/* Monitoring Section */}
+                <TabsContent value="monitoring" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Monitoring Configuration</CardTitle>
+                      <CardDescription>Configure system monitoring</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <LogsViewer />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                    {/* Main Symbols Configuration */}
-                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="text-base">Main Symbols</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Primary trading symbols - used when "Use Main Symbols Only" is enabled
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(settings.mainSymbols || ["BTC", "ETH", "BNB", "XRP", "ADA", "SOL"]).map((symbol) => (
-                          <Badge key={symbol} variant="secondary" className="flex items-center gap-1 px-3 py-1">
-                            {symbol}
-                            <button onClick={() => removeMainSymbol(symbol)} className="ml-1 hover:text-destructive">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Add symbol (e.g., DOGE)"
-                          value={newMainSymbol}
-                          onChange={(e) => setNewMainSymbol(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => e.key === "Enter" && addMainSymbol()}
-                          className="max-w-[200px]"
-                        />
-                        <Button variant="outline" size="sm" onClick={addMainSymbol}>
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Forced Symbols Configuration */}
-                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="text-base">Forced Symbols</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Symbols always included in trading regardless of other settings
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(settings.forcedSymbols || ["XRP", "BCH"]).map((symbol) => (
-                          <Badge key={symbol} variant="default" className="flex items-center gap-1 px-3 py-1">
-                            {symbol}
-                            <button onClick={() => removeForcedSymbol(symbol)} className="ml-1 hover:text-destructive">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Add symbol (e.g., LTC)"
-                          value={newForcedSymbol}
-                          onChange={(e) => setNewForcedSymbol(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => e.key === "Enter" && addForcedSymbol()}
-                          className="max-w-[200px]"
-                        />
-                        <Button variant="outline" size="sm" onClick={addForcedSymbol}>
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Install Section */}
+                <TabsContent value="install" className="space-y-6">
+                  <InstallManager />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
-            <TabsContent value="indication" className="space-y-4">
+            <TabsContent value="exchange" className="space-y-6">
+              <ExchangeConnectionManager />
+            </TabsContent>
+
+            {/* Indication Tab */}
+            <TabsContent value="indication" className="space-y-6">
               <Tabs defaultValue="main" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="main">Main</TabsTrigger>
@@ -1385,11 +1895,8 @@ export default function SettingsPage() {
               </Tabs>
             </TabsContent>
 
-            <TabsContent value="connections" className="space-y-4">
-              <ExchangeConnectionManager />
-            </TabsContent>
-
-            <TabsContent value="strategy" className="space-y-4">
+            {/* Strategy Tab */}
+            <TabsContent value="strategy" className="space-y-6">
               <Tabs defaultValue="base" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="base">Base</TabsTrigger>
@@ -1532,7 +2039,7 @@ export default function SettingsPage() {
               </Tabs>
             </TabsContent>
 
-            <TabsContent value="system" className="space-y-4">
+            <TabsContent value="system" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Trade Engine Types</CardTitle>
@@ -1859,40 +2366,39 @@ export default function SettingsPage() {
               <StatisticsOverview settings={settings} />
             </TabsContent>
           </Tabs>
-        </div>
-
-        <AlertDialog open={showMainEngineDisableConfirm} onOpenChange={setShowMainEngineDisableConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Disable Main Trade Engine?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Disabling the Main Trade Engine will stop all indication-based trading. Are you sure you want to
-                continue?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmMainEngineDisable}>Disable</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={showPresetEngineDisableConfirm} onOpenChange={setShowPresetEngineDisableConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Disable Preset Trade Engine?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Disabling the Preset Trade Engine will stop all preset indicator-based trading. Are you sure you want to
-                continue?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmPresetEngineDisable}>Disable</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        </main>
       </div>
+
+      <AlertDialog open={showMainEngineDisableConfirm} onOpenChange={setShowMainEngineDisableConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disable Main Trade Engine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Disabling the Main Trade Engine will stop all indication-based trading. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMainEngineDisable}>Disable</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showPresetEngineDisableConfirm} onOpenChange={setShowPresetEngineDisableConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disable Preset Trade Engine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Disabling the Preset Trade Engine will stop all preset indicator-based trading. Are you sure you want to
+              continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPresetEngineDisable}>Disable</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthGuard>
   )
 }
