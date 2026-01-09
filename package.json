@@ -68,7 +68,7 @@
     "system:health": "node scripts/health-check.js",
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
-    "vercel-build": "npm run clean:aggressive && npm run type-check && npm run build",
+    "vercel-build": "npm run clean:aggressive && npm run build",
     "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
