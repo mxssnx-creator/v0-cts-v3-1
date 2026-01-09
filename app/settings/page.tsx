@@ -246,7 +246,7 @@ interface Settings {
   exchangeDirectionEnabled: boolean
   exchangeMoveEnabled: boolean
   exchangeActiveEnabled: boolean
-  exchangeOptimalEnabled: boolean
+  exchangeOptimalEnabled: false
   exchangeBaseStrategyEnabled: boolean
   exchangeMainStrategyEnabled: boolean
   exchangeRealStrategyEnabled: boolean
