@@ -15,13 +15,12 @@
  *    - Service name: project_name-trade
  */
 
-// Explicit re-exports from parent trade-engine module
 export {
   getTradeEngine,
   getGlobalCoordinator,
   initializeTradeEngine,
   initializeGlobalCoordinator,
-  type GlobalTradeEngineCoordinator,
+  GlobalTradeEngineCoordinator,
   type TradeEngineInterface,
   type EngineStatus,
   type ConnectionStatus,
