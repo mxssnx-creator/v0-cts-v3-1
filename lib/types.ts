@@ -754,3 +754,58 @@ export interface ProfitBackTactics {
   trailingAfterBreakeven: boolean
   aggressiveTpReduction: boolean
 }
+
+export interface TradeEngineStatus {
+  running: boolean
+  connections: ConnectionEngineState[]
+  totalConnections: number
+  message?: string
+}
+
+export interface ConnectionEngineState {
+  id: string
+  connection_id: string
+  connection_name: string
+  exchange: string
+  state: "running" | "stopped" | "paused" | "error"
+  indication_count: number
+  strategy_count: number
+  position_count: number
+  last_update: string
+  error_message?: string
+}
+
+export interface SystemStats {
+  activeConnections: number
+  totalPositions: number
+  dailyPnL: number
+  totalBalance: number
+  indicationsActive: number
+  strategiesActive: number
+  systemLoad: number
+  databaseSize: number
+}
+
+export interface MonitoringStats {
+  summary: {
+    totalLogs: number
+    errorCount: number
+    warningCount: number
+    infoCount: number
+    errorPercentage: string
+    healthScore: string
+  }
+  byLevel: Array<{ level: string; count: number }>
+  errorRate: Array<{ hour: string; count: number }>
+  topErrors: Array<{
+    message: string
+    category: string
+    count: number
+    last_occurrence: string
+  }>
+  criticalErrors: Array<any>
+  errorsByCategory: Array<{ category: string; count: number }>
+  recentActivity: Array<{ minute: string; level: string; count: number }>
+}
+
+export type { EngineStatus, ConnectionStatus, HealthStatus } from "./trade-engine"

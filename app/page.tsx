@@ -10,12 +10,17 @@ import { SystemOverview } from "@/components/dashboard/system-overview"
 import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import type { ExchangeConnection } from "@/lib/types"
-import { RefreshCw, Plus } from "lucide-react"
+import { RefreshCw, Plus, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/lib/auth-context"
-import { getPredefinedConnectionsAsStatic } from "@/lib/connection-predefinitions"
+import {
+  getPredefinedConnectionsAsStatic,
+  getDefaultActiveConnections,
+  getDefaultSelectedExchange,
+} from "@/lib/connection-predefinitions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -25,6 +30,7 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
+  const [tradeEngineRunning, setTradeEngineRunning] = useState(false)
   const [systemStats, setSystemStats] = useState({
     activeConnections: 0,
     totalPositions: 0,
@@ -40,10 +46,15 @@ export default function Dashboard() {
     const initialize = async () => {
       console.log("[v0] Dashboard initializing...")
 
-      setActiveConnections([])
+      const defaultActive = getDefaultActiveConnections()
+      setActiveConnections(defaultActive)
+
+      const defaultExchange = getDefaultSelectedExchange()
+      setSelectedConnection(defaultExchange)
 
       await loadConnections()
       await loadSystemStats()
+      await checkTradeEngineStatus()
 
       const savedSelection = localStorage.getItem("selectedExchange")
       if (savedSelection) {
@@ -58,10 +69,23 @@ export default function Dashboard() {
     const interval = setInterval(() => {
       loadConnections()
       loadSystemStats()
+      checkTradeEngineStatus()
     }, 10000)
 
     return () => clearInterval(interval)
   }, [])
+
+  const checkTradeEngineStatus = async () => {
+    try {
+      const response = await fetch("/api/trade-engine/status")
+      if (response.ok) {
+        const data = await response.json()
+        setTradeEngineRunning(data.status === "running")
+      }
+    } catch (error) {
+      console.error("[v0] Failed to check trade engine status:", error)
+    }
+  }
 
   const loadConnections = async () => {
     try {
@@ -69,18 +93,26 @@ export default function Dashboard() {
       const response = await fetch("/api/settings/connections")
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error")
+        console.log("[v0] Connections API returned error, using defaults")
+        const defaultActive = getDefaultActiveConnections()
+        setActiveConnections(defaultActive)
+
         const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
+        setAvailableConnections(notActive)
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
+        console.log("[v0] No connections from API, showing defaults with ByBit and BingX")
+        const defaultActive = getDefaultActiveConnections()
+        setActiveConnections(defaultActive)
+
         const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
+        setAvailableConnections(notActive)
         return
       }
 
@@ -89,7 +121,13 @@ export default function Dashboard() {
       const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
       const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
 
-      setActiveConnections(activeConns)
+      if (activeConns.length === 0) {
+        const defaultActive = getDefaultActiveConnections()
+        setActiveConnections(defaultActive)
+      } else {
+        setActiveConnections(activeConns)
+      }
+
       setAvailableConnections(notActive)
 
       const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
@@ -97,10 +135,12 @@ export default function Dashboard() {
 
       if (activeConns.length > 0 && !selectedConnection) {
         const savedSelection = localStorage.getItem("selectedExchange")
-        setSelectedConnection(savedSelection || activeConns[0]?.id || "")
+        setSelectedConnection(savedSelection || "bybit-x03")
       }
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
+      const defaultActive = getDefaultActiveConnections()
+      setActiveConnections(defaultActive)
     }
   }
 
@@ -118,10 +158,10 @@ export default function Dashboard() {
       setSystemStats({
         activeConnections: data.activeConnections || 0,
         totalPositions: (data.livePositions || 0) + (data.pseudoPositions || 0),
-        dailyPnL: 0, // TODO: Calculate from positions
-        totalBalance: 0, // TODO: Aggregate from active connections
+        dailyPnL: data.dailyPnL || 0,
+        totalBalance: data.totalBalance || 0,
         indicationsActive: data.indicationsActive || 0,
-        strategiesActive: 0, // TODO: Calculate from active strategies
+        strategiesActive: data.strategiesActive || 0,
         systemLoad: data.cpuUsage || 0,
         databaseSize: data.diskUsage || 0,
       })
@@ -218,6 +258,12 @@ export default function Dashboard() {
     }
   }
 
+  const handleExchangeSelectionChange = (value: string) => {
+    setSelectedConnection(value)
+    localStorage.setItem("selectedExchange", value)
+    toast.success(`Selected ${value} for overall exchange`)
+  }
+
   const getConnectionStatus = (connection: ExchangeConnection) => {
     if (!connection.is_enabled) return "disabled"
     if (connection.is_enabled && !connection.is_live_trade) return "connecting"
@@ -243,6 +289,7 @@ export default function Dashboard() {
               onClick={() => {
                 loadConnections()
                 loadSystemStats()
+                checkTradeEngineStatus()
               }}
             >
               <RefreshCw className="h-4 w-4" />
@@ -255,12 +302,26 @@ export default function Dashboard() {
 
           <GlobalTradeEngineControls />
 
+          {!tradeEngineRunning && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Trade engine is not running. Enable it using the controls above to start trading.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Trade Engine</CardTitle>
               <CardDescription>Real-time trading engine status and metrics</CardDescription>
             </CardHeader>
             <CardContent className="py-2 px-4 space-y-4">
+              {!tradeEngineRunning && (
+                <div className="p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+                  Trade engine is stopped. Metrics will update when engine is running.
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Symbols</p>
@@ -280,11 +341,51 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground mt-1">Open trades</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pseudo Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.dailyPnL || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Test trades</p>
+                  <p className="text-sm text-muted-foreground">Daily PnL</p>
+                  <p className={`text-2xl font-bold ${systemStats.dailyPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {systemStats.dailyPnL >= 0 ? "+" : ""}
+                    {systemStats.dailyPnL.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Today's performance</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Exchange Selection</CardTitle>
+              <CardDescription>Select overall exchange for trading operations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <Select value={selectedConnection} onValueChange={handleExchangeSelectionChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select exchange" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeConnections.length === 0 ? (
+                        <div className="p-2 text-xs text-muted-foreground text-center">
+                          No active connections. Add connections first.
+                        </div>
+                      ) : (
+                        activeConnections.map((connection) => (
+                          <SelectItem key={connection.id} value={connection.id}>
+                            {connection.name} ({connection.exchange})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Selected: <span className="font-medium">{selectedConnection || "None"}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Only exchanges from Active Connections are shown. Add connections below to see them here.
+              </p>
             </CardContent>
           </Card>
 
@@ -345,6 +446,15 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
+
+            {!tradeEngineRunning && activeConnections.length > 0 && (
+              <Alert className="mb-3">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Trade engine is not running. Enable the trade engine to activate trading on these connections.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {activeConnections.length === 0 ? (
               <Card>

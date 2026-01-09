@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine/"
+import { initializeGlobalCoordinator } from "@/lib/trade-engine"
 import { SystemLogger } from "@/lib/system-logger"
 
-const activeEngines = new Map<string, TradeEngine>()
+const activeEngines = new Map<string, any>()
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,35 +40,32 @@ export async function POST(request: NextRequest) {
         CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'realInterval'), '0.3') AS FLOAT) as real_interval
     `
 
-    const config: TradeEngineConfig = {
+    const config: any = {
       connectionId: connectionId,
       tradeInterval: settings?.trade_interval || 1.0,
       realInterval: settings?.real_interval || 0.3,
       maxConcurrency: 10,
     }
 
-    const tradeEngine = new TradeEngine(config)
-    await tradeEngine.start(config)
+    const coordinator = initializeGlobalCoordinator()
 
-    activeEngines.set(connectionId, tradeEngine)
+    if (coordinator.getIsRunning()) {
+      console.log("[v0] [Trade Engine] Already running")
+      return NextResponse.json({
+        success: true,
+        message: "Trade engine is already running",
+        alreadyRunning: true,
+      })
+    }
 
-    await sql`
-      INSERT INTO trade_engine_state (connection_id, state, updated_at)
-      VALUES (${connectionId}, 'running', CURRENT_TIMESTAMP)
-      ON CONFLICT (connection_id) 
-      DO UPDATE SET state = 'running', updated_at = CURRENT_TIMESTAMP
-    `
+    await coordinator.start()
 
-    console.log("[v0] [Trade Engine] Started successfully for connection:", connectionId)
-    await SystemLogger.logTradeEngine(`Trade engine started successfully for connection: ${connection.name}`, "info", {
-      connectionId,
-      connectionName: connection.name,
-    })
+    console.log("[v0] [Trade Engine] Started successfully")
+    await SystemLogger.logTradeEngine("Global trade engine started successfully", "info", {})
 
     return NextResponse.json({
       success: true,
-      message: "Trade engine started successfully",
-      connectionId,
+      message: "Global trade engine started successfully",
     })
   } catch (error) {
     console.error("[v0] [Trade Engine] Failed to start:", error)

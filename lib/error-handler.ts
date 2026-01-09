@@ -48,10 +48,37 @@ export class ErrorHandler {
     // Log to database
     await this.logger.logNextError(error, context)
 
-    // If it's a critical error, you could send alerts here
     if (error instanceof AppError && !error.isOperational) {
       console.error("[v0] CRITICAL ERROR - Non-operational error occurred:", error)
-      // TODO: Send alert to monitoring service (e.g., Sentry, email, Slack)
+      await this.sendCriticalErrorAlert(error, context)
+    }
+  }
+
+  /**
+   * Send critical error alerts to monitoring service
+   */
+  private async sendCriticalErrorAlert(error: AppError, context?: ErrorContext): Promise<void> {
+    try {
+      // Log to monitoring system
+      await fetch("/api/monitoring/errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level: "critical",
+          message: error.message,
+          stack: error.stack,
+          context,
+          timestamp: new Date().toISOString(),
+        }),
+      })
+
+      // In production, this could also send:
+      // - Email notifications to admins
+      // - Slack/Discord webhooks
+      // - SMS alerts for critical issues
+      // - Integration with Sentry/Datadog/NewRelic
+    } catch (alertError) {
+      console.error("[v0] Failed to send critical error alert:", alertError)
     }
   }
 

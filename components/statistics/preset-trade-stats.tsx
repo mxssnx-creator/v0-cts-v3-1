@@ -53,84 +53,87 @@ export function PresetTradeStats({ filter, positions }: PresetTradeStatsProps) {
     }
   }
 
-  const calculatePresetStats = () => {
+  const calculatePresetStats = async () => {
     const stats: PresetStats[] = []
 
     const filteredPresets = presets
 
     for (const preset of filteredPresets) {
-      // Mock: In production, filter positions by preset_id from database
-      // For now, randomly assign positions to presets for demonstration
-      const presetPositions = positions.filter(() => Math.random() > 0.7)
+      try {
+        const response = await fetch(`/api/positions?preset_id=${preset.id}`)
+        const presetPositions = await response.json()
 
-      if (presetPositions.length === 0) continue
+        if (presetPositions.length === 0) continue
 
-      const closedPositions = presetPositions.filter((p) => p.status === "closed")
-      const winningTrades = closedPositions.filter((p) => (p.profit_loss || 0) > 0)
-      const losingTrades = closedPositions.filter((p) => (p.profit_loss || 0) <= 0)
+        const closedPositions = presetPositions.filter((p) => p.status === "closed")
+        const winningTrades = closedPositions.filter((p) => (p.profit_loss || 0) > 0)
+        const losingTrades = closedPositions.filter((p) => (p.profit_loss || 0) <= 0)
 
-      const totalPnl = closedPositions.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
-      const totalProfit = winningTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
-      const totalLoss = Math.abs(losingTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0))
+        const totalPnl = closedPositions.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
+        const totalProfit = winningTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
+        const totalLoss = Math.abs(losingTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0))
 
-      const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999 : 0
+        const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999 : 0
 
-      // Calculate max drawdown
-      let cumulativePnl = 0
-      let peak = 0
-      let maxDrawdown = 0
+        // Calculate max drawdown
+        let cumulativePnl = 0
+        let peak = 0
+        let maxDrawdown = 0
 
-      for (const pos of closedPositions.sort(
-        (a, b) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
-      )) {
-        cumulativePnl += pos.profit_loss || 0
-        if (cumulativePnl > peak) {
-          peak = cumulativePnl
-        } else {
-          const drawdown = ((peak - cumulativePnl) / peak) * 100
-          if (drawdown > maxDrawdown) {
-            maxDrawdown = drawdown
+        for (const pos of closedPositions.sort(
+          (a, b) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
+        )) {
+          cumulativePnl += pos.profit_loss || 0
+          if (cumulativePnl > peak) {
+            peak = cumulativePnl
+          } else {
+            const drawdown = ((peak - cumulativePnl) / peak) * 100
+            if (drawdown > maxDrawdown) {
+              maxDrawdown = drawdown
+            }
           }
         }
+
+        // Calculate average duration
+        const avgDuration =
+          closedPositions.length > 0
+            ? closedPositions.reduce((sum, p) => {
+                const duration = p.closed_at
+                  ? (new Date(p.closed_at).getTime() - new Date(p.opened_at).getTime()) / (1000 * 60)
+                  : 0
+                return sum + duration
+              }, 0) / closedPositions.length
+            : 0
+
+        // Find best and worst symbols
+        const symbolPnl = new Map<string, number>()
+        for (const pos of closedPositions) {
+          const current = symbolPnl.get(pos.symbol) || 0
+          symbolPnl.set(pos.symbol, current + (pos.profit_loss || 0))
+        }
+
+        const sortedSymbols = Array.from(symbolPnl.entries()).sort((a, b) => b[1] - a[1])
+        const bestSymbol = sortedSymbols[0]?.[0] || "N/A"
+        const worstSymbol = sortedSymbols[sortedSymbols.length - 1]?.[0] || "N/A"
+
+        stats.push({
+          preset_id: preset.id,
+          preset_name: preset.name,
+          total_trades: closedPositions.length,
+          winning_trades: winningTrades.length,
+          losing_trades: losingTrades.length,
+          win_rate: closedPositions.length > 0 ? (winningTrades.length / closedPositions.length) * 100 : 0,
+          total_pnl: totalPnl,
+          avg_pnl: closedPositions.length > 0 ? totalPnl / closedPositions.length : 0,
+          profit_factor: profitFactor,
+          max_drawdown: maxDrawdown,
+          avg_duration_minutes: avgDuration,
+          best_symbol: bestSymbol,
+          worst_symbol: worstSymbol,
+        })
+      } catch (error) {
+        console.error(`Failed to fetch positions for preset ${preset.id}:`, error)
       }
-
-      // Calculate average duration
-      const avgDuration =
-        closedPositions.length > 0
-          ? closedPositions.reduce((sum, p) => {
-              const duration = p.closed_at
-                ? (new Date(p.closed_at).getTime() - new Date(p.opened_at).getTime()) / (1000 * 60)
-                : 0
-              return sum + duration
-            }, 0) / closedPositions.length
-          : 0
-
-      // Find best and worst symbols
-      const symbolPnl = new Map<string, number>()
-      for (const pos of closedPositions) {
-        const current = symbolPnl.get(pos.symbol) || 0
-        symbolPnl.set(pos.symbol, current + (pos.profit_loss || 0))
-      }
-
-      const sortedSymbols = Array.from(symbolPnl.entries()).sort((a, b) => b[1] - a[1])
-      const bestSymbol = sortedSymbols[0]?.[0] || "N/A"
-      const worstSymbol = sortedSymbols[sortedSymbols.length - 1]?.[0] || "N/A"
-
-      stats.push({
-        preset_id: preset.id,
-        preset_name: preset.name,
-        total_trades: closedPositions.length,
-        winning_trades: winningTrades.length,
-        losing_trades: losingTrades.length,
-        win_rate: closedPositions.length > 0 ? (winningTrades.length / closedPositions.length) * 100 : 0,
-        total_pnl: totalPnl,
-        avg_pnl: closedPositions.length > 0 ? totalPnl / closedPositions.length : 0,
-        profit_factor: profitFactor,
-        max_drawdown: maxDrawdown,
-        avg_duration_minutes: avgDuration,
-        best_symbol: bestSymbol,
-        worst_symbol: worstSymbol,
-      })
     }
 
     // Sort by profit factor
