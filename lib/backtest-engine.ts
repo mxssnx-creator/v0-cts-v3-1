@@ -523,7 +523,7 @@ export async function runPresetBacktest(presetId: string, connectionId: string, 
 async function getConnectionSymbols(connectionId: string): Promise<string[]> {
   try {
     const response = await fetch(`/api/settings/connections/${connectionId}/symbols`)
-    const data = await response.json()
+    const data = (await response.json()) as { symbols?: string[] }
 
     if (data.symbols && Array.isArray(data.symbols)) {
       return data.symbols.slice(0, 10) // Limit to top 10 symbols for backtest
