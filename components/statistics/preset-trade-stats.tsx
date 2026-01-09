@@ -69,9 +69,11 @@ export function PresetTradeStats({ filter, positions }: PresetTradeStatsProps) {
         const winningTrades = closedPositions.filter((p: TradingPosition) => (p.profit_loss || 0) > 0)
         const losingTrades = closedPositions.filter((p: TradingPosition) => (p.profit_loss || 0) <= 0)
 
-        const totalPnl = closedPositions.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
-        const totalProfit = winningTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0)
-        const totalLoss = Math.abs(losingTrades.reduce((sum, p) => sum + (p.profit_loss || 0), 0))
+        const totalPnl = closedPositions.reduce((sum: number, p: TradingPosition) => sum + (p.profit_loss || 0), 0)
+        const totalProfit = winningTrades.reduce((sum: number, p: TradingPosition) => sum + (p.profit_loss || 0), 0)
+        const totalLoss = Math.abs(
+          losingTrades.reduce((sum: number, p: TradingPosition) => sum + (p.profit_loss || 0), 0),
+        )
 
         const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999 : 0
 
