@@ -47,6 +47,7 @@ interface Settings {
   positions_average: number
   max_leverage: number
   negativeChangePercent: number
+  risk_percentage: number
   leveragePercentage: number
   prehistoricDataDays: number
   marketTimeframe: number
@@ -273,7 +274,7 @@ interface Settings {
   presetBlockStrategy?: boolean
   presetDcaStrategy?: boolean
   tradeMode?: string
-  exchangePositionCost?: number
+  exchangePositionCost: number
   baseVolumeFactorLive?: number
   baseVolumeFactorPreset?: number
   strategyTrailingEnabled?: boolean
@@ -327,6 +328,8 @@ interface Settings {
   databaseSizeReal?: number
   databaseSizePreset?: number
   maxDatabaseSizeMB?: number
+  risk_percentage: number
+  [key: string]: any
 }
 
 const initialSettings: Settings = {
@@ -335,6 +338,8 @@ const initialSettings: Settings = {
   positions_average: 50,
   max_leverage: 125,
   negativeChangePercent: 20,
+  // Initialize risk_percentage field
+  risk_percentage: 20,
   leveragePercentage: 100,
   prehistoricDataDays: 5,
   marketTimeframe: 1,
@@ -645,6 +650,8 @@ const initialSettings: Settings = {
 
   database_type: "sqlite",
   database_url: "",
+  // Initialize risk_percentage field
+  risk_percentage: 20,
 }
 
 export default function SettingsPage() {
@@ -685,6 +692,8 @@ export default function SettingsPage() {
     strategyTrailingEnabled: initialSettings.strategyTrailingEnabled ?? true,
     strategyBlockEnabled: initialSettings.strategyBlockEnabled ?? true,
     strategyDcaEnabled: initialSettings.strategyDcaEnabled ?? false,
+    // Ensure risk_percentage is initialized
+    risk_percentage: initialSettings.risk_percentage ?? initialSettings.negativeChangePercent ?? 20,
   })
 
   const [originalDatabaseType, setOriginalDatabaseType] = useState("sqlite")
@@ -721,6 +730,8 @@ export default function SettingsPage() {
           overallDatabaseSizeGB: data.overallDatabaseSizeGB ?? 20,
           symbolUpdateIntervalHours: data.symbolUpdateIntervalHours ?? 1,
           volatilityCalculationHours: data.volatilityCalculationHours ?? 1,
+          // Ensure risk_percentage is loaded or defaults
+          risk_percentage: data.risk_percentage ?? data.negativeChangePercent ?? initialSettings.risk_percentage,
         }
         setSettings(migratedSettings)
         setOriginalDatabaseType(data.database_type || "sqlite")
@@ -1011,6 +1022,7 @@ export default function SettingsPage() {
                           value={[settings.negativeChangePercent || 20]}
                           onValueChange={([value]) => {
                             handleSettingChange("negativeChangePercent", value)
+                            // Update risk_percentage when negativeChangePercent changes
                             handleSettingChange("risk_percentage", value)
                           }}
                         />
@@ -1866,7 +1878,7 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="statistics" className="space-y-4">
-              <StatisticsOverview />
+              <StatisticsOverview settings={settings} />
             </TabsContent>
           </Tabs>
         </div>

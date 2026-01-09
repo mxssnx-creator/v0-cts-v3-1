@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 
 interface StatisticsOverviewProps {
-  settings: any
+  settings?: any
 }
 
-export function StatisticsOverview({ settings }: StatisticsOverviewProps) {
+export function StatisticsOverview({ settings = {} }: StatisticsOverviewProps) {
   // Calculate comprehensive statistics from settings
   const calculateRatios = () => {
     const directionRanges = settings.direction?.range

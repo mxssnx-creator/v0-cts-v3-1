@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      const isEnabledByDefault = pred.enabledByDefault
+      const isEnabledByDefault = pred.id === "bybit-x03" || pred.id === "bingx-x01"
 
       const newConnection: any = {
         id: pred.id,
@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
         margin_type: pred.marginType,
         position_mode: pred.positionMode,
         is_testnet: false,
-        is_enabled: isEnabledByDefault, // Enable if specified
+        is_enabled: isEnabledByDefault,
         is_predefined: true,
-        is_live_trade: false, // Live trade is always false by default
+        is_live_trade: false,
         is_active: true,
         api_capabilities: "[]",
-        rate_limits: JSON.stringify(pred.rateLimit),
+        rate_limits: JSON.stringify(pred.rateLimits),
         last_test_status: null,
         last_test_balance: null,
         last_test_log: [],
