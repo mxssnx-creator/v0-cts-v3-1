@@ -650,7 +650,6 @@ const initialSettings: Settings = {
 
   database_type: "sqlite",
   database_url: "",
-  risk_percentage: 20,
 }
 
 export default function SettingsPage() {
