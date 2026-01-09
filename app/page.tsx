@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
   const [tradeEngineRunning, setTradeEngineRunning] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [systemStats, setSystemStats] = useState({
     activeConnections: 0,
     totalPositions: 0,
@@ -42,42 +43,49 @@ export default function Dashboard() {
     databaseSize: 0,
   })
 
+  const defaultActiveConnections = useMemo(() => getDefaultActiveConnections(), [])
+  const defaultExchangeSelection = useMemo(() => getDefaultSelectedExchange(), [])
+
   useEffect(() => {
+    if (isInitialized) return
+
     const initialize = async () => {
-      console.log("[v0] Dashboard initializing...")
-
-      const defaultActive = getDefaultActiveConnections()
-      setActiveConnections(defaultActive)
-
-      const defaultExchange = getDefaultSelectedExchange()
-      setSelectedConnection(defaultExchange)
-
-      await loadConnections()
-      await loadSystemStats()
-      await checkTradeEngineStatus()
+      setActiveConnections(defaultActiveConnections)
+      setSelectedConnection(defaultExchangeSelection)
 
       const savedSelection = localStorage.getItem("selectedExchange")
       if (savedSelection) {
         setSelectedConnection(savedSelection)
       }
+
+      await Promise.all([loadConnections(), loadSystemStats(), checkTradeEngineStatus()])
+
+      setIsInitialized(true)
     }
 
     initialize().catch((error) => {
       console.error("[v0] Dashboard initialization error:", error)
+      setIsInitialized(true)
     })
+  }, [isInitialized, defaultActiveConnections, defaultExchangeSelection])
+
+  useEffect(() => {
+    if (!isInitialized) return
 
     const interval = setInterval(() => {
       loadConnections()
       loadSystemStats()
       checkTradeEngineStatus()
-    }, 10000)
+    }, 30000) // Changed from 10s to 30s
 
     return () => clearInterval(interval)
-  }, [])
+  }, [isInitialized])
 
   const checkTradeEngineStatus = async () => {
     try {
-      const response = await fetch("/api/trade-engine/status")
+      const response = await fetch("/api/trade-engine/status", {
+        headers: { "Cache-Control": "max-age=10" },
+      })
       if (response.ok) {
         const data = await response.json()
         setTradeEngineRunning(data.status === "running")
@@ -89,14 +97,12 @@ export default function Dashboard() {
 
   const loadConnections = async () => {
     try {
-      console.log("[v0] Loading connections from API")
-      const response = await fetch("/api/settings/connections")
+      const response = await fetch("/api/settings/connections", {
+        headers: { "Cache-Control": "max-age=10" },
+      })
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error, using defaults")
-        const defaultActive = getDefaultActiveConnections()
-        setActiveConnections(defaultActive)
-
+        setActiveConnections(defaultActiveConnections)
         const predefinedConnections = getPredefinedConnectionsAsStatic()
         const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
         setAvailableConnections(notActive)
@@ -106,24 +112,18 @@ export default function Dashboard() {
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing defaults with ByBit and BingX")
-        const defaultActive = getDefaultActiveConnections()
-        setActiveConnections(defaultActive)
-
+        setActiveConnections(defaultActiveConnections)
         const predefinedConnections = getPredefinedConnectionsAsStatic()
         const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
         setAvailableConnections(notActive)
         return
       }
 
-      console.log("[v0] Loaded connections:", data.length)
-
       const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
       const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
 
       if (activeConns.length === 0) {
-        const defaultActive = getDefaultActiveConnections()
-        setActiveConnections(defaultActive)
+        setActiveConnections(defaultActiveConnections)
       } else {
         setActiveConnections(activeConns)
       }
@@ -139,22 +139,20 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
-      const defaultActive = getDefaultActiveConnections()
-      setActiveConnections(defaultActive)
+      setActiveConnections(defaultActiveConnections)
     }
   }
 
   const loadSystemStats = async () => {
     try {
-      console.log("[v0] Loading system stats from API")
-      const response = await fetch("/api/structure/metrics")
+      const response = await fetch("/api/structure/metrics", {
+        headers: { "Cache-Control": "max-age=15" },
+      })
       if (!response.ok) {
-        console.log("[v0] System stats not available yet")
         return
       }
 
       const data = await response.json()
-      console.log("[v0] Loaded system stats")
       setSystemStats({
         activeConnections: data.activeConnections || 0,
         totalPositions: (data.livePositions || 0) + (data.pseudoPositions || 0),
@@ -172,8 +170,6 @@ export default function Dashboard() {
 
   const handleToggleEnable = async (id: string, enabled: boolean) => {
     try {
-      console.log("[v0] Toggling connection:", id, "enabled:", enabled)
-
       const response = await fetch(`/api/settings/connections/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -194,8 +190,6 @@ export default function Dashboard() {
 
   const handleToggleLiveTrade = async (id: string, enabled: boolean) => {
     try {
-      console.log("[v0] Toggling live trade:", id, "enabled:", enabled)
-
       const response = await fetch(`/api/settings/connections/${id}/live-trade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -216,8 +210,6 @@ export default function Dashboard() {
 
   const handleRemoveFromActive = async (id: string) => {
     try {
-      console.log("[v0] Removing from active:", id)
-
       const response = await fetch(`/api/settings/connections/${id}/active`, {
         method: "DELETE",
       })
@@ -238,8 +230,6 @@ export default function Dashboard() {
     if (!selectedToAdd) return
 
     try {
-      console.log("[v0] Adding as active:", selectedToAdd)
-
       const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
         method: "POST",
       })
@@ -264,16 +254,33 @@ export default function Dashboard() {
     toast.success(`Selected ${value} for overall exchange`)
   }
 
-  const getConnectionStatus = (connection: ExchangeConnection) => {
-    if (!connection.is_enabled) return "disabled"
-    if (connection.is_enabled && !connection.is_live_trade) return "connecting"
-    return "connected"
-  }
+  const getConnectionStatus = useMemo(
+    () => (connection: ExchangeConnection) => {
+      if (!connection.is_enabled) return "disabled"
+      if (connection.is_enabled && !connection.is_live_trade) return "connecting"
+      return "connected"
+    },
+    [],
+  )
 
-  const getConnectionProgress = (connection: ExchangeConnection) => {
-    if (!connection.is_enabled) return 0
-    if (connection.is_live_trade) return 100
-    return 50
+  const getConnectionProgress = useMemo(
+    () => (connection: ExchangeConnection) => {
+      if (!connection.is_enabled) return 0
+      if (connection.is_live_trade) return 100
+      return 50
+    },
+    [],
+  )
+
+  if (!isInitialized) {
+    return (
+      <AuthGuard>
+        <div className="flex flex-col w-full min-h-screen bg-background items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </AuthGuard>
+    )
   }
 
   return (
