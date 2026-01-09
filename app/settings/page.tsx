@@ -57,6 +57,7 @@ interface Settings {
   mainTradeInterval: number
   presetTradeInterval: number
   positionCost: number
+  exchangePositionCost: number
   useMaximalLeverage: boolean
   baseValueRangeMin: number
   baseValueRangeMax: number
@@ -328,7 +329,6 @@ interface Settings {
   databaseSizeReal?: number
   databaseSizePreset?: number
   maxDatabaseSizeMB?: number
-  risk_percentage: number
   [key: string]: any
 }
 
@@ -338,7 +338,6 @@ const initialSettings: Settings = {
   positions_average: 50,
   max_leverage: 125,
   negativeChangePercent: 20,
-  // Initialize risk_percentage field
   risk_percentage: 20,
   leveragePercentage: 100,
   prehistoricDataDays: 5,
@@ -349,6 +348,7 @@ const initialSettings: Settings = {
   mainTradeInterval: 1,
   presetTradeInterval: 2,
   positionCost: 0.1,
+  exchangePositionCost: 0.1,
   useMaximalLeverage: true,
   min_volume_enforcement: true,
 
@@ -650,7 +650,6 @@ const initialSettings: Settings = {
 
   database_type: "sqlite",
   database_url: "",
-  // Initialize risk_percentage field
   risk_percentage: 20,
 }
 
@@ -692,8 +691,6 @@ export default function SettingsPage() {
     strategyTrailingEnabled: initialSettings.strategyTrailingEnabled ?? true,
     strategyBlockEnabled: initialSettings.strategyBlockEnabled ?? true,
     strategyDcaEnabled: initialSettings.strategyDcaEnabled ?? false,
-    // Ensure risk_percentage is initialized
-    risk_percentage: initialSettings.risk_percentage ?? initialSettings.negativeChangePercent ?? 20,
   })
 
   const [originalDatabaseType, setOriginalDatabaseType] = useState("sqlite")
@@ -730,7 +727,6 @@ export default function SettingsPage() {
           overallDatabaseSizeGB: data.overallDatabaseSizeGB ?? 20,
           symbolUpdateIntervalHours: data.symbolUpdateIntervalHours ?? 1,
           volatilityCalculationHours: data.volatilityCalculationHours ?? 1,
-          // Ensure risk_percentage is loaded or defaults
           risk_percentage: data.risk_percentage ?? data.negativeChangePercent ?? initialSettings.risk_percentage,
         }
         setSettings(migratedSettings)
