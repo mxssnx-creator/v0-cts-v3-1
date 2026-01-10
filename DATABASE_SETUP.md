@@ -1,38 +1,49 @@
 # CTS v3 Database Setup Guide
 
-## Predefined Database Credentials
+## Default Database Configuration
 
-The CTS v3 system comes with predefined PostgreSQL credentials for quick setup:
+**CTS v3 now uses SQLite as the default database** - no configuration required!
 
-\`\`\`
+## Setup Options
+
+### Option 1: Use SQLite (Default - Recommended for most users)
+
+**Zero Configuration Required:**
+1. SQLite is automatically configured when no DATABASE_URL is set
+2. Database file is created automatically at `./data/cts.db`
+3. All tables and migrations are applied on first run
+4. Perfect for development, testing, and single-server deployments
+
+**To use SQLite explicitly:**
+1. In Settings > System, select "SQLite (Local)" as database type
+2. Click "Initialize Database" to create tables
+3. Click "Run Migrations" to apply all schema updates
+
+### Option 2: Use Remote PostgreSQL (For multi-server or cloud deployments)
+
+**Predefined Database Credentials:**
+
+```
 Database Server: 83.229.86.105
 Database Port: 5432
 Database Name: cts-v3
 Database User: cts
 Database Password: 00998877
-\`\`\`
+Connection String: postgresql://cts:00998877@83.229.86.105:5432/cts-v3
+```
 
-## Connection String
-
-\`\`\`
-postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-\`\`\`
-
-## Setup Options
-
-### Option 1: Use Predefined Remote Database (Recommended for Production)
-
+**Setup Steps:**
 1. In Settings > System, select "Remote PostgreSQL" as database type
 2. Click "Load Predefined Settings" button
 3. Click "Initialize Database" to create tables
 4. Click "Run Migrations" to apply all schema updates
 
-### Option 2: Use Local PostgreSQL
+### Option 3: Use Local PostgreSQL (Advanced)
 
 1. Install PostgreSQL on your server:
-   \`\`\`bash
+   ```bash
    sudo bash scripts/install-postgres-remote.sh
-   \`\`\`
+   ```
    
 2. The script will use the predefined credentials automatically:
    - DB Name: cts-v3
@@ -40,30 +51,44 @@ postgresql://cts:00998877@83.229.86.105:5432/cts-v3
    - DB Password: 00998877
 
 3. Update your connection string in Vercel environment variables:
-   \`\`\`
-   REMOTE_POSTGRES_URL=postgresql://cts:00998877@YOUR_SERVER_IP:5432/cts-v3
-   \`\`\`
-
-### Option 3: Use SQLite (Development Only)
-
-1. In Settings > System, select "SQLite (Local)" as database type
-2. Database file will be created automatically at `./data/cts.db`
+   ```
+   DATABASE_URL=postgresql://cts:00998877@YOUR_SERVER_IP:5432/cts-v3
+   ```
 
 ## Vercel Environment Variables
 
-Add these to your Vercel project settings:
-
-\`\`\`
-REMOTE_POSTGRES_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-DATABASE_TYPE=postgresql
+**For SQLite (Default):**
+```
+# SQLite requires no DATABASE_URL - just omit it or leave empty
 SESSION_SECRET=00998877009988770099887700998877
 JWT_SECRET=00998877009988770099887700998877
 ENCRYPTION_KEY=00998877009988770099887700998877
 API_SIGNING_SECRET=00998877009988770099887700998877
-NEXT_PUBLIC_APP_URL=https://v0-cts-v3-1.vercel.app
-NODE_ENV=development
-\`\`\`
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+NODE_ENV=production
+```
+
+**For PostgreSQL (Optional):**
+Add these to your Vercel project settings:
+
+```
+DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
+REMOTE_POSTGRES_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
+SESSION_SECRET=00998877009988770099887700998877
+JWT_SECRET=00998877009988770099887700998877
+ENCRYPTION_KEY=00998877009988770099887700998877
+API_SIGNING_SECRET=00998877009988770099887700998877
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+NODE_ENV=production
+```
+
+## Database Type Detection
+
+The system automatically determines the database type:
+
+1. **If DATABASE_URL is not set or empty** → Uses SQLite (default)
+2. **If DATABASE_URL starts with "postgresql://"** → Uses PostgreSQL
+3. **Manual override available** in Settings > System
 
 ## Automatic Database Type Changes
 
@@ -88,6 +113,11 @@ Connection test now includes:
 
 ## Troubleshooting
 
+**Using SQLite but data not persisting:**
+- Check that `./data` directory exists and is writable
+- Verify file permissions on `./data/cts.db`
+- Review application logs for SQLite errors
+
 **Connection Test Fails:**
 - Verify API keys are correct
 - Check if exchange API is accessible
@@ -102,5 +132,22 @@ Connection test now includes:
 
 **Migration Errors:**
 - Ensure database is initialized first
-- Check database user has proper permissions
+- Check database user has proper permissions (PostgreSQL only)
 - Review migration logs for specific errors
+- SQLite migrations apply automatically
+
+## When to Use Each Database Type
+
+**Use SQLite when:**
+- Running on a single server
+- Development or testing
+- Simpler deployment without external database
+- Data size under 100GB
+- Lower concurrent user load
+
+**Use PostgreSQL when:**
+- Running multiple server instances
+- Need advanced features (replication, clustering)
+- High concurrent user load
+- Larger datasets (100GB+)
+- Enterprise requirements

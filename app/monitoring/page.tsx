@@ -20,6 +20,7 @@ import {
   MessageSquare,
 } from "lucide-react"
 import type { JSX } from "react/jsx-runtime"
+import { TradeEngineStatus } from "@/components/monitoring/trade-engine-status"
 
 type LogLevel = "info" | "warning" | "error" | "debug"
 type SystemState = "active" | "inactive" | "error" | "warning"
@@ -361,8 +362,9 @@ export default function MonitoringPage() {
       </div>
 
       <Tabs defaultValue="states" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="states">System States</TabsTrigger>
+          <TabsTrigger value="trade-engines">Trade Engines</TabsTrigger>
           <TabsTrigger value="site">Site Logs</TabsTrigger>
           <TabsTrigger value="toasts">Toast Messages</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
@@ -445,6 +447,10 @@ export default function MonitoringPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="trade-engines" className="space-y-4">
+          <TradeEngineStatus />
         </TabsContent>
 
         <TabsContent value="site" className="space-y-4">

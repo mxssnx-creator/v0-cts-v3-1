@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,17 +10,12 @@ import { SystemOverview } from "@/components/dashboard/system-overview"
 import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import type { ExchangeConnection } from "@/lib/types"
-import { RefreshCw, Plus, AlertTriangle } from "lucide-react"
+import { RefreshCw, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/lib/auth-context"
-import {
-  getPredefinedConnectionsAsStatic,
-  getDefaultActiveConnections,
-  getDefaultSelectedExchange,
-} from "@/lib/connection-predefinitions"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getPredefinedConnectionsAsStatic } from "@/lib/connection-predefinitions"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -30,104 +25,76 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
-  const [tradeEngineRunning, setTradeEngineRunning] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
   const [systemStats, setSystemStats] = useState({
-    activeConnections: 0,
-    totalPositions: 0,
-    dailyPnL: 0,
-    totalBalance: 0,
+    activeSymbols: 0,
     indicationsActive: 0,
-    strategiesActive: 0,
-    systemLoad: 0,
-    databaseSize: 0,
+    indicationsTotal: 0,
+    livePositions: 0,
+    pseudoPositions: 0,
+    activeConnections: 0,
+    totalConnections: 0,
+    systemHealth: 0,
+    cpuUsage: 0,
+    memoryUsage: 0,
+    diskUsage: 0,
+    uptime: 0,
+    lastUpdate: new Date().toISOString(),
   })
 
-  const defaultActiveConnections = useMemo(() => getDefaultActiveConnections(), [])
-  const defaultExchangeSelection = useMemo(() => getDefaultSelectedExchange(), [])
-
   useEffect(() => {
-    if (isInitialized) return
-
     const initialize = async () => {
-      setActiveConnections(defaultActiveConnections)
-      setSelectedConnection(defaultExchangeSelection)
+      console.log("[v0] Dashboard initializing...")
+
+      setActiveConnections([])
+
+      await loadConnections()
+      await loadSystemStats()
 
       const savedSelection = localStorage.getItem("selectedExchange")
       if (savedSelection) {
         setSelectedConnection(savedSelection)
       }
-
-      await Promise.all([loadConnections(), loadSystemStats(), checkTradeEngineStatus()])
-
-      setIsInitialized(true)
     }
 
     initialize().catch((error) => {
       console.error("[v0] Dashboard initialization error:", error)
-      setIsInitialized(true)
     })
-  }, [isInitialized, defaultActiveConnections, defaultExchangeSelection])
-
-  useEffect(() => {
-    if (!isInitialized) return
 
     const interval = setInterval(() => {
       loadConnections()
       loadSystemStats()
-      checkTradeEngineStatus()
-    }, 30000) // Changed from 10s to 30s
+    }, 10000)
 
     return () => clearInterval(interval)
-  }, [isInitialized])
-
-  const checkTradeEngineStatus = async () => {
-    try {
-      const response = await fetch("/api/trade-engine/status", {
-        headers: { "Cache-Control": "max-age=10" },
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setTradeEngineRunning(data.status === "running")
-      }
-    } catch (error) {
-      console.error("[v0] Failed to check trade engine status:", error)
-    }
-  }
+  }, [])
 
   const loadConnections = async () => {
     try {
-      const response = await fetch("/api/settings/connections", {
-        headers: { "Cache-Control": "max-age=10" },
-      })
+      console.log("[v0] Loading connections from API")
+      const response = await fetch("/api/settings/connections")
 
       if (!response.ok) {
-        setActiveConnections(defaultActiveConnections)
+        console.log("[v0] Connections API returned error")
         const predefinedConnections = getPredefinedConnectionsAsStatic()
-        const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
-        setAvailableConnections(notActive)
+        setAvailableConnections(predefinedConnections)
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        setActiveConnections(defaultActiveConnections)
+        console.log("[v0] No connections from API, showing predefined")
         const predefinedConnections = getPredefinedConnectionsAsStatic()
-        const notActive = predefinedConnections.filter((c) => c.id !== "bybit-x03" && c.id !== "bingx-x01")
-        setAvailableConnections(notActive)
+        setAvailableConnections(predefinedConnections)
         return
       }
+
+      console.log("[v0] Loaded connections:", data.length)
 
       const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
       const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
 
-      if (activeConns.length === 0) {
-        setActiveConnections(defaultActiveConnections)
-      } else {
-        setActiveConnections(activeConns)
-      }
-
+      setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 
       const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
@@ -135,34 +102,25 @@ export default function Dashboard() {
 
       if (activeConns.length > 0 && !selectedConnection) {
         const savedSelection = localStorage.getItem("selectedExchange")
-        setSelectedConnection(savedSelection || "bybit-x03")
+        setSelectedConnection(savedSelection || activeConns[0]?.id || "")
       }
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
-      setActiveConnections(defaultActiveConnections)
     }
   }
 
   const loadSystemStats = async () => {
     try {
-      const response = await fetch("/api/structure/metrics", {
-        headers: { "Cache-Control": "max-age=15" },
-      })
+      console.log("[v0] Loading system stats from API")
+      const response = await fetch("/api/structure/metrics")
       if (!response.ok) {
+        console.log("[v0] System stats not available yet")
         return
       }
 
       const data = await response.json()
-      setSystemStats({
-        activeConnections: data.activeConnections || 0,
-        totalPositions: (data.livePositions || 0) + (data.pseudoPositions || 0),
-        dailyPnL: data.dailyPnL || 0,
-        totalBalance: data.totalBalance || 0,
-        indicationsActive: data.indicationsActive || 0,
-        strategiesActive: data.strategiesActive || 0,
-        systemLoad: data.cpuUsage || 0,
-        databaseSize: data.diskUsage || 0,
-      })
+      console.log("[v0] Loaded system stats")
+      setSystemStats(data)
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
     }
@@ -170,6 +128,8 @@ export default function Dashboard() {
 
   const handleToggleEnable = async (id: string, enabled: boolean) => {
     try {
+      console.log("[v0] Toggling connection:", id, "enabled:", enabled)
+
       const response = await fetch(`/api/settings/connections/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,6 +150,8 @@ export default function Dashboard() {
 
   const handleToggleLiveTrade = async (id: string, enabled: boolean) => {
     try {
+      console.log("[v0] Toggling live trade:", id, "enabled:", enabled)
+
       const response = await fetch(`/api/settings/connections/${id}/live-trade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -210,6 +172,8 @@ export default function Dashboard() {
 
   const handleRemoveFromActive = async (id: string) => {
     try {
+      console.log("[v0] Removing from active:", id)
+
       const response = await fetch(`/api/settings/connections/${id}/active`, {
         method: "DELETE",
       })
@@ -230,6 +194,8 @@ export default function Dashboard() {
     if (!selectedToAdd) return
 
     try {
+      console.log("[v0] Adding as active:", selectedToAdd)
+
       const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
         method: "POST",
       })
@@ -248,39 +214,16 @@ export default function Dashboard() {
     }
   }
 
-  const handleExchangeSelectionChange = (value: string) => {
-    setSelectedConnection(value)
-    localStorage.setItem("selectedExchange", value)
-    toast.success(`Selected ${value} for overall exchange`)
+  const getConnectionStatus = (connection: ExchangeConnection) => {
+    if (!connection.is_enabled) return "disabled"
+    if (connection.is_enabled && !connection.is_live_trade) return "connecting"
+    return "connected"
   }
 
-  const getConnectionStatus = useMemo(
-    () => (connection: ExchangeConnection) => {
-      if (!connection.is_enabled) return "disabled"
-      if (connection.is_enabled && !connection.is_live_trade) return "connecting"
-      return "connected"
-    },
-    [],
-  )
-
-  const getConnectionProgress = useMemo(
-    () => (connection: ExchangeConnection) => {
-      if (!connection.is_enabled) return 0
-      if (connection.is_live_trade) return 100
-      return 50
-    },
-    [],
-  )
-
-  if (!isInitialized) {
-    return (
-      <AuthGuard>
-        <div className="flex flex-col w-full min-h-screen bg-background items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="mt-4 text-sm text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </AuthGuard>
-    )
+  const getConnectionProgress = (connection: ExchangeConnection) => {
+    if (!connection.is_enabled) return 0
+    if (connection.is_live_trade) return 100
+    return 50
   }
 
   return (
@@ -296,7 +239,6 @@ export default function Dashboard() {
               onClick={() => {
                 loadConnections()
                 loadSystemStats()
-                checkTradeEngineStatus()
               }}
             >
               <RefreshCw className="h-4 w-4" />
@@ -309,90 +251,36 @@ export default function Dashboard() {
 
           <GlobalTradeEngineControls />
 
-          {!tradeEngineRunning && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Trade engine is not running. Enable it using the controls above to start trading.
-              </AlertDescription>
-            </Alert>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Trade Engine</CardTitle>
               <CardDescription>Real-time trading engine status and metrics</CardDescription>
             </CardHeader>
             <CardContent className="py-2 px-4 space-y-4">
-              {!tradeEngineRunning && (
-                <div className="p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
-                  Trade engine is stopped. Metrics will update when engine is running.
-                </div>
-              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Symbols</p>
-                  <p className="text-2xl font-bold">{systemStats.activeConnections || 0}</p>
+                  <p className="text-2xl font-bold">{systemStats.activeSymbols || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Trading pairs</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Indications</p>
                   <p className="text-2xl font-bold">
-                    {systemStats.indicationsActive}/{systemStats.strategiesActive}
+                    {systemStats.indicationsActive}/{systemStats.indicationsTotal}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Active/Total</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Live Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.totalPositions || 0}</p>
+                  <p className="text-2xl font-bold">{systemStats.livePositions || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Open trades</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Daily PnL</p>
-                  <p className={`text-2xl font-bold ${systemStats.dailyPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
-                    {systemStats.dailyPnL >= 0 ? "+" : ""}
-                    {systemStats.dailyPnL.toFixed(2)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Today's performance</p>
+                  <p className="text-sm text-muted-foreground">Pseudo Positions</p>
+                  <p className="text-2xl font-bold">{systemStats.pseudoPositions || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Test trades</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Exchange Selection</CardTitle>
-              <CardDescription>Select overall exchange for trading operations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Select value={selectedConnection} onValueChange={handleExchangeSelectionChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select exchange" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeConnections.length === 0 ? (
-                        <div className="p-2 text-xs text-muted-foreground text-center">
-                          No active connections. Add connections first.
-                        </div>
-                      ) : (
-                        activeConnections.map((connection) => (
-                          <SelectItem key={connection.id} value={connection.id}>
-                            {connection.name} ({connection.exchange})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Selected: <span className="font-medium">{selectedConnection || "None"}</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Only exchanges from Active Connections are shown. Add connections below to see them here.
-              </p>
             </CardContent>
           </Card>
 
@@ -453,15 +341,6 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
-
-            {!tradeEngineRunning && activeConnections.length > 0 && (
-              <Alert className="mb-3">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Trade engine is not running. Enable the trade engine to activate trading on these connections.
-                </AlertDescription>
-              </Alert>
-            )}
 
             {activeConnections.length === 0 ? (
               <Card>
