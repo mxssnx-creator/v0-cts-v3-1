@@ -117,11 +117,10 @@ export class GlobalTradeEngineCoordinator {
     console.log("[v0] Starting all TradeEngines...")
 
     try {
-      // Get all active connections
       const connections = await sql<any>`
         SELECT id, exchange, api_key, api_secret 
-        FROM connections 
-        WHERE is_active = true
+        FROM exchange_connections 
+        WHERE is_enabled = 1
       `
 
       console.log(`[v0] Found ${connections.length} active connections`)

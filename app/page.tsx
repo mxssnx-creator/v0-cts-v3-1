@@ -26,22 +26,11 @@ export default function Dashboard() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
   const [systemStats, setSystemStats] = useState({
-    activeSymbols: 0,
-    indicationsActive: 0,
-    indicationsTotal: 0,
-    livePositions: 0,
-    pseudoPositions: 0,
     activeConnections: 0,
-    totalConnections: 0,
-    systemHealth: 0,
-    cpuUsage: 0,
-    memoryUsage: 0,
-    diskUsage: 0,
-    uptime: 0,
-    lastUpdate: new Date().toISOString(),
     totalPositions: 0,
     dailyPnL: 0,
     totalBalance: 0,
+    indicationsActive: 0,
     strategiesActive: 0,
     systemLoad: 0,
     databaseSize: 0,
