@@ -39,6 +39,12 @@ export default function Dashboard() {
     diskUsage: 0,
     uptime: 0,
     lastUpdate: new Date().toISOString(),
+    totalPositions: 0,
+    dailyPnL: 0,
+    totalBalance: 0,
+    strategiesActive: 0,
+    systemLoad: 0,
+    databaseSize: 0,
   })
 
   useEffect(() => {

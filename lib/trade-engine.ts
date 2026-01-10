@@ -41,6 +41,7 @@ export interface ComponentHealth {
 export class GlobalTradeEngineCoordinator {
   private engineManagers: Map<string, TradeEngineManager> = new Map()
   private isGloballyRunning = false
+  private isPaused = false
   private healthCheckTimer?: NodeJS.Timeout
 
   constructor() {
@@ -174,6 +175,73 @@ export class GlobalTradeEngineCoordinator {
     this.isGloballyRunning = false
 
     console.log("[v0] All TradeEngines stopped")
+  }
+
+  /**
+   * Pause all engines
+   */
+  async pause(): Promise<void> {
+    console.log("[v0] Pausing all TradeEngines...")
+
+    this.isPaused = true
+
+    // Pause all engine managers
+    for (const [connectionId, manager] of this.engineManagers.entries()) {
+      try {
+        await manager.stop()
+        console.log(`[v0] Paused engine for connection: ${connectionId}`)
+      } catch (error) {
+        console.error(`[v0] Failed to pause engine for connection ${connectionId}:`, error)
+      }
+    }
+
+    console.log("[v0] All TradeEngines paused")
+  }
+
+  /**
+   * Resume all engines
+   */
+  async resume(): Promise<void> {
+    console.log("[v0] Resuming all TradeEngines...")
+
+    if (!this.isPaused) {
+      console.log("[v0] TradeEngines are not paused, nothing to resume")
+      return
+    }
+
+    this.isPaused = false
+
+    try {
+      // Get all active connections
+      const connections = await sql<any>`
+        SELECT id, exchange, api_key, api_secret 
+        FROM connections 
+        WHERE is_active = true
+      `
+
+      console.log(`[v0] Found ${connections.length} active connections to resume`)
+
+      // Restart engine for each connection
+      for (const connection of connections) {
+        try {
+          const config: EngineConfig = {
+            connectionId: connection.id,
+            indicationInterval: 5,
+            strategyInterval: 10,
+            realtimeInterval: 3,
+          }
+
+          await this.startEngine(connection.id, config)
+        } catch (error) {
+          console.error(`[v0] Failed to resume engine for connection ${connection.id}:`, error)
+        }
+      }
+
+      console.log("[v0] All TradeEngines resumed")
+    } catch (error) {
+      console.error("[v0] Failed to resume engines:", error)
+      throw error
+    }
   }
 
   /**
@@ -316,6 +384,13 @@ export class GlobalTradeEngineCoordinator {
    */
   isRunning(): boolean {
     return this.isGloballyRunning
+  }
+
+  /**
+   * Check if coordinator is paused
+   */
+  isPausedState(): boolean {
+    return this.isPaused
   }
 
   /**
