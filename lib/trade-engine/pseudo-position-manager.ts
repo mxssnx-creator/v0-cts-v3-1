@@ -8,6 +8,9 @@ import { VolumeCalculator } from "@/lib/volume-calculator"
 
 export class PseudoPositionManager {
   private connectionId: string
+  private activePositionsCache: any[] | null = null
+  private cacheTimestamp = 0
+  private readonly CACHE_TTL_MS = 1000 // 1 second cache
 
   constructor(connectionId: string) {
     this.connectionId = connectionId
@@ -103,12 +106,21 @@ export class PseudoPositionManager {
    */
   async getActivePositions(): Promise<any[]> {
     try {
+      const now = Date.now()
+      if (this.activePositionsCache && now - this.cacheTimestamp < this.CACHE_TTL_MS) {
+        return this.activePositionsCache
+      }
+
       const positions = await sql`
         SELECT * FROM pseudo_positions
         WHERE connection_id = ${this.connectionId}
           AND status = 'active'
         ORDER BY opened_at DESC
       `
+
+      this.activePositionsCache = positions
+      this.cacheTimestamp = now
+
       return positions
     } catch (error) {
       console.error("[v0] Failed to get active positions:", error)
@@ -185,6 +197,8 @@ export class PseudoPositionManager {
       `
 
       console.log(`[v0] Closed position ${positionId}: ${reason} (PnL: ${finalMetrics.unrealizedPnL.toFixed(2)})`)
+
+      this.invalidateCache()
 
       // Update active positions count
       await this.updateActivePositionsCount()
@@ -407,5 +421,13 @@ export class PseudoPositionManager {
       console.error("[v0] Failed to check if can create position:", error)
       return false
     }
+  }
+
+  /**
+   * Invalidate position cache
+   */
+  private invalidateCache(): void {
+    this.activePositionsCache = null
+    this.cacheTimestamp = 0
   }
 }

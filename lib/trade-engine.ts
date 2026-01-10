@@ -43,9 +43,20 @@ export class GlobalTradeEngineCoordinator {
   private isGloballyRunning = false
   private isPaused = false
   private healthCheckTimer?: NodeJS.Timeout
+  private coordinationMetrics: {
+    totalSymbolsProcessed: number
+    totalCycles: number
+    avgCycleDuration: number
+    lastMetricsUpdate: Date
+  } = {
+    totalSymbolsProcessed: 0,
+    totalCycles: 0,
+    avgCycleDuration: 0,
+    lastMetricsUpdate: new Date(),
+  }
 
   constructor() {
-    console.log("[v0] GlobalTradeEngineCoordinator initialized")
+    console.log("[v0] GlobalTradeEngineCoordinator initialized with advanced coordination")
   }
 
   /**
@@ -114,37 +125,57 @@ export class GlobalTradeEngineCoordinator {
    * Start all engines (for all active connections)
    */
   async startAllEngines(): Promise<void> {
-    console.log("[v0] Starting all TradeEngines...")
+    console.log("[v0] Starting all TradeEngines with optimized coordination...")
 
     try {
-      const connections = await sql<any>`
-        SELECT id, exchange, api_key, api_secret 
-        FROM exchange_connections 
-        WHERE is_enabled = 1
-      `
+      let connections: any[] = []
+
+      try {
+        const { loadConnections } = await import("@/lib/file-storage")
+        const allConnections = loadConnections()
+        connections = allConnections.filter((c) => c.is_active && c.is_enabled)
+        console.log(`[v0] Loaded ${connections.length} active connections from file storage`)
+      } catch (fileError) {
+        console.log("[v0] File storage not available, trying database:", fileError)
+        try {
+          connections = await sql<any>`
+            SELECT id, exchange, api_key, api_secret 
+            FROM exchange_connections 
+            WHERE (is_enabled = 1 OR is_enabled = true)
+              AND (is_active = 1 OR is_active = true)
+          `
+          console.log(`[v0] Loaded ${connections.length} active connections from database`)
+        } catch (dbError) {
+          console.error("[v0] Database also failed:", dbError)
+          console.warn("[v0] No connections available to start")
+          return
+        }
+      }
 
       console.log(`[v0] Found ${connections.length} active connections`)
 
-      // Start engine for each connection
-      for (const connection of connections) {
+      const engineStarts = connections.map(async (connection) => {
         try {
           const config: EngineConfig = {
             connectionId: connection.id,
-            indicationInterval: 5, // 5 seconds
-            strategyInterval: 10, // 10 seconds
-            realtimeInterval: 3, // 3 seconds
+            indicationInterval: 5,
+            strategyInterval: 10,
+            realtimeInterval: 3,
           }
 
           await this.startEngine(connection.id, config)
         } catch (error) {
           console.error(`[v0] Failed to start engine for connection ${connection.id}:`, error)
         }
-      }
+      })
+
+      await Promise.allSettled(engineStarts)
 
       this.isGloballyRunning = true
       this.startGlobalHealthMonitoring()
+      this.startCoordinationMetricsTracking()
 
-      console.log("[v0] All TradeEngines started")
+      console.log("[v0] All TradeEngines started with advanced coordination")
     } catch (error) {
       console.error("[v0] Failed to start all engines:", error)
       throw error
@@ -405,6 +436,50 @@ export class GlobalTradeEngineCoordinator {
   getActiveEngineCount(): number {
     return this.engineManagers.size
   }
+
+  private startCoordinationMetricsTracking(): void {
+    const metricsInterval = 60000 // Update every 60 seconds
+
+    setInterval(async () => {
+      try {
+        const allStatus = await this.getAllEnginesStatus()
+
+        let totalSymbols = 0
+        let totalCycles = 0
+        let totalDuration = 0
+        let engineCount = 0
+
+        for (const status of Object.values(allStatus)) {
+          if (status.preset_symbols_processed) {
+            totalSymbols += status.preset_symbols_processed
+            totalCycles += status.preset_cycle_count || 0
+            totalDuration += status.preset_avg_duration_ms || 0
+            engineCount++
+          }
+        }
+
+        this.coordinationMetrics = {
+          totalSymbolsProcessed: totalSymbols,
+          totalCycles: totalCycles,
+          avgCycleDuration: engineCount > 0 ? totalDuration / engineCount : 0,
+          lastMetricsUpdate: new Date(),
+        }
+
+        console.log(
+          `[v0] Coordination Metrics: ${totalSymbols} symbols, ${totalCycles} cycles, ${Math.round(this.coordinationMetrics.avgCycleDuration)}ms avg`,
+        )
+      } catch (error) {
+        console.error("[v0] Coordination metrics tracking error:", error)
+      }
+    }, metricsInterval)
+  }
+
+  /**
+   * Get coordination metrics
+   */
+  getCoordinationMetrics() {
+    return { ...this.coordinationMetrics }
+  }
 }
 
 /**
@@ -434,6 +509,23 @@ export function initializeGlobalCoordinator(): GlobalTradeEngineCoordinator {
 
 export function getGlobalCoordinator(): GlobalTradeEngineCoordinator | null {
   return getTradeEngine()
+}
+
+export function getGlobalTradeEngineCoordinator(): GlobalTradeEngineCoordinator {
+  if (!globalCoordinator) {
+    globalCoordinator = new GlobalTradeEngineCoordinator()
+    console.log("[v0] Global trade engine coordinator auto-initialized")
+  }
+  return globalCoordinator
+}
+
+export async function getTradeEngineStatus(connectionId: string): Promise<any | null> {
+  if (!globalCoordinator) {
+    console.log("[v0] No global coordinator initialized yet")
+    return null
+  }
+
+  return globalCoordinator.getEngineStatus(connectionId)
 }
 
 export function initializeTradeEngine(): GlobalTradeEngineCoordinator {

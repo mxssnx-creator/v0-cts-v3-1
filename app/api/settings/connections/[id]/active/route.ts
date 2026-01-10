@@ -1,114 +1,81 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { execute, queryOne } from "@/lib/db"
 import { SystemLogger } from "@/lib/system-logger"
+import { loadConnections, saveConnections } from "@/lib/file-storage"
 
-// POST - Toggle active status for connections
+// POST - Add connection to active connections
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const body = await request.json()
-    const { is_active } = body
+    const connectionId = id
 
-    console.log("[v0] [Connection] Toggling active status for connection:", id, "to:", is_active)
+    console.log("[v0] Adding connection to active:", connectionId)
 
-    const connection = await queryOne(`SELECT id, name, exchange FROM exchange_connections WHERE id = $1`, [id])
+    const connections = loadConnections()
+    const connectionIndex = connections.findIndex((c) => c.id === connectionId)
 
-    if (!connection) {
-      console.error("[v0] [Connection] Connection not found:", id)
+    if (connectionIndex === -1) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
-    await execute(
-      `
-      UPDATE exchange_connections
-      SET is_active = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-    `,
-      [is_active, id],
-    )
-
-    if (is_active) {
-      try {
-        await execute(
-          `
-          INSERT INTO trade_engine_state (connection_id, status, last_updated)
-          VALUES ($1, 'stopped', CURRENT_TIMESTAMP)
-          ON CONFLICT (connection_id) DO UPDATE SET status = 'stopped', last_updated = CURRENT_TIMESTAMP
-        `,
-          [id],
-        )
-        console.log("[v0] [Connection] Trade engine state initialized for connection:", id)
-      } catch (engineError) {
-        console.error("[v0] [Connection] Failed to initialize trade engine state:", engineError)
-        // Continue anyway - this is not critical for activation
-      }
-    } else {
-      try {
-        const engineState = await queryOne(`SELECT status FROM trade_engine_state WHERE connection_id = $1`, [id])
-
-        if (engineState?.status === "running") {
-          console.log("[v0] [Connection] Stopping trade engine for deactivated connection:", id)
-
-          const port = process.env.PORT || "3000"
-          const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-              ? `https://${process.env.VERCEL_URL}`
-              : `http://localhost:${port}`
-
-          try {
-            const response = await fetch(`${appUrl}/api/trade-engine/stop`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ connectionId: id }),
-              signal: AbortSignal.timeout(5000), // 5 second timeout
-            })
-
-            if (!response.ok) {
-              console.error("[v0] [Connection] Failed to stop trade engine via API, forcing stop")
-              throw new Error("API call failed")
-            }
-          } catch (apiError) {
-            console.error("[v0] [Connection] Error calling stop API, forcing database update:", apiError)
-            // Force stop in database if API call fails
-            await execute(
-              `
-              UPDATE trade_engine_state
-              SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
-              WHERE connection_id = $1
-            `,
-              [id],
-            )
-          }
-        }
-      } catch (engineError) {
-        console.error("[v0] [Connection] Error handling trade engine shutdown:", engineError)
-        // Continue anyway - connection will be deactivated
-      }
+    // Update connection to be active
+    connections[connectionIndex] = {
+      ...connections[connectionIndex],
+      is_active: true,
+      updated_at: new Date().toISOString(),
     }
 
+    saveConnections(connections)
+
     await SystemLogger.logConnection(
-      `Connection ${is_active ? "activated" : "deactivated"}: ${connection.name}`,
-      id,
+      `Connection added to active: ${connections[connectionIndex].name}`,
+      connectionId,
       "info",
-      { is_active },
     )
 
-    console.log("[v0] [Connection] Active status updated successfully")
-
-    return NextResponse.json({
-      success: true,
-      message: is_active ? "Connection activated" : "Connection deactivated",
-    })
+    return NextResponse.json({ success: true, message: "Connection added to active" })
   } catch (error) {
-    console.error("[v0] [Connection] Failed to toggle active status:", error)
+    console.error("[v0] Failed to add connection to active:", error)
     await SystemLogger.logError(error, "api", "POST /api/settings/connections/[id]/active")
+    return NextResponse.json({ error: "Failed to add connection to active" }, { status: 500 })
+  }
+}
 
-    return NextResponse.json(
-      {
-        error: "Failed to toggle active status",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
+// DELETE - Remove connection from active connections
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const connectionId = id
+
+    console.log("[v0] Removing connection from active:", connectionId)
+
+    const connections = loadConnections()
+    const connectionIndex = connections.findIndex((c) => c.id === connectionId)
+
+    if (connectionIndex === -1) {
+      return NextResponse.json({ error: "Connection not found" }, { status: 404 })
+    }
+
+    // Update connection to not be active
+    connections[connectionIndex] = {
+      ...connections[connectionIndex],
+      is_active: false,
+      is_enabled: false,
+      is_live_trade: false,
+      updated_at: new Date().toISOString(),
+    }
+
+    saveConnections(connections)
+
+    await SystemLogger.logConnection(
+      `Connection removed from active: ${connections[connectionIndex].name}`,
+      connectionId,
+      "info",
     )
+
+    return NextResponse.json({ success: true, message: "Connection removed from active" })
+  } catch (error) {
+    console.error("[v0] Failed to remove connection from active:", error)
+    await SystemLogger.logError(error, "api", "DELETE /api/settings/connections/[id]/active")
+    return NextResponse.json({ error: "Failed to remove connection from active" }, { status: 500 })
   }
 }

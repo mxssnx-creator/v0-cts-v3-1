@@ -51,9 +51,13 @@ class DatabaseManager {
       const isPostgres = dbType === "postgresql" || dbType === "remote"
 
       this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
-      this.initializeTables()
+      this.initializeTables().catch((error) => {
+        console.error("[v0] Failed to initialize DatabaseManager tables:", error)
+        console.log("[v0] System will use file-based storage as fallback")
+      })
     } catch (error) {
       console.error("[v0] Failed to initialize DatabaseManager:", error)
+      console.log("[v0] System will use file-based storage as fallback")
     }
   }
 
@@ -85,8 +89,10 @@ class DatabaseManager {
               api_key TEXT NOT NULL,
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT false,
+              is_active BOOLEAN DEFAULT false,
               is_live_trade BOOLEAN DEFAULT false,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
           `)
         } else {
@@ -100,8 +106,10 @@ class DatabaseManager {
               api_key TEXT NOT NULL,
               api_secret TEXT NOT NULL,
               is_enabled BOOLEAN DEFAULT 0,
+              is_active BOOLEAN DEFAULT 0,
               is_live_trade BOOLEAN DEFAULT 0,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
           `)
         }
@@ -454,6 +462,7 @@ class DatabaseManager {
           `)
         }
 
+        // Add IF NOT EXISTS to existing preset_configuration_sets columns
         if (isPostgres) {
           await (client as Pool).query(`
             ALTER TABLE preset_configuration_sets
@@ -504,7 +513,7 @@ class DatabaseManager {
       })
     } catch (error) {
       console.error("[v0] Failed to initialize database tables:", error)
-      throw error
+      console.log("[v0] System will continue with file-based storage")
     }
   }
 

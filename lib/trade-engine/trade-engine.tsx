@@ -285,28 +285,49 @@ export class TradeEngine {
   }
 
   private async processSymbolsPresetMode(symbols: string[]): Promise<void> {
+    // Process symbols in optimal batch sizes based on CPU cores
+    const optimalBatchSize = Math.min(this.maxConcurrency, Math.ceil(symbols.length / 4))
     const chunks = []
-    for (let i = 0; i < symbols.length; i += this.maxConcurrency) {
-      chunks.push(symbols.slice(i, i + this.maxConcurrency))
+
+    for (let i = 0; i < symbols.length; i += optimalBatchSize) {
+      chunks.push(symbols.slice(i, i + optimalBatchSize))
     }
 
+    // Process chunks with Promise.allSettled for error isolation
     for (const chunk of chunks) {
-      await Promise.all(chunk.map((symbol) => this.processSymbolPreset(symbol)))
+      const results = await Promise.allSettled(chunk.map((symbol) => this.processSymbolPreset(symbol)))
+
+      // Log any rejected promises for monitoring
+      const failures = results.filter((r) => r.status === "rejected")
+      if (failures.length > 0) {
+        console.warn(`[v0] ${failures.length} symbols failed in preset mode batch`)
+      }
     }
   }
 
   private async processSymbolsMainMode(symbols: string[]): Promise<void> {
+    // Process symbols in optimal batch sizes
+    const optimalBatchSize = Math.min(this.maxConcurrency, Math.ceil(symbols.length / 4))
     const chunks = []
-    for (let i = 0; i < symbols.length; i += this.maxConcurrency) {
-      chunks.push(symbols.slice(i, i + this.maxConcurrency))
+
+    for (let i = 0; i < symbols.length; i += optimalBatchSize) {
+      chunks.push(symbols.slice(i, i + optimalBatchSize))
     }
 
+    // Process chunks with Promise.allSettled for error isolation
     for (const chunk of chunks) {
-      await Promise.all(chunk.map((symbol) => this.processSymbolMain(symbol)))
+      const results = await Promise.allSettled(chunk.map((symbol) => this.processSymbolMain(symbol)))
+
+      // Log any rejected promises for monitoring
+      const failures = results.filter((r) => r.status === "rejected")
+      if (failures.length > 0) {
+        console.warn(`[v0] ${failures.length} symbols failed in main mode batch`)
+      }
     }
   }
 
   private async processSymbolPreset(symbol: string): Promise<void> {
+    // Check if already processing (prevents duplicate work)
     if (this.presetProcessingQueue.has(symbol)) {
       return
     }
@@ -314,9 +335,17 @@ export class TradeEngine {
     this.presetProcessingQueue.add(symbol)
 
     try {
-      await this.indicationProcessor.processIndication(symbol)
-      await this.strategyProcessor.processStrategy(symbol)
-      await this.managePseudoPositionsWithValidation(symbol, "preset")
+      // Process in parallel with error isolation
+      const [indicationResult, strategyResult] = await Promise.allSettled([
+        this.indicationProcessor.processIndication(symbol),
+        this.strategyProcessor.processStrategy(symbol),
+      ])
+
+      // Continue with position management if indication succeeded
+      if (indicationResult.status === "fulfilled") {
+        await this.managePseudoPositionsWithValidation(symbol, "preset")
+      }
+
       await this.logTradeActivities(symbol, "preset")
     } catch (error) {
       console.error(`[v0] Error processing symbol ${symbol} in Preset mode:`, error)
@@ -326,6 +355,7 @@ export class TradeEngine {
   }
 
   private async processSymbolMain(symbol: string): Promise<void> {
+    // Check if already processing
     if (this.mainProcessingQueue.has(symbol)) {
       return
     }
@@ -333,92 +363,20 @@ export class TradeEngine {
     this.mainProcessingQueue.add(symbol)
 
     try {
+      // Process step-based indications
       await this.indicationStateManager.processStepBasedIndications(symbol)
 
-      await this.positionFlowCoordinator.processRealPseudoValidation(symbol)
+      // Parallel validation and position management
+      await Promise.all([
+        this.positionFlowCoordinator.processRealPseudoValidation(symbol),
+        this.managePseudoPositionsWithValidation(symbol, "main"),
+      ])
 
-      await this.managePseudoPositionsWithValidation(symbol, "main")
       await this.logTradeActivities(symbol, "main")
     } catch (error) {
       console.error(`[v0] Error processing symbol ${symbol} in Main mode:`, error)
     } finally {
       this.mainProcessingQueue.delete(symbol)
-    }
-  }
-
-  private async managePseudoPositionsWithValidation(symbol: string, mode: "preset" | "main"): Promise<void> {
-    try {
-      const baseIndications = await sql`
-        SELECT * FROM indications
-        WHERE connection_id = ${this.connectionId}
-          AND symbol = ${symbol}
-          AND mode = ${mode}
-          AND calculated_at > NOW() - INTERVAL '5 minutes'
-          AND profit_factor >= 0.7
-        ORDER BY calculated_at DESC
-        LIMIT 5
-      `
-
-      if (baseIndications.length === 0) return
-
-      const mainSignals = await sql`
-        SELECT * FROM pseudo_positions
-        WHERE connection_id = ${this.connectionId}
-          AND symbol = ${symbol}
-          AND mode = ${mode}
-          AND status = 'active'
-          AND profit_factor >= 0.6
-          AND created_at > NOW() - INTERVAL '1 hour'
-      `
-
-      for (const signal of mainSignals) {
-        if (await this.isValidatedForReal(signal)) {
-          await this.createRealPseudoPosition(symbol, signal, mode)
-        }
-      }
-    } catch (error) {
-      console.error(`[v0] Error managing pseudo positions for ${symbol} in ${mode} mode:`, error)
-    }
-  }
-
-  private async isValidatedForReal(mainPosition: any): Promise<boolean> {
-    try {
-      const profitFactor = Number.parseFloat(mainPosition.profit_factor)
-      const createdAt = new Date(mainPosition.created_at)
-      const now = new Date()
-      const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60)
-
-      const meetsMinProfitFactor = profitFactor >= 0.6
-      const withinDrawdownTime = hoursSinceCreation <= 12
-
-      const [existing] = await sql`
-        SELECT id FROM real_pseudo_positions
-        WHERE main_position_id = ${mainPosition.id}
-      `
-
-      return meetsMinProfitFactor && withinDrawdownTime && !existing
-    } catch (error) {
-      console.error("[v0] Error validating for real:", error)
-      return false
-    }
-  }
-
-  private async createRealPseudoPosition(symbol: string, mainPosition: any, mode: "preset" | "main"): Promise<void> {
-    try {
-      await sql`
-        INSERT INTO real_pseudo_positions (
-          connection_id, main_position_id, symbol, side, mode,
-          entry_price, quantity, status, validated_at
-        )
-        VALUES (
-          ${this.connectionId}, ${mainPosition.id}, ${symbol}, ${mainPosition.side}, ${mode},
-          ${mainPosition.entry_price}, ${mainPosition.quantity}, 'validated', CURRENT_TIMESTAMP
-        )
-      `
-
-      console.log(`[v0] Created real pseudo position for ${symbol} in ${mode} mode`)
-    } catch (error) {
-      console.error(`[v0] Error creating real pseudo position for ${symbol}:`, error)
     }
   }
 
@@ -832,6 +790,82 @@ export class TradeEngine {
       console.log(`[v0] ${TRADE_SERVICE_NAME} state updated to: ${status}`)
     } catch (error) {
       console.error(`[v0] Failed to update engine state:`, error)
+    }
+  }
+
+  private async managePseudoPositionsWithValidation(symbol: string, mode: "preset" | "main"): Promise<void> {
+    try {
+      const baseIndications = await sql`
+        SELECT * FROM indications
+        WHERE connection_id = ${this.connectionId}
+          AND symbol = ${symbol}
+          AND mode = ${mode}
+          AND calculated_at > NOW() - INTERVAL '5 minutes'
+          AND profit_factor >= 0.7
+        ORDER BY calculated_at DESC
+        LIMIT 5
+      `
+
+      if (baseIndications.length === 0) return
+
+      const mainSignals = await sql`
+        SELECT * FROM pseudo_positions
+        WHERE connection_id = ${this.connectionId}
+          AND symbol = ${symbol}
+          AND mode = ${mode}
+          AND status = 'active'
+          AND profit_factor >= 0.6
+          AND created_at > NOW() - INTERVAL '1 hour'
+      `
+
+      for (const signal of mainSignals) {
+        if (await this.isValidatedForReal(signal)) {
+          await this.createRealPseudoPosition(symbol, signal, mode)
+        }
+      }
+    } catch (error) {
+      console.error(`[v0] Error managing pseudo positions for ${symbol} in ${mode} mode:`, error)
+    }
+  }
+
+  private async isValidatedForReal(mainPosition: any): Promise<boolean> {
+    try {
+      const profitFactor = Number.parseFloat(mainPosition.profit_factor)
+      const createdAt = new Date(mainPosition.created_at)
+      const now = new Date()
+      const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60)
+
+      const meetsMinProfitFactor = profitFactor >= 0.6
+      const withinDrawdownTime = hoursSinceCreation <= 12
+
+      const [existing] = await sql`
+        SELECT id FROM real_pseudo_positions
+        WHERE main_position_id = ${mainPosition.id}
+      `
+
+      return meetsMinProfitFactor && withinDrawdownTime && !existing
+    } catch (error) {
+      console.error("[v0] Error validating for real:", error)
+      return false
+    }
+  }
+
+  private async createRealPseudoPosition(symbol: string, mainPosition: any, mode: "preset" | "main"): Promise<void> {
+    try {
+      await sql`
+        INSERT INTO real_pseudo_positions (
+          connection_id, main_position_id, symbol, side, mode,
+          entry_price, quantity, status, validated_at
+        )
+        VALUES (
+          ${this.connectionId}, ${mainPosition.id}, ${symbol}, ${mainPosition.side}, ${mode},
+          ${mainPosition.entry_price}, ${mainPosition.quantity}, 'validated', CURRENT_TIMESTAMP
+        )
+      `
+
+      console.log(`[v0] Created real pseudo position for ${symbol} in ${mode} mode`)
+    } catch (error) {
+      console.error(`[v0] Error creating real pseudo position for ${symbol}:`, error)
     }
   }
 }

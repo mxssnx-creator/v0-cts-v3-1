@@ -23,6 +23,8 @@ export class MarketDataStream {
   private activeSymbols: Set<string> = new Set()
   private dataBuffer: Map<string, MarketDataUpdate[]> = new Map()
   private flushInterval: NodeJS.Timeout | null = null
+  private priceCache: Map<string, { price: number; timestamp: number }> = new Map()
+  private readonly PRICE_CACHE_TTL_MS = 500 // 500ms cache for prices
 
   constructor(connectionId: string, wsUrl: string) {
     this.connectionId = connectionId
@@ -110,6 +112,11 @@ export class MarketDataStream {
       }
       this.dataBuffer.get(update.symbol)!.push(update)
 
+      this.priceCache.set(update.symbol, {
+        price: update.price,
+        timestamp: Date.now(),
+      })
+
       // Emit event for real-time processing
       this.emitUpdate(update)
     } catch (error) {
@@ -193,6 +200,12 @@ export class MarketDataStream {
    * Get latest price for symbol
    */
   getLatestPrice(symbol: string): number | null {
+    const cached = this.priceCache.get(symbol)
+    if (cached && Date.now() - cached.timestamp < this.PRICE_CACHE_TTL_MS) {
+      return cached.price
+    }
+
+    // Fallback to buffer
     const updates = this.dataBuffer.get(symbol)
     if (!updates || updates.length === 0) return null
     return updates[updates.length - 1].price

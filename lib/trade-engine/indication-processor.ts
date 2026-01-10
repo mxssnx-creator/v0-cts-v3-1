@@ -8,6 +8,9 @@ import { DataSyncManager } from "@/lib/data-sync-manager"
 
 export class IndicationProcessor {
   private connectionId: string
+  private marketDataCache: Map<string, { data: any; timestamp: number }> = new Map()
+  private settingsCache: { data: any; timestamp: number } | null = null
+  private readonly CACHE_TTL = 30000 // 30 seconds
 
   constructor(connectionId: string) {
     this.connectionId = connectionId
@@ -20,30 +23,27 @@ export class IndicationProcessor {
     try {
       console.log(`[v0] Processing indication for ${symbol}`)
 
-      // Get latest market data
-      const marketData = await this.getLatestMarketData(symbol)
+      const marketData = await this.getLatestMarketDataCached(symbol)
       if (!marketData) {
         console.log(`[v0] No market data available for ${symbol}`)
         return
       }
 
-      // Get indication settings
-      const settings = await this.getIndicationSettings()
+      const settings = await this.getIndicationSettingsCached()
 
-      // Calculate indication
+      // Calculate indication asynchronously
       const indication = await this.calculateIndication(symbol, marketData, settings)
 
       if (indication && indication.profit_factor >= settings.minProfitFactor) {
-        // Store indication
         await sql`
           INSERT INTO indications (
-            connection_id, symbol, indication_type, timeframe,
-            value, profit_factor, confidence, metadata
+            connection_id, symbol, indication_type, timeframe, mode,
+            value, profit_factor, confidence, metadata, calculated_at
           )
           VALUES (
-            ${this.connectionId}, ${symbol}, ${indication.type}, ${indication.timeframe},
+            ${this.connectionId}, ${symbol}, ${indication.type}, ${indication.timeframe}, 'preset',
             ${indication.value}, ${indication.profit_factor}, ${indication.confidence},
-            ${JSON.stringify(indication.metadata)}
+            ${JSON.stringify(indication.metadata)}, CURRENT_TIMESTAMP
           )
         `
 
@@ -72,8 +72,7 @@ export class IndicationProcessor {
       // Get historical market data
       const historicalData = await this.getHistoricalMarketData(symbol, start, end)
 
-      // Get indication settings
-      const settings = await this.getIndicationSettings()
+      const settings = await this.getIndicationSettingsCached()
 
       let recordsProcessed = 0
 
@@ -133,16 +132,13 @@ export class IndicationProcessor {
       return null // Not enough data
     }
 
-    // Calculate Direction indication (trend analysis)
-    const directionIndication = this.calculateDirectionIndication(historicalPrices, price)
+    const [directionIndication, moveIndication, activeIndication] = await Promise.all([
+      Promise.resolve(this.calculateDirectionIndication(historicalPrices, price)),
+      Promise.resolve(this.calculateMoveIndication(historicalPrices, price)),
+      Promise.resolve(this.calculateActiveIndication(historicalPrices, volume)),
+    ])
 
-    // Calculate Move indication (momentum)
-    const moveIndication = this.calculateMoveIndication(historicalPrices, price)
-
-    // Calculate Active indication (market activity)
-    const activeIndication = this.calculateActiveIndication(historicalPrices, volume)
-
-    // Calculate Optimal indication (combined scoring)
+    // Calculate optimal based on parallel results
     const optimalIndication = this.calculateOptimalIndication(directionIndication, moveIndication, activeIndication)
 
     // Return the strongest indication
@@ -323,5 +319,34 @@ export class IndicationProcessor {
       console.error("[v0] Failed to get indication settings:", error)
       return { minProfitFactor: 0.7, rangeMin: 3, rangeMax: 30 }
     }
+  }
+
+  private async getLatestMarketDataCached(symbol: string): Promise<any> {
+    const now = Date.now()
+    const cached = this.marketDataCache.get(symbol)
+
+    if (cached && now - cached.timestamp < this.CACHE_TTL) {
+      return cached.data
+    }
+
+    const data = await this.getLatestMarketData(symbol)
+    if (data) {
+      this.marketDataCache.set(symbol, { data, timestamp: now })
+    }
+
+    return data
+  }
+
+  private async getIndicationSettingsCached(): Promise<any> {
+    const now = Date.now()
+
+    if (this.settingsCache && now - this.settingsCache.timestamp < this.CACHE_TTL) {
+      return this.settingsCache.data
+    }
+
+    const settings = await this.getIndicationSettings()
+    this.settingsCache = { data: settings, timestamp: now }
+
+    return settings
   }
 }

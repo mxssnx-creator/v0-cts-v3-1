@@ -34,27 +34,31 @@ export async function POST(request: NextRequest) {
         })
         return NextResponse.json({ error: "Connection not found or not active" }, { status: 404 })
       }
+
+      console.log("[v0] [Trade Engine] Loaded connection from file storage:", connection.name)
     } catch (fileError) {
       console.error("[v0] [Trade Engine] Failed to load connection from file:", fileError)
       return NextResponse.json({ error: "Failed to load connection configuration" }, { status: 500 })
     }
     // </CHANGE>
 
-    // Get settings from system_settings or use defaults
     let tradeInterval = 1.0
     let realInterval = 0.3
 
     try {
-      const [settings] = await sql<{ trade_interval?: number; real_interval?: number }>`
+      const settings = await sql<{ trade_interval?: number; real_interval?: number }>`
         SELECT 
           CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'tradeInterval'), '1.0') AS FLOAT) as trade_interval,
           CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'realInterval'), '0.3') AS FLOAT) as real_interval
       `
-      tradeInterval = settings?.trade_interval || 1.0
-      realInterval = settings?.real_interval || 0.3
+      if (settings && settings.length > 0) {
+        tradeInterval = settings[0]?.trade_interval || 1.0
+        realInterval = settings[0]?.real_interval || 0.3
+      }
     } catch (dbError) {
-      console.warn("[v0] [Trade Engine] Could not load settings from database, using defaults")
+      console.warn("[v0] [Trade Engine] Could not load settings from database, using defaults:", dbError)
     }
+    // </CHANGE>
 
     const config: TradeEngineConfig = {
       connectionId: connectionId,
@@ -63,10 +67,25 @@ export async function POST(request: NextRequest) {
       maxConcurrency: 10,
     }
 
-    const tradeEngine = new TradeEngine(config)
-    await tradeEngine.start(config)
+    console.log("[v0] [Trade Engine] Creating trade engine with config:", config)
 
-    activeEngines.set(connectionId, tradeEngine)
+    const tradeEngine = new TradeEngine(config)
+
+    try {
+      await tradeEngine.start(config)
+      activeEngines.set(connectionId, tradeEngine)
+      console.log("[v0] [Trade Engine] Trade engine started successfully")
+    } catch (startError) {
+      console.error("[v0] [Trade Engine] Failed to start trade engine:", startError)
+      return NextResponse.json(
+        {
+          error: "Failed to start trade engine",
+          details: startError instanceof Error ? startError.message : "Unknown error",
+        },
+        { status: 500 },
+      )
+    }
+    // </CHANGE>
 
     try {
       await sql`
@@ -76,11 +95,10 @@ export async function POST(request: NextRequest) {
         DO UPDATE SET state = 'running', updated_at = CURRENT_TIMESTAMP
       `
     } catch (dbError) {
-      console.warn("[v0] [Trade Engine] Could not update database state:", dbError)
+      console.warn("[v0] [Trade Engine] Could not update database state (using file storage):", dbError)
     }
     // </CHANGE>
 
-    console.log("[v0] [Trade Engine] Started successfully for connection:", connectionId)
     await SystemLogger.logTradeEngine(`Trade engine started successfully for connection: ${connection.name}`, "info", {
       connectionId,
       connectionName: connection.name,

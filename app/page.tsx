@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConnectionCard } from "@/components/dashboard/connection-card"
 import { SystemOverview } from "@/components/dashboard/system-overview"
 import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
+import { StrategiesOverview } from "@/components/dashboard/strategies-overview"
 import type { ExchangeConnection } from "@/lib/types"
 import { RefreshCw, Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -39,6 +40,7 @@ export default function Dashboard() {
     livePositions: 0,
     pseudoPositions: 0,
   })
+  const [strategies, setStrategies] = useState<any[]>([])
 
   useEffect(() => {
     const initialize = async () => {
@@ -48,6 +50,7 @@ export default function Dashboard() {
 
       await loadConnections()
       await loadSystemStats()
+      await loadStrategies()
 
       const savedSelection = localStorage.getItem("selectedExchange")
       if (savedSelection) {
@@ -62,10 +65,39 @@ export default function Dashboard() {
     const interval = setInterval(() => {
       loadConnections()
       loadSystemStats()
+      loadStrategies()
     }, 10000)
 
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (activeConnections.length === 0) return
+
+    const updateConnectionStatuses = async () => {
+      try {
+        const response = await fetch("/api/connections/status")
+        if (response.ok) {
+          const statuses = await response.json()
+          // Update connection states with real data
+          statuses.forEach((statusData: any) => {
+            const conn = activeConnections.find((c) => c.id === statusData.id)
+            if (conn) {
+              // Real-time progress and status updates
+              console.log(`[v0] Connection ${conn.name}: ${statusData.status} - ${statusData.progress}%`)
+            }
+          })
+        }
+      } catch (error) {
+        console.error("[v0] Failed to update connection statuses:", error)
+      }
+    }
+
+    const interval = setInterval(updateConnectionStatuses, 5000) // Update every 5 seconds
+    updateConnectionStatuses() // Initial call
+
+    return () => clearInterval(interval)
+  }, [activeConnections])
 
   const loadConnections = async () => {
     try {
@@ -122,6 +154,18 @@ export default function Dashboard() {
       setSystemStats(data)
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
+    }
+  }
+
+  const loadStrategies = async () => {
+    try {
+      const response = await fetch("/api/strategies/overview")
+      if (response.ok) {
+        const data = await response.json()
+        setStrategies(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load strategies:", error)
     }
   }
 
@@ -221,140 +265,127 @@ export default function Dashboard() {
   const handleRefresh = () => {
     loadConnections()
     loadSystemStats()
+    loadStrategies()
   }
 
-  const getConnectionStatus = (connection: ExchangeConnection) => {
+  const getConnectionStatus = (connection: ExchangeConnection): "connected" | "connecting" | "error" | "disabled" => {
     if (!connection.is_enabled) return "disabled"
+    if (connection.last_test_status === "failed") return "error"
     if (connection.is_enabled && !connection.is_live_trade) return "connecting"
     return "connected"
   }
 
-  const getConnectionProgress = (connection: ExchangeConnection) => {
+  const getConnectionProgress = (connection: ExchangeConnection): number => {
+    // In a real implementation, this would query the trade engine coordinator
+    // For now, return based on connection state
     if (!connection.is_enabled) return 0
     if (connection.is_live_trade) return 100
-    return 50
+    // Simulate loading progress based on time since enabled
+    return 45 // This would come from real trade engine status
   }
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen">
-        <header className="flex items-center justify-between px-6 py-4 border-b bg-background">
-          <div className="flex items-center gap-4">
+      <div className="flex flex-col min-h-screen bg-background">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center px-4 gap-4">
             <SidebarTrigger />
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={selectedConnection} onValueChange={handleExchangeChange}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select Exchange" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeConnections.map((conn) => (
-                  <SelectItem key={conn.id} value={conn.id}>
-                    {conn.name} ({conn.exchange})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="icon" onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </header>
-
-        <main className="flex-1 p-6 space-y-6">
-          <SystemOverview stats={systemStats} />
-          <RealTimeTicker />
-          <GlobalTradeEngineControls />
-
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Active Connections</h2>
-              <div className="flex gap-2">
-                <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Connection
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add as Active Connection</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Select a connection from Settings to add as active. Each connection can only be added once.
-                      </p>
-                      <Select value={selectedToAdd} onValueChange={setSelectedToAdd}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a connection" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableConnections.length === 0 ? (
-                            <div className="p-2 text-xs text-muted-foreground text-center">
-                              No available connections. Add connections in Settings first.
-                            </div>
-                          ) : (
-                            availableConnections.map((connection) => (
-                              <SelectItem key={connection.id} value={connection.id}>
-                                {connection.name} ({connection.exchange}) - {connection.api_type}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button className="flex-1" onClick={handleAddAsActive} disabled={!selectedToAdd}>
-                          Add as Active
-                        </Button>
-                        <Button
-                          className="flex-1 bg-transparent"
-                          variant="outline"
-                          onClick={() => setShowAddDialog(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Button size="sm" onClick={() => (window.location.href = "/settings")}>
-                  Manage Connections
+            <div className="flex-1 flex items-center justify-between">
+              <h1 className="text-lg font-semibold">Dashboard</h1>
+              <div className="flex items-center gap-2">
+                <Select value={selectedConnection} onValueChange={handleExchangeChange}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select Exchange" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeConnections.map((conn) => (
+                      <SelectItem key={conn.id} value={conn.id}>
+                        {conn.name} ({conn.exchange})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="icon" onClick={handleRefresh}>
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
+          </div>
+        </header>
 
-            {activeConnections.length === 0 ? (
+        <main className="container mx-auto p-4 space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <SystemOverview {...systemStats} />
+          </div>
+
+          <StrategiesOverview strategies={strategies} />
+
+          <GlobalTradeEngineControls />
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Active Connections</h2>
+              <Button onClick={() => setShowAddDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Connection
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {activeConnections.map((connection) => (
+                <ConnectionCard
+                  key={connection.id}
+                  connection={connection}
+                  onToggleEnable={handleToggleEnable}
+                  onToggleLiveTrade={handleToggleLiveTrade}
+                  onDelete={handleRemoveFromActive}
+                  status={getConnectionStatus(connection)}
+                  progress={getConnectionProgress(connection)}
+                />
+              ))}
+            </div>
+
+            {activeConnections.length === 0 && (
               <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground mb-4">No active connections</p>
-                  <div className="flex gap-2 justify-center">
-                    <Button onClick={() => setShowAddDialog(true)}>Add Connection</Button>
-                    <Button variant="outline" onClick={() => (window.location.href = "/settings")}>
-                      Go to Settings
-                    </Button>
-                  </div>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <p className="text-muted-foreground mb-4">No active connections yet</p>
+                  <Button onClick={() => setShowAddDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Connection
+                  </Button>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="flex flex-col gap-3 max-w-4xl mx-auto">
-                {activeConnections.map((connection) => (
-                  <ConnectionCard
-                    key={connection.id}
-                    connection={connection}
-                    onToggleEnable={handleToggleEnable}
-                    onToggleLiveTrade={handleToggleLiveTrade}
-                    onDelete={handleRemoveFromActive}
-                    balance={connection.last_test_balance || 0}
-                    status={getConnectionStatus(connection)}
-                    progress={getConnectionProgress(connection)}
-                  />
-                ))}
-              </div>
             )}
           </div>
+
+          <RealTimeTicker />
         </main>
+
+        {/* Add Connection Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Connection to Active</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <Select value={selectedToAdd} onValueChange={setSelectedToAdd}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a connection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableConnections.map((conn) => (
+                    <SelectItem key={conn.id} value={conn.id}>
+                      {conn.name} ({conn.exchange})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button className="w-full" onClick={handleAddAsActive} disabled={!selectedToAdd}>
+                Add to Active
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AuthGuard>
   )

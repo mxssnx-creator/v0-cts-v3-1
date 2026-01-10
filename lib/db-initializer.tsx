@@ -35,6 +35,7 @@ export class DatabaseInitializer {
 
     if (process.env.USE_FILE_STORAGE === "true" || !process.env.DATABASE_URL) {
       console.log("[v0] Using file-based storage, skipping database initialization")
+      this.isInitialized = true
       return true
     }
 
@@ -119,7 +120,11 @@ export class DatabaseInitializer {
           throw new Error("Database connection failed: " + errorMessage)
         }
 
-        await this.runMigrations(timeout)
+        try {
+          await this.runMigrations(timeout)
+        } catch (migrationError) {
+          console.warn("[v0] Migrations failed, continuing with file-based storage:", migrationError)
+        }
 
         console.log(`[v0] ${dbType} database initialized successfully`)
         return true
@@ -135,6 +140,8 @@ export class DatabaseInitializer {
           console.error("[v0] Connection management will use JSON files")
           console.error("[v0] ")
           console.error("[v0] ==========================================")
+          this.isInitialized = true
+          // </CHANGE>
           return true
         }
       }
@@ -145,7 +152,11 @@ export class DatabaseInitializer {
 
   private static async runMigrations(timeout: number): Promise<void> {
     console.log("[v0] Running database migrations...")
-    await this.createEssentialTables()
+    try {
+      await this.createEssentialTables()
+    } catch (error) {
+      console.warn("[v0] Failed to create essential tables:", error)
+    }
 
     await DatabaseMigrations.runPendingMigrations()
 

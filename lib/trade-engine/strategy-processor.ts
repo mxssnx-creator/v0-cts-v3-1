@@ -7,6 +7,8 @@ import { sql } from "@/lib/db"
 
 export class StrategyProcessor {
   private connectionId: string
+  private strategyCache: Map<string, { signal: any; timestamp: number }> = new Map()
+  private readonly CACHE_TTL = 60000 // 60 seconds
 
   constructor(connectionId: string) {
     this.connectionId = connectionId
@@ -19,24 +21,27 @@ export class StrategyProcessor {
     try {
       console.log(`[v0] Processing strategy for ${symbol}`)
 
-      // Get active indications for this symbol
       const indications = await this.getActiveIndications(symbol)
 
       if (indications.length === 0) {
         return
       }
 
-      // Get strategy settings
       const settings = await this.getStrategySettings()
 
-      // Evaluate each indication with strategies
-      for (const indication of indications) {
-        const strategySignal = await this.evaluateStrategy(symbol, indication, settings)
+      const batchSize = 5
+      for (let i = 0; i < indications.length; i += batchSize) {
+        const batch = indications.slice(i, i + batchSize)
 
-        if (strategySignal && strategySignal.profit_factor >= settings.minProfitFactor) {
-          // Create pseudo position
-          await this.createPseudoPosition(symbol, indication, strategySignal)
-        }
+        await Promise.all(
+          batch.map(async (indication) => {
+            const strategySignal = await this.evaluateStrategy(symbol, indication, settings)
+
+            if (strategySignal && strategySignal.profit_factor >= settings.minProfitFactor) {
+              await this.createPseudoPosition(symbol, indication, strategySignal)
+            }
+          }),
+        )
       }
     } catch (error) {
       console.error(`[v0] Failed to process strategy for ${symbol}:`, error)
@@ -201,12 +206,14 @@ export class StrategyProcessor {
    */
   private async getActiveIndications(symbol: string): Promise<any[]> {
     try {
+      // Use indexed query path for maximum performance
       const indications = await sql`
         SELECT * FROM indications
         WHERE connection_id = ${this.connectionId}
           AND symbol = ${symbol}
           AND calculated_at > NOW() - INTERVAL '1 hour'
-        ORDER BY calculated_at DESC
+          AND profit_factor >= 0.5
+        ORDER BY calculated_at DESC, profit_factor DESC
         LIMIT 10
       `
       return indications

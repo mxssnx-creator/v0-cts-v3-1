@@ -1207,18 +1207,27 @@ export default function SettingsPage() {
       }
       const previousSettingsData = await previousSettingsResponse.json()
 
+      const previousSettings = previousSettingsData?.settings || {}
+      const prevDatabaseSizeBase = previousSettings.databaseSizeBase ?? 250
+      const prevDatabaseSizeMain = previousSettings.databaseSizeMain ?? 250
+      const prevDatabaseSizeReal = previousSettings.databaseSizeReal ?? 250
+      const prevDatabaseSizePreset = previousSettings.databaseSizePreset ?? 250
+      const prevMainEngineIntervalMs = previousSettings.mainEngineIntervalMs ?? 100
+      const prevPresetEngineIntervalMs = previousSettings.presetEngineIntervalMs ?? 100
+      const prevActiveOrderHandlingIntervalMs = previousSettings.activeOrderHandlingIntervalMs ?? 50
+
       // Step 2: Check if database sizes changed (requires reorganization)
       const databaseSizesChanged =
-        previousSettingsData.settings.databaseSizeBase !== settings.databaseSizeBase ||
-        previousSettingsData.settings.databaseSizeMain !== settings.databaseSizeMain ||
-        previousSettingsData.settings.databaseSizeReal !== settings.databaseSizeReal ||
-        previousSettingsData.settings.databaseSizePreset !== settings.databaseSizePreset
+        prevDatabaseSizeBase !== settings.databaseSizeBase ||
+        prevDatabaseSizeMain !== settings.databaseSizeMain ||
+        prevDatabaseSizeReal !== settings.databaseSizeReal ||
+        prevDatabaseSizePreset !== settings.databaseSizePreset
 
       // Step 3: Check if engine intervals changed (requires engine restart)
       const engineIntervalsChanged =
-        previousSettingsData.settings.mainEngineIntervalMs !== settings.mainEngineIntervalMs ||
-        previousSettingsData.settings.presetEngineIntervalMs !== settings.presetEngineIntervalMs ||
-        previousSettingsData.settings.activeOrderHandlingIntervalMs !== settings.activeOrderHandlingIntervalMs
+        prevMainEngineIntervalMs !== settings.mainEngineIntervalMs ||
+        prevPresetEngineIntervalMs !== settings.presetEngineIntervalMs ||
+        prevActiveOrderHandlingIntervalMs !== settings.activeOrderHandlingIntervalMs
 
       const databaseTypeChanged = settings.database_type !== originalDatabaseType
 

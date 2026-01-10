@@ -21,7 +21,7 @@ import { ExchangeConnectionSettingsDialog } from "@/components/settings/exchange
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import type { ExchangeConnection } from "@/lib/types"
-import { Activity, AlertCircle, CheckCircle, Trash2, Settings, BarChart3, Info } from "lucide-react"
+import { Activity, AlertCircle, CheckCircle, Trash2, Settings, Info } from "lucide-react"
 
 interface ConnectionCardProps {
   connection: ExchangeConnection
@@ -118,6 +118,70 @@ export function ConnectionCard({
     block: true,
     dca: true,
   })
+
+  const [logs, setLogs] = useState<Array<{ timestamp: string; level: string; message: string }>>([])
+
+  const addLog = (level: string, message: string) => {
+    const timestamp = new Date().toISOString()
+    const logEntry = { timestamp, level, message }
+
+    console.log(`[${level.toUpperCase()}] ${message}`)
+    setLogs((prev) => [...prev, logEntry].slice(-50)) // Keep last 50 logs
+
+    // Send to system logger
+    fetch("/api/system/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        level,
+        category: "connection",
+        message,
+        connectionId: connection.id,
+      }),
+    }).catch((err) => console.error("[v0] Failed to send log:", err))
+  }
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      try {
+        const response = await fetch(`/api/settings/connections/${connection.id}/logs`)
+        if (response.ok) {
+          const data = await response.json()
+          setLogs(data.logs || [])
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load connection logs:", error)
+      }
+    }
+
+    if (showLogs) {
+      loadLogs()
+    }
+  }, [showLogs, connection.id])
+
+  useEffect(() => {
+    if (!connection.is_enabled) return
+
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`/api/connections/status/${connection.id}`)
+        if (response.ok) {
+          const statusData = await response.json()
+          // Update component state with real data
+          if (statusData.progress !== undefined) {
+            // Progress update would trigger parent component re-render
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Failed to poll connection status:", error)
+      }
+    }
+
+    const interval = setInterval(pollStatus, 3000) // Poll every 3 seconds
+    pollStatus() // Initial call
+
+    return () => clearInterval(interval)
+  }, [connection.is_enabled, connection.id])
 
   useEffect(() => {
     const loadPresetTypes = async () => {
@@ -286,10 +350,10 @@ export function ConnectionCard({
   }
 
   // Placeholder for addLog function
-  const addLog = (level: string, message: string) => {
-    console.log(`[${level.toUpperCase()}] ${message}`)
-    // In a real app, you'd add this to a log state or send it to a logging service
-  }
+  // const addLog = (level: string, message: string) => {
+  //   console.log(`[${level.toUpperCase()}] ${message}`)
+  //   // In a real app, you'd add this to a log state or send it to a logging service
+  // }
 
   const handleTestConnection = async () => {
     console.log("[v0] Testing connection:", connection.id, connection.name)
@@ -593,18 +657,25 @@ export function ConnectionCard({
       </CardHeader>
 
       <CardContent className="space-y-3 pt-2">
-        {getConnectionStatus(connection) === "connecting" && (
-          <div className="space-y-1">
+        {status === "connecting" && (
+          <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="truncate">Loading historical data...</span>
-              <span className="shrink-0 ml-2">{progress}%</span>
+              <span className="truncate font-medium">Loading historical data...</span>
+              <span className="shrink-0 ml-2 font-semibold">{progress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
-                className={`h-1.5 rounded-full progress-bar transition-all duration-300`}
+                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              {progress < 25 && "Connecting to exchange API..."}
+              {progress >= 25 && progress < 50 && "Fetching market data..."}
+              {progress >= 50 && progress < 75 && "Loading historical candles..."}
+              {progress >= 75 && progress < 100 && "Initializing trading engine..."}
+              {progress === 100 && "Connection ready!"}
+            </p>
           </div>
         )}
 
@@ -641,24 +712,33 @@ export function ConnectionCard({
 
           <div className="flex gap-1 shrink-0">
             <Dialog open={showLogs} onOpenChange={setShowLogs}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-base">Connection Logs - {connection.name}</DialogTitle>
+                  <DialogTitle>Connection Logs - {connection.name}</DialogTitle>
+                  <DialogDescription>Real-time connection activity and system logs</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-2 font-mono text-xs">
-                  <div className="p-2 bg-muted rounded">
-                    <div className="text-green-600">[INFO] Connection established</div>
-                    <div className="text-blue-600">[INFO] Loading symbols...</div>
-                    <div className="text-blue-600">[INFO] Historical data sync: {progress}%</div>
-                    {getConnectionStatus(connection) === "connected" && (
-                      <div className="text-green-600">[INFO] Live data stream active</div>
-                    )}
-                  </div>
+                <div className="space-y-2">
+                  {logs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No logs available</p>
+                  ) : (
+                    logs.map((log, index) => (
+                      <div
+                        key={index}
+                        className={`text-xs font-mono p-2 rounded ${
+                          log.level === "error"
+                            ? "bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-100"
+                            : log.level === "warn"
+                              ? "bg-yellow-50 dark:bg-yellow-950 text-yellow-900 dark:text-yellow-100"
+                              : log.level === "success"
+                                ? "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-100"
+                                : "bg-gray-50 dark:bg-gray-900"
+                        }`}
+                      >
+                        <span className="text-muted-foreground">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{" "}
+                        <span className="font-semibold">[{log.level.toUpperCase()}]</span> {log.message}
+                      </div>
+                    ))
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
@@ -769,112 +849,110 @@ export function ConnectionCard({
               </DialogContent>
             </Dialog>
 
-            {presetTradeEnabled && selectedPresetType && (
-              <Dialog open={showPresetConfig} onOpenChange={setShowPresetConfig}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
-                    <Settings className="h-3.5 w-3.5 text-blue-600" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-base">Preset Configuration</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Volume Factor</label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max="10"
-                        value={presetConfig.volumeFactor}
-                        onChange={(e) =>
-                          setPresetConfig({ ...presetConfig, volumeFactor: Number.parseFloat(e.target.value) })
-                        }
-                        className="h-9"
+            <Dialog open={showPresetConfig} onOpenChange={setShowPresetConfig}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
+                  <Settings className="h-3.5 w-3.5 text-blue-600" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-base">Preset Configuration</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Volume Factor</label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="10"
+                      value={presetConfig.volumeFactor}
+                      onChange={(e) =>
+                        setPresetConfig({ ...presetConfig, volumeFactor: Number.parseFloat(e.target.value) })
+                      }
+                      className="h-9"
+                    />
+                    <p className="text-xs text-muted-foreground">Multiplier for trade volume (0.1 - 10.0)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Profit Factor Minimum</label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="5"
+                      value={presetConfig.profitFactorMin}
+                      onChange={(e) =>
+                        setPresetConfig({ ...presetConfig, profitFactorMin: Number.parseFloat(e.target.value) })
+                      }
+                      className="h-9"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum profit factor required for trades (0.1 - 5.0)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Max Drawdown Time (hours)</label>
+                    <Input
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="168"
+                      value={presetConfig.maxDrawdownTime}
+                      onChange={(e) =>
+                        setPresetConfig({ ...presetConfig, maxDrawdownTime: Number.parseInt(e.target.value) })
+                      }
+                      className="h-9"
+                    />
+                    <p className="text-xs text-muted-foreground">Maximum time allowed in drawdown (1 - 168 hours)</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium">Strategy Toggles</label>
+
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="text-sm">Trailing Stop</span>
+                      <Switch
+                        checked={presetConfig.trailingEnabled}
+                        onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, trailingEnabled: checked })}
                       />
-                      <p className="text-xs text-muted-foreground">Multiplier for trade volume (0.1 - 10.0)</p>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Profit Factor Minimum</label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max="5"
-                        value={presetConfig.profitFactorMin}
-                        onChange={(e) =>
-                          setPresetConfig({ ...presetConfig, profitFactorMin: Number.parseFloat(e.target.value) })
-                        }
-                        className="h-9"
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="text-sm">Block Trading</span>
+                      <Switch
+                        checked={presetConfig.blockEnabled}
+                        onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, blockEnabled: checked })}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Minimum profit factor required for trades (0.1 - 5.0)
-                      </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Max Drawdown Time (hours)</label>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="1"
-                        max="168"
-                        value={presetConfig.maxDrawdownTime}
-                        onChange={(e) =>
-                          setPresetConfig({ ...presetConfig, maxDrawdownTime: Number.parseInt(e.target.value) })
-                        }
-                        className="h-9"
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="text-sm">DCA (Dollar Cost Averaging)</span>
+                      <Switch
+                        checked={presetConfig.dcaEnabled}
+                        onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, dcaEnabled: checked })}
                       />
-                      <p className="text-xs text-muted-foreground">Maximum time allowed in drawdown (1 - 168 hours)</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium">Strategy Toggles</label>
-
-                      <div className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">Trailing Stop</span>
-                        <Switch
-                          checked={presetConfig.trailingEnabled}
-                          onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, trailingEnabled: checked })}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">Block Trading</span>
-                        <Switch
-                          checked={presetConfig.blockEnabled}
-                          onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, blockEnabled: checked })}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">DCA (Dollar Cost Averaging)</span>
-                        <Switch
-                          checked={presetConfig.dcaEnabled}
-                          onCheckedChange={(checked) => setPresetConfig({ ...presetConfig, dcaEnabled: checked })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1 bg-transparent"
-                        onClick={() => setShowPresetConfig(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button className="flex-1" onClick={savePresetConfig}>
-                        Save Configuration
-                      </Button>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
-            )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 bg-transparent"
+                      onClick={() => setShowPresetConfig(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button className="flex-1" onClick={savePresetConfig}>
+                      Save Configuration
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Button
               variant="outline"
