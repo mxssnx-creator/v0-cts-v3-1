@@ -1,7 +1,7 @@
 # CTS v3.1 - Production Setup Guide
 
 **Version:** 3.1
-**Last Updated:** January 2026
+**Last Updated:** December 2025
 
 ---
 
@@ -9,19 +9,19 @@
 
 ### One-Line Installation (Recommended)
 
-```bash
+\`\`\`bash
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash
-```
+\`\`\`
 
 ### Custom Installation
 
-```bash
+\`\`\`bash
 # Custom port
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --port 8080
 
 # Custom project name
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --name my-trading-bot
-```
+\`\`\`
 
 ---
 
@@ -31,7 +31,11 @@ curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/sc
 
 Create `.env.local` with the following:
 
-```env
+\`\`\`env
+# Database (Required)
+DATABASE_URL="postgresql://user:password@host:5432/database"
+REMOTE_POSTGRES_URL="postgresql://user:password@host:5432/database"
+
 # Security (Required)
 SESSION_SECRET="your-random-32-char-secret"
 JWT_SECRET="your-random-32-char-secret"
@@ -41,15 +45,11 @@ API_SIGNING_SECRET="your-api-signing-secret"
 # Application (Required)
 NEXT_PUBLIC_APP_URL="https://your-domain.com"
 NODE_ENV="production"
-
-# Database (Optional - SQLite is used by default)
-# Only add DATABASE_URL if you want to use PostgreSQL instead of SQLite
-# DATABASE_URL="postgresql://user:password@host:5432/database"
-```
+\`\`\`
 
 ### Optional Configuration
 
-```env
+\`\`\`env
 # Data Retention
 MARKET_DATA_RETENTION_DAYS=7
 INDICATION_STATE_RETENTION_HOURS=48
@@ -57,29 +57,15 @@ INDICATION_STATE_RETENTION_HOURS=48
 # Auto Cleanup
 ENABLE_AUTO_CLEANUP=true
 CLEANUP_INTERVAL_HOURS=24
-```
+\`\`\`
 
 ---
 
 ## Database Setup
 
-### SQLite (Default - Recommended for Single Server)
+### PostgreSQL (Production)
 
-**Zero Configuration Required:**
-- SQLite is automatically used when DATABASE_URL is not set
-- Database file: `./data/cts.db`
-- Created automatically on first run
-- Migrations run automatically
-
-```bash
-# No database configuration needed!
-# Just build and start
-npm run build && npm start
-```
-
-### PostgreSQL (Optional - For Multi-Server or Cloud)
-
-```bash
+\`\`\`bash
 # Create database
 createdb cts_v3
 
@@ -88,7 +74,13 @@ DATABASE_URL="postgresql://user:password@localhost:5432/cts_v3"
 
 # Migrations run automatically on first start
 npm run build && npm start
-```
+\`\`\`
+
+### SQLite (Development)
+
+SQLite is auto-configured if no DATABASE_URL is set:
+- Database file: `./data/cts.db`
+- Created automatically on first run
 
 ### Database Migrations
 
@@ -106,13 +98,13 @@ Migrations run automatically on application start:
 
 ### Position Flow (4 Layers)
 
-```
+\`\`\`
 Market Data → Indication Processing → Strategy Evaluation
      ↓              ↓                       ↓
   WebSocket    Main/Common           Additional/Adjust
      ↓              ↓                       ↓
 Base Pseudo → Main Pseudo → Real Pseudo → Exchange Positions
-```
+\`\`\`
 
 ### Indication System
 
@@ -145,16 +137,12 @@ Base Pseudo → Main Pseudo → Real Pseudo → Exchange Positions
 
 ### Step 1: Database Initialization
 
-**With SQLite (default):**
-- Database automatically initializes on first run
-- No manual action needed
+Navigate to Settings → Install → Initialize Database
 
-**With PostgreSQL:**
-- Navigate to Settings → Install → Initialize Database
-- Or use API:
-```bash
+Or use API:
+\`\`\`bash
 curl -X POST https://your-domain.com/api/install/database/init
-```
+\`\`\`
 
 ### Step 2: Add Exchange Connection
 
@@ -197,31 +185,24 @@ curl -X POST https://your-domain.com/api/install/database/init
 Access via: Settings → Install → Diagnostics
 
 Or view:
-```bash
+\`\`\`bash
 journalctl -u cts-web -f
-```
+\`\`\`
 
 ### Backup Management
 
 Create backup:
-```bash
+\`\`\`bash
 curl -X POST https://your-domain.com/api/install/backup/create \
   -H "Content-Type: application/json" \
   -d '{"name": "pre-update-backup"}'
-```
-
-### Database Backup (SQLite)
-
-SQLite database can be backed up simply by copying the file:
-```bash
-cp ./data/cts.db ./data/backups/cts-$(date +%Y%m%d).db
-```
+\`\`\`
 
 ### Health Check
 
-```bash
+\`\`\`bash
 curl https://your-domain.com/api/install/diagnostics
-```
+\`\`\`
 
 ---
 
@@ -229,9 +210,7 @@ curl https://your-domain.com/api/install/diagnostics
 
 1. **Secrets**: Use strong, unique secrets for all environment variables
 2. **API Keys**: Use read-only keys for testing, restrict IP addresses
-3. **Database**: 
-   - SQLite: Secure file permissions (chmod 600 data/cts.db)
-   - PostgreSQL: Enable SSL/TLS, restrict access by IP
+3. **Database**: Enable SSL/TLS, restrict access by IP
 4. **HTTPS**: Required for production
 5. **Updates**: Regularly update dependencies
 6. **Backups**: Create before major changes
@@ -240,35 +219,22 @@ curl https://your-domain.com/api/install/diagnostics
 
 ## Troubleshooting
 
-### Database Connection Failed (SQLite)
+### Database Connection Failed
 
-```bash
-# Check data directory exists and is writable
-ls -la ./data
-
-# Check SQLite file permissions
-ls -la ./data/cts.db
-
-# Verify database file integrity
-sqlite3 ./data/cts.db "PRAGMA integrity_check;"
-```
-
-### Database Connection Failed (PostgreSQL)
-
-```bash
+\`\`\`bash
 # Check PostgreSQL status
 pg_isready
 
 # Verify connection string
 psql $DATABASE_URL -c "SELECT 1;"
-```
+\`\`\`
 
 ### Migrations Not Running
 
 Check application logs for migration errors:
-```bash
+\`\`\`bash
 journalctl -u cts-web -n 100 | grep migration
-```
+\`\`\`
 
 ### Exchange Connection Issues
 
@@ -281,37 +247,6 @@ journalctl -u cts-web -n 100 | grep migration
 1. Check data retention settings
 2. Enable auto cleanup
 3. Review database indexes
-4. Consider PostgreSQL for high-load scenarios
-
----
-
-## Switching Database Types
-
-### From SQLite to PostgreSQL
-
-1. **Export SQLite data** (if you have existing data):
-```bash
-sqlite3 ./data/cts.db .dump > cts-export.sql
-```
-
-2. **Set DATABASE_URL** in `.env.local`:
-```env
-DATABASE_URL="postgresql://user:password@host:5432/database"
-```
-
-3. **Import data** (if applicable):
-```bash
-# Convert and import SQL (may need manual adjustments)
-psql $DATABASE_URL < cts-export.sql
-```
-
-4. **Restart application**
-
-### From PostgreSQL to SQLite
-
-1. **Remove DATABASE_URL** from `.env.local`
-2. **Restart application** - SQLite will be used automatically
-3. **Database will be freshly initialized** (data migration not automatic)
 
 ---
 
@@ -324,5 +259,4 @@ For issues or questions:
 
 ---
 
-**System Status**: ✅ Production Ready  
-**Default Database**: SQLite (Zero Configuration)
+**System Status**: ✅ Production Ready

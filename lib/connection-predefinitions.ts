@@ -18,6 +18,11 @@ export interface ConnectionPredefinition {
   testnetSupported: boolean
   apiKey?: string
   apiSecret?: string
+  rateLimits: {
+    requestsPerSecond: number
+    requestsPerMinute: number
+    minIntervalMs: number
+  }
   defaultSettings: {
     profitFactorMinBase: number
     profitFactorMinMain: number
@@ -52,7 +57,11 @@ export interface ExchangeConnection {
   last_test_balance: any | null
   last_test_log: any[]
   api_capabilities: any[]
-  rate_limits: any | null
+  rate_limits: {
+    requests_per_second: number
+    requests_per_minute: number
+    min_interval_ms: number
+  } | null
   volume_factor: number
   created_at: string
   updated_at: string
@@ -72,8 +81,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://bybit-exchange.github.io/docs/v5/intro",
     testnetSupported: true,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 120,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -99,8 +113,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://bingx-api.github.io/docs/#/en-us/swapV2/introduce",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 5,
+      requestsPerMinute: 100,
+      minIntervalMs: 200,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -126,8 +145,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://pionex-doc.gitbook.io/apidocs/",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 5,
+      requestsPerMinute: 60,
+      minIntervalMs: 200,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -153,8 +177,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://openapi-docs.orangex.com/",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 5,
+      requestsPerMinute: 60,
+      minIntervalMs: 200,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -180,8 +209,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://binance-docs.github.io/apidocs/futures/en/",
     testnetSupported: true,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 1200,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -207,8 +241,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://www.okx.com/docs-v5/en/",
     testnetSupported: true,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 20,
+      requestsPerMinute: 600,
+      minIntervalMs: 50,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -234,8 +273,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://www.gate.io/docs/developers/apiv4/",
     testnetSupported: true,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 200,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -261,8 +305,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://mexcdevelop.github.io/apidocs/contract_v1_en/",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 5,
+      requestsPerMinute: 100,
+      minIntervalMs: 200,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -288,8 +337,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://www.bitget.com/api-doc/contract/intro",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 200,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -315,8 +369,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://www.kucoin.com/docs/rest/futures-trading/introduction",
     testnetSupported: true,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 100,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -342,8 +401,13 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     contractType: "usdt-perpetual",
     documentationUrl: "https://www.htx.com/en-us/opend/newApiPages/",
     testnetSupported: false,
-    apiKey: "00998877009988770099887700998877",
-    apiSecret: "00998877009988770099887700998877",
+    apiKey: "",
+    apiSecret: "",
+    rateLimits: {
+      requestsPerSecond: 10,
+      requestsPerMinute: 200,
+      minIntervalMs: 100,
+    },
     defaultSettings: {
       profitFactorMinBase: 0.6,
       profitFactorMinMain: 0.6,
@@ -367,20 +431,20 @@ export function getAllConnectionPredefinitions(): ConnectionPredefinition[] {
 }
 
 export function getPredefinedConnectionsAsStatic(): ExchangeConnection[] {
-  return CONNECTION_PREDEFINITIONS.map((pred) => ({
+  const predefinedConnections = CONNECTION_PREDEFINITIONS.map((pred) => ({
     id: pred.id,
     name: pred.name,
     exchange: pred.id.split("-")[0],
     api_type: pred.apiType,
     connection_method: pred.connectionMethod,
     connection_library: "native",
-    api_key: pred.apiKey || "00998877009988770099887700998877",
-    api_secret: pred.apiSecret || "00998877009988770099887700998877",
+    api_key: pred.apiKey || "",
+    api_secret: pred.apiSecret || "",
     margin_type: pred.marginType,
     position_mode: pred.positionMode,
     is_testnet: false,
-    is_enabled: false,
-    is_active: true,
+    is_enabled: pred.id === "bybit-x03" || pred.id === "bingx-x01",
+    is_active: false,
     is_predefined: true,
     is_live_trade: false,
     is_preset_trade: false,
@@ -388,9 +452,34 @@ export function getPredefinedConnectionsAsStatic(): ExchangeConnection[] {
     last_test_balance: null,
     last_test_log: [],
     api_capabilities: [],
-    rate_limits: null,
-    volume_factor: undefined as any,
+    rate_limits: {
+      requests_per_second: pred.rateLimits.requestsPerSecond,
+      requests_per_minute: pred.rateLimits.requestsPerMinute,
+      min_interval_ms: pred.rateLimits.minIntervalMs,
+    },
+    volume_factor: 1.0,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }))
+
+  return predefinedConnections
+}
+
+export function getDefaultActiveConnections(): ExchangeConnection[] {
+  return getPredefinedConnectionsAsStatic()
+    .filter((c) => c.id === "bybit-x03" || c.id === "bingx-x01")
+    .map((c) => ({
+      ...c,
+      is_active: true,
+      is_enabled: false, // Not enabled by default in Active Connections
+    }))
+}
+
+export function getDefaultEnabledConnections(): string[] {
+  // Returns IDs of connections that should be enabled by default in Settings
+  return ["bybit-x03", "bingx-x01"]
+}
+
+export function getDefaultSelectedExchange(): string {
+  return "bybit-x03"
 }

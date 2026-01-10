@@ -1,37 +1,34 @@
 import { NextResponse } from "next/server"
-import { query, queryOne, getDatabaseType } from "@/lib/db"
+import { query, queryOne } from "@/lib/db"
 
 export async function GET() {
   try {
-    const dbType = getDatabaseType()
-    const isSQLite = dbType === "sqlite"
-
     const result = await queryOne(`
       SELECT 
         COUNT(DISTINCT ec.id) as active_connections,
         COUNT(DISTINCT i.id) as total_indications,
-        ${isSQLite ? "SUM(CASE WHEN i.is_active = 1 THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE i.is_active = true)"} as active_indications,
+        SUM(CASE WHEN i.is_active = 1 THEN 1 ELSE 0 END) as active_indications,
         COUNT(DISTINCT ps.id) as total_strategies,
-        ${isSQLite ? "SUM(CASE WHEN ps.is_active = 1 THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE ps.is_active = true)"} as active_strategies,
+        SUM(CASE WHEN ps.is_active = 1 THEN 1 ELSE 0 END) as active_strategies,
         COUNT(DISTINCT pp.id) as total_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'base' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'base')"} as base_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'main' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'main')"} as main_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'real' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'real')"} as real_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'active' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'active')"} as active_positions,
+        SUM(CASE WHEN pp.type = 'base' THEN 1 ELSE 0 END) as base_positions,
+        SUM(CASE WHEN pp.type = 'main' THEN 1 ELSE 0 END) as main_positions,
+        SUM(CASE WHEN pp.type = 'real' THEN 1 ELSE 0 END) as real_positions,
+        SUM(CASE WHEN pp.type = 'active' THEN 1 ELSE 0 END) as active_positions,
         COUNT(DISTINCT pp.symbol) as active_symbols,
         COALESCE(SUM(pp.position_cost), 0) as total_volume_24h,
-        ${isSQLite ? "SUM(CASE WHEN datetime(pp.created_at) > datetime('now', '-1 hour') THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.created_at > NOW() - INTERVAL '1 hour')"} as trades_per_hour
+        SUM(CASE WHEN datetime(pp.created_at) > datetime('now', '-1 hour') THEN 1 ELSE 0 END) as trades_per_hour
       FROM exchange_connections ec
       LEFT JOIN indications i ON i.connection_id = ec.id
       LEFT JOIN pseudo_positions pp ON pp.connection_id = ec.id AND pp.status = 'active'
       LEFT JOIN preset_strategies ps ON ps.connection_id = ec.id
-      WHERE ec.${isSQLite ? "is_enabled = 1" : "is_enabled = true"}
+      WHERE ec.is_enabled = 1
     `)
 
     const profitFactorByTypeResult = await query(`
       SELECT 
         type,
-        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_factor END) as pf_last_20h,
+        AVG(CASE WHEN datetime(closed_at) > datetime('now', '-20 hours') THEN profit_factor END) as pf_last_20h,
         AVG(profit_factor) as pf_last_25
       FROM (
         SELECT type, profit_factor, closed_at
@@ -39,13 +36,13 @@ export async function GET() {
         WHERE status = 'closed'
         ORDER BY closed_at DESC
         LIMIT 100
-      ) as subquery
+      )
       GROUP BY type
     `)
 
     const profitFactorResult = await queryOne(`
       SELECT 
-        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_factor END) as pf_last_20h,
+        AVG(CASE WHEN datetime(closed_at) > datetime('now', '-20 hours') THEN profit_factor END) as pf_last_20h,
         AVG(profit_factor) as pf_last_50
       FROM (
         SELECT profit_factor, closed_at
@@ -53,7 +50,7 @@ export async function GET() {
         WHERE status = 'closed'
         ORDER BY closed_at DESC
         LIMIT 50
-      ) as subquery
+      )
     `)
 
     const profitMetrics25 = await queryOne(`
@@ -64,7 +61,7 @@ export async function GET() {
         WHERE status = 'closed'
         ORDER BY closed_at DESC
         LIMIT 25
-      ) as subquery
+      )
     `)
 
     const liveMetrics = await queryOne(`

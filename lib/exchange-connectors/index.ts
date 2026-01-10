@@ -32,5 +32,7 @@ export function createExchangeConnector(exchange: string, credentials: ExchangeC
   }
 }
 
+export const getExchangeConnector = createExchangeConnector
+
 export type { ExchangeConnectorResult, ExchangeCredentials } from "./base-connector"
 export { BaseExchangeConnector } from "./base-connector"

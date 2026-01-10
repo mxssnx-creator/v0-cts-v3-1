@@ -1,28 +1,42 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { NextResponse } from "next/server"
+import { getGlobalCoordinator } from "@/lib/trade-engine"
+import { SystemLogger } from "@/lib/system-logger"
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const body = await request.json()
-    const { connectionId } = body
+    console.log("[v0] [Trade Engine] Stopping global trade engine...")
 
-    console.log("[v0] [Trade Engine] Stopping trade engine for connection:", connectionId)
+    const coordinator = getGlobalCoordinator()
 
-    await sql`
-      UPDATE trade_engine_state
-      SET state = 'stopped', updated_at = CURRENT_TIMESTAMP
-      WHERE connection_id = ${connectionId}
-    `
+    if (!coordinator) {
+      return NextResponse.json(
+        {
+          error: "Trade engine not initialized",
+        },
+        { status: 400 },
+      )
+    }
 
-    console.log("[v0] [Trade Engine] Stopped successfully for connection:", connectionId)
+    if (!coordinator.getIsRunning()) {
+      return NextResponse.json({
+        success: true,
+        message: "Trade engine is already stopped",
+      })
+    }
+
+    await coordinator.stop()
+
+    console.log("[v0] [Trade Engine] Stopped successfully")
+    await SystemLogger.logTradeEngine("Global trade engine stopped", "info", {})
 
     return NextResponse.json({
       success: true,
-      message: "Trade engine stop signal sent",
-      note: "Engine will stop on next cycle check",
+      message: "Global trade engine stopped successfully",
     })
   } catch (error) {
     console.error("[v0] [Trade Engine] Failed to stop:", error)
+    await SystemLogger.logError(error, "trade-engine", "POST /api/trade-engine/stop")
+
     return NextResponse.json(
       {
         error: "Failed to stop trade engine",

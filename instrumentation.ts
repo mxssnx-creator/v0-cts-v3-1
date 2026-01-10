@@ -6,15 +6,7 @@ export async function register() {
     console.log("[v0] Environment Details:")
     console.log("  - Runtime:", process.env.NEXT_RUNTIME)
     console.log("  - Vercel Environment:", process.env.VERCEL_ENV || "local")
-    console.log(
-      "  - Database Type:",
-      process.env.DATABASE_URL
-        ? process.env.DATABASE_URL.startsWith("postgres")
-          ? "PostgreSQL"
-          : "Unknown"
-        : "SQLite (default)",
-    )
-    console.log("  - DATABASE_URL Set:", !!process.env.DATABASE_URL)
+    console.log("  - Database Connected:", !!process.env.DATABASE_URL)
     console.log("  - Deployment ID:", process.env.VERCEL_DEPLOYMENT_ID || "local")
     console.log("=".repeat(60))
 
