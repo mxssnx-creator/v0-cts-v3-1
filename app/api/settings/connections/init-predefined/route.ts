@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { sql } from "@/lib/db"
 import { DatabaseInitializer } from "@/lib/db-initializer"
-import { CONNECTION_PREDEFINITIONS, getDefaultEnabledConnections } from "@/lib/connection-predefinitions"
-import { SystemLogger } from "@/lib/system-logger"
-import { loadConnections, saveConnections } from "@/lib/file-storage"
+import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] Initializing predefined connections with ByBit and BingX enabled by default")
+    console.log("[v0] Initializing all predefined connections")
 
     const dbReady = await DatabaseInitializer.initialize(5, 60000)
     if (!dbReady) {
@@ -17,82 +16,114 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const connections = loadConnections()
-    const existingIds = new Set(connections.map((c) => c.id))
-    const defaultEnabled = getDefaultEnabledConnections()
+    const existing = await sql`
+      SELECT id FROM exchange_connections 
+      WHERE is_predefined = true
+    `
 
-    let createdCount = 0
-    let enabledCount = 0
+    if (existing.length >= CONNECTION_PREDEFINITIONS.length) {
+      console.log("[v0] All predefined connections already exist:", existing.length)
+      return NextResponse.json({
+        success: true,
+        message: "All predefined connections already initialized",
+        count: existing.length,
+      })
+    }
 
+    const exchangeNames = [...new Set(CONNECTION_PREDEFINITIONS.map(p => p.id.split('-')[0]))]
+    
+    for (const exchangeName of exchangeNames) {
+      await sql`
+        INSERT INTO exchanges (name, display_name, supports_spot, supports_futures, supports_margin, is_active, api_endpoint, websocket_endpoint)
+        VALUES 
+          (${exchangeName}, ${exchangeName.charAt(0).toUpperCase() + exchangeName.slice(1)}, true, true, false, true, '', '')
+        ON CONFLICT (name) DO UPDATE SET 
+          is_active = EXCLUDED.is_active,
+          display_name = EXCLUDED.display_name
+      `
+    }
+
+    // Get exchange IDs
+    const exchanges = await sql`
+      SELECT id, name FROM exchanges 
+      WHERE name = ANY(${exchangeNames})
+    `
+
+    const exchangeMap = Object.fromEntries(exchanges.map((e: any) => [e.name, e.id]))
+
+    console.log("[v0] Creating all predefined connections as inactive by default")
+
+    const createdConnections = []
+    
     for (const pred of CONNECTION_PREDEFINITIONS) {
-      if (existingIds.has(pred.id)) {
-        console.log(`[v0] Connection ${pred.id} already exists, skipping...`)
+      const exchangeName = pred.id.split('-')[0]
+      const exchangeId = exchangeMap[exchangeName]
+      
+      if (!exchangeId) {
+        console.warn(`[v0] Exchange ${exchangeName} not found, skipping ${pred.id}`)
         continue
       }
 
-      const isEnabledByDefault = pred.id === "bybit-x03" || pred.id === "bingx-x01"
+      await sql`
+        INSERT INTO exchange_connections (
+          id, user_id, name, exchange_id, exchange, api_type, connection_method,
+          connection_library, api_key, api_secret, margin_type, position_mode, 
+          is_testnet, is_enabled, is_predefined, is_active,
+          api_capabilities, rate_limits
+        )
+        VALUES (
+          ${pred.id},
+          1,
+          ${pred.name},
+          ${exchangeId},
+          ${exchangeName},
+          ${pred.apiType},
+          ${pred.connectionMethod},
+          ${exchangeName === 'bybit' ? 'bybit-api' : exchangeName === 'bingx' ? 'bingx-api' : 'ccxt'},
+          ${pred.apiKey || '00998877009988770099887700998877'},
+          ${pred.apiSecret || '00998877009988770099887700998877'},
+          ${pred.marginType},
+          ${pred.positionMode},
+          false,
+          false,
+          true,
+          true,
+          '[]'::jsonb,
+          '{}'::jsonb
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          is_predefined = true,
+          is_active = true,
+          is_enabled = false
+      `
 
-      const newConnection: any = {
-        id: pred.id,
-        name: pred.name,
-        exchange: pred.id.split("-")[0],
-        api_type: pred.apiType,
-        connection_method: pred.connectionMethod,
-        connection_library: pred.id.startsWith("bybit")
-          ? "bybit-api"
-          : pred.id.startsWith("bingx")
-            ? "bingx-api"
-            : "ccxt",
-        api_key: pred.apiKey || "",
-        api_secret: pred.apiSecret || "",
-        api_passphrase: "",
-        margin_type: pred.marginType,
-        position_mode: pred.positionMode,
-        is_testnet: false,
-        is_enabled: isEnabledByDefault,
-        is_predefined: true,
-        is_live_trade: false,
-        is_active: true,
-        api_capabilities: "[]",
-        rate_limits: JSON.stringify(pred.rateLimits),
-        last_test_status: null,
-        last_test_balance: null,
-        last_test_log: [],
-        last_test_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      // Initialize volume configuration
+      await sql`
+        INSERT INTO volume_configuration (connection_id, base_volume_factor)
+        VALUES (${pred.id}, 1.0)
+        ON CONFLICT (connection_id) DO UPDATE SET base_volume_factor = 1.0
+      `
 
-      connections.push(newConnection)
-      createdCount++
-
-      if (isEnabledByDefault) {
-        enabledCount++
-        console.log(`[v0] Connection ${pred.name} created and ENABLED in Settings`)
-      } else {
-        console.log(`[v0] Connection ${pred.name} created (disabled)`)
-      }
+      // Initialize trade engine state
+      await sql`
+        INSERT INTO trade_engine_state (connection_id, status)
+        VALUES (${pred.id}, 'stopped')
+        ON CONFLICT (connection_id) DO NOTHING
+      `
+      
+      createdConnections.push(pred.name)
     }
 
-    saveConnections(connections)
-
-    await SystemLogger.logConnection(
-      `Initialized ${createdCount} predefined connections (${enabledCount} enabled by default)`,
-      "system",
-      "info",
-    )
-
+    console.log("[v0] All predefined connections initialized successfully:", createdConnections.length)
     return NextResponse.json({
       success: true,
-      message: `Initialized ${createdCount} connections. ByBit and BingX enabled in Settings by default.`,
-      totalCreated: createdCount,
-      enabledByDefault: enabledCount,
-      note: "Connections are enabled in Settings but NOT active for live trading. Enable live trading on Dashboard.",
+      message: `All ${createdConnections.length} predefined connections initialized - active in Settings but disabled on Dashboard`,
+      connections: createdConnections,
+      count: createdConnections.length,
     })
   } catch (error) {
     console.error("[v0] Failed to initialize predefined connections:", error)
-    await SystemLogger.logError(error, "connection", "POST /api/settings/connections/init-predefined")
-
+    console.error("[v0] Error details:", error instanceof Error ? error.message : "Unknown error")
     return NextResponse.json(
       {
         error: "Failed to initialize predefined connections",

@@ -106,12 +106,14 @@ async function main() {
   // Database selection
   console.log("🗄️  Database Configuration")
   console.log("   Select database type for your installation:")
-  console.log("   [1] SQLite (Recommended for Development)")
+  console.log("   [1] SQLite (Recommended - Default)")
   console.log("       • Zero configuration required")
-  console.log("       • Perfect for single server / testing")
+  console.log("       • Perfect for development & single server")
   console.log("       • File-based, automatic setup")
+  console.log("       • No database server needed")
   console.log()
-  console.log("   [2] PostgreSQL (Recommended for Production)")
+  console.log("   [2] PostgreSQL (Advanced - Production)")
+  console.log("       • Requires PostgreSQL server")
   console.log("       • High performance & scalability")
   console.log("       • Multi-user support")
   console.log("       • Advanced features & ACID compliance")
@@ -123,7 +125,7 @@ async function main() {
   console.log(`   ℹ️  Selected: ${usePostgres ? "PostgreSQL" : "SQLite"}\n`)
 
   // PostgreSQL connection details
-  let pgConnectionString = "postgresql://cts:00998877@83.229.86.105:5432/cts-v3"
+  let pgConnectionString = ""
   if (usePostgres) {
     console.log("📝 PostgreSQL Connection Setup")
     const useCustomPg = await askQuestion("   Use custom PostgreSQL connection? [y/N]: ")
@@ -136,10 +138,15 @@ async function main() {
       const pgDb = (await askQuestion("   PostgreSQL Database (default: cts-v3): ")) || "cts-v3"
 
       pgConnectionString = `postgresql://${pgUser}:${pgPass}@${pgHost}:${pgPort}/${pgDb}`
-      console.log(`   ✅ Connection string configured\n`)
+      console.log(`   ✅ PostgreSQL connection configured\n`)
     } else {
-      console.log(`   ℹ️  Using default connection (can be changed later in .env.local)\n`)
+      // Use predefined remote PostgreSQL
+      pgConnectionString = "postgresql://cts:00998877@83.229.86.105:5432/cts-v3"
+      console.log(`   ℹ️  Using predefined remote PostgreSQL server\n`)
     }
+  } else {
+    console.log("   ✅ SQLite selected - no configuration needed!")
+    console.log("   ℹ️  Database will be created automatically at: ./data/cts.db\n")
   }
 
   // Install dependencies
@@ -186,7 +193,9 @@ async function main() {
     const encryptionKey = generateSecureSecret(32)
     const apiSigningSecret = generateSecureSecret(32)
 
-    const databaseUrl = usePostgres ? pgConnectionString : "file:./data/db.sqlite"
+    const databaseUrlLine = usePostgres
+      ? `DATABASE_URL=${pgConnectionString}`
+      : `# DATABASE_URL not set - using SQLite by default (./data/cts.db)`
 
     const envContent = `# CTS v3.1 Environment Configuration
 # Generated on ${new Date().toISOString()}
@@ -200,8 +209,9 @@ PORT=${projectPort}
 PROJECT_NAME=${projectName}
 
 # Database Configuration
-DATABASE_URL=${databaseUrl}
-${usePostgres ? `REMOTE_POSTGRES_URL=${pgConnectionString}` : "# REMOTE_POSTGRES_URL=postgresql://user:pass@host:5432/dbname"}
+${databaseUrlLine}
+${usePostgres ? "" : "# To use PostgreSQL instead, uncomment and configure:"}
+${usePostgres ? "" : "# DATABASE_URL=postgresql://username:password@host:5432/database"}
 
 # Security Keys (Auto-generated - DO NOT SHARE)
 SESSION_SECRET=${sessionSecret}
@@ -239,6 +249,7 @@ WS_MAX_RECONNECT_ATTEMPTS=10
     console.log("   ✅ Created .env.local with secure auto-generated secrets")
     console.log(`   ✅ Project Name: ${projectName}`)
     console.log(`   ✅ Port: ${projectPort}`)
+    console.log(`   ✅ Database: ${usePostgres ? "PostgreSQL" : "SQLite (./data/cts.db)"}`)
     console.log("   ✅ Session Secret: Generated (32 bytes)")
     console.log("   ✅ JWT Secret: Generated (32 bytes)")
     console.log("   ✅ Encryption Key: Generated (32 bytes)")
@@ -395,7 +406,7 @@ WS_MAX_RECONNECT_ATTEMPTS=10
   console.log("   • Real-time position mirroring and synchronization")
   console.log("   • Comprehensive monitoring and analytics")
   console.log("   • Automatic database cleanup and optimization")
-  console.log("   • SQLite or PostgreSQL support")
+  console.log("   • SQLite (default) or PostgreSQL support")
   console.log()
   console.log(`🎉 ${projectName} is ready to go!`)
   console.log()

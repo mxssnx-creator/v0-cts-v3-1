@@ -75,20 +75,4 @@ export abstract class BaseExchangeConnector {
   abstract testConnection(): Promise<ExchangeConnectorResult>
   abstract getBalance(): Promise<ExchangeConnectorResult>
   abstract getCapabilities(): string[]
-
-  fetchHistoricalKlines?(
-    symbol: string,
-    interval: string,
-    startTime: number,
-    endTime: number,
-  ): Promise<
-    Array<{
-      timestamp: number
-      open: number
-      high: number
-      low: number
-      close: number
-      volume: number
-    }>
-  >
 }

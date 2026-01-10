@@ -1,54 +1,74 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { initializeGlobalCoordinator } from "@/lib/trade-engine"
+import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine/"
 import { SystemLogger } from "@/lib/system-logger"
 
-const activeEngines = new Map<string, any>()
+const activeEngines = new Map<string, TradeEngine>()
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] [Trade Engine] Starting global trade engine...")
-    await SystemLogger.logTradeEngine("Starting global trade engine", "info", {})
+    const body = await request.json()
+    const { connectionId } = body
 
-    const coordinator = initializeGlobalCoordinator()
+    console.log("[v0] [Trade Engine] Starting trade engine for connection:", connectionId)
+    await SystemLogger.logTradeEngine(`Starting trade engine for connection: ${connectionId}`, "info", { connectionId })
 
-    if (coordinator.getIsRunning()) {
-      console.log("[v0] [Trade Engine] Already running")
+    if (activeEngines.has(connectionId)) {
+      console.log("[v0] [Trade Engine] Already running for connection:", connectionId)
       return NextResponse.json({
         success: true,
-        message: "Trade engine is already running",
-        alreadyRunning: true,
+        message: "Trade engine already running for this connection",
       })
     }
 
-    const enabledConnections = await sql`
+    const [connection] = await sql`
       SELECT * FROM exchange_connections
-      WHERE is_enabled = true AND is_active = true
+      WHERE id = ${connectionId} AND is_active = true
     `
 
-    if (enabledConnections.length === 0) {
-      return NextResponse.json(
-        {
-          error: "No enabled connections found",
-          details: "Please enable at least one connection in Settings before starting the trade engine",
-        },
-        { status: 400 },
-      )
+    if (!connection) {
+      console.error("[v0] [Trade Engine] Connection not found or not active:", connectionId)
+      await SystemLogger.logTradeEngine(`Connection not found or not active: ${connectionId}`, "error", {
+        connectionId,
+      })
+      return NextResponse.json({ error: "Connection not found or not active" }, { status: 404 })
     }
 
-    console.log(`[v0] [Trade Engine] Found ${enabledConnections.length} enabled connections`)
+    const [settings] = await sql<{ trade_interval?: number; real_interval?: number }>`
+      SELECT 
+        CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'tradeInterval'), '1.0') AS FLOAT) as trade_interval,
+        CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'realInterval'), '0.3') AS FLOAT) as real_interval
+    `
 
-    await coordinator.start()
+    const config: TradeEngineConfig = {
+      connectionId: connectionId,
+      tradeInterval: settings?.trade_interval || 1.0,
+      realInterval: settings?.real_interval || 0.3,
+      maxConcurrency: 10,
+    }
 
-    console.log("[v0] [Trade Engine] Started successfully")
-    await SystemLogger.logTradeEngine("Global trade engine started successfully", "info", {
-      enabledConnections: enabledConnections.length,
+    const tradeEngine = new TradeEngine(config)
+    await tradeEngine.start(config)
+
+    activeEngines.set(connectionId, tradeEngine)
+
+    await sql`
+      INSERT INTO trade_engine_state (connection_id, state, updated_at)
+      VALUES (${connectionId}, 'running', CURRENT_TIMESTAMP)
+      ON CONFLICT (connection_id) 
+      DO UPDATE SET state = 'running', updated_at = CURRENT_TIMESTAMP
+    `
+
+    console.log("[v0] [Trade Engine] Started successfully for connection:", connectionId)
+    await SystemLogger.logTradeEngine(`Trade engine started successfully for connection: ${connection.name}`, "info", {
+      connectionId,
+      connectionName: connection.name,
     })
 
     return NextResponse.json({
       success: true,
-      message: "Global trade engine started successfully",
-      enabledConnections: enabledConnections.length,
+      message: "Trade engine started successfully",
+      connectionId,
     })
   } catch (error) {
     console.error("[v0] [Trade Engine] Failed to start:", error)

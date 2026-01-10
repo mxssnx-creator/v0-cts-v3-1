@@ -10,10 +10,6 @@ DATABASE_TYPE="${DATABASE_TYPE:-sqlite}"
 DATABASE_URL="${DATABASE_URL:-file:./data/cts.db}"
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DB_USER="${DB_USER:-CTS-v3}"
-DB_PASSWORD="${DB_PASSWORD:-00998877}"
-DB_NAME="${DB_NAME:-CTS-v3}"
-
 # Color codes
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -28,8 +24,6 @@ echo "=========================================="
 echo "CTS v3 Database Initialization"
 echo "=========================================="
 echo "Database Type: $DATABASE_TYPE"
-echo "Database User: $DB_USER"
-echo "Database Name: $DB_NAME"
 echo "Database URL: ${DATABASE_URL:0:50}..."
 echo ""
 
@@ -108,8 +102,4 @@ if [ "$DATABASE_TYPE" = "sqlite" ] && [ -f "$SCRIPTS_DIR/sqlite_init.sql" ]; the
 fi
 
 print_success "Database initialization complete"
-print_info "Database credentials:"
-print_info "  Username: $DB_USER"
-print_info "  Password: $DB_PASSWORD"
-print_info "  Database: $DB_NAME"
 echo ""

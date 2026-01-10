@@ -4,7 +4,6 @@
  */
 
 import { sql } from "@/lib/db"
-import fetch from "node-fetch"
 
 interface BacktestTrade {
   symbol: string
@@ -511,27 +510,9 @@ export async function runPresetBacktest(presetId: string, connectionId: string, 
   const endDate = new Date()
   const startDate = new Date(endDate.getTime() - periodDays * 24 * 60 * 60 * 1000)
 
-  const symbols = await getConnectionSymbols(connectionId)
+  // Get symbols from connection or use default
+  const symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT"] // TODO: Get from connection
 
   const engine = new BacktestEngine(presetId, connectionId, startDate, endDate, symbols)
   return await engine.runBacktest()
-}
-
-/**
- * Get available symbols from connection
- */
-async function getConnectionSymbols(connectionId: string): Promise<string[]> {
-  try {
-    const response = await fetch(`/api/settings/connections/${connectionId}/symbols`)
-    const data = (await response.json()) as { symbols?: string[] }
-
-    if (data.symbols && Array.isArray(data.symbols)) {
-      return data.symbols.slice(0, 10) // Limit to top 10 symbols for backtest
-    }
-  } catch (error) {
-    console.error("[v0] Failed to get connection symbols:", error)
-  }
-
-  // Fallback to default symbols
-  return ["BTCUSDT", "ETHUSDT", "XRPUSDT"]
 }

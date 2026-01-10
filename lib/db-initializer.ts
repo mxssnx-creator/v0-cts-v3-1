@@ -38,7 +38,7 @@ export class DatabaseInitializer {
         console.log(`[v0] Database initialization attempt ${attempt}/${retries}`)
 
         if (attempt > 1) {
-          const waitTime = Math.min(2000 * attempt, 10000) // Increased wait time for better retry logic
+          const waitTime = Math.min(2000 * attempt, 10000)
           console.log(`[v0] Waiting ${waitTime}ms before retry...`)
           await new Promise((resolve) => setTimeout(resolve, waitTime))
         }
@@ -54,16 +54,62 @@ export class DatabaseInitializer {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
 
+          console.error("[v0] ==========================================")
+          console.error("[v0] DATABASE CONNECTION FAILED")
+          console.error("[v0] ==========================================")
+
           if (errorMessage.includes("password authentication failed")) {
-            console.error("[v0] Authentication failed - please check your database credentials")
-            console.error("[v0] Ensure DATABASE_URL has the correct username and password")
-            console.error("[v0] Example: postgresql://username:password@host:port/database")
+            console.error("[v0] Error Type: AUTHENTICATION FAILURE")
+            console.error("[v0] ")
+            console.error("[v0] The PostgreSQL credentials are incorrect.")
+            console.error("[v0] ")
+            console.error("[v0] SOLUTIONS:")
+            console.error("[v0] 1. Verify DATABASE_URL has correct username and password")
+            console.error("[v0] 2. Check your DATABASE_URL environment variable format:")
+            console.error("[v0]    postgresql://username:password@host:port/database")
+            console.error("[v0] 3. OR switch to SQLite (default):")
+            console.error("[v0]    Remove or comment out DATABASE_URL in .env.local")
+            console.error("[v0]    System will automatically use SQLite")
+            console.error("[v0] ")
+            console.error("[v0] Current DATABASE_URL format (with hidden password):")
+            if (process.env.DATABASE_URL) {
+              console.error("[v0]   ", process.env.DATABASE_URL.replace(/:[^:@]+@/, ":****@"))
+            } else {
+              console.error("[v0]    Not set - using SQLite by default")
+            }
           } else if (errorMessage.includes("ECONNREFUSED")) {
-            console.error("[v0] Connection refused - database server may not be running")
-            console.error("[v0] Check that your database server is accessible")
-          } else if (errorMessage.includes("getaddrinfo")) {
-            console.error("[v0] Could not resolve database host - check your DATABASE_URL")
+            console.error("[v0] Error Type: CONNECTION REFUSED")
+            console.error("[v0] ")
+            console.error("[v0] The PostgreSQL server is not accessible.")
+            console.error("[v0] ")
+            console.error("[v0] SOLUTIONS:")
+            console.error("[v0] 1. Check if PostgreSQL server is running")
+            console.error("[v0] 2. Verify firewall settings allow connection")
+            console.error("[v0] 3. Check host and port are correct in DATABASE_URL")
+            console.error("[v0] 4. OR switch to SQLite (no server required):")
+            console.error("[v0]    Remove or comment out DATABASE_URL in .env.local")
+            console.error("[v0]    System will automatically use local SQLite database")
+          } else if (errorMessage.includes("getaddrinfo") || errorMessage.includes("ENOTFOUND")) {
+            console.error("[v0] Error Type: HOST NOT FOUND")
+            console.error("[v0] ")
+            console.error("[v0] Cannot resolve the PostgreSQL host address.")
+            console.error("[v0] ")
+            console.error("[v0] SOLUTIONS:")
+            console.error("[v0] 1. Check DATABASE_URL has correct hostname")
+            console.error("[v0] 2. Verify internet connection")
+            console.error("[v0] 3. Use IP address instead of hostname")
+            console.error("[v0] 4. OR switch to SQLite (no network required):")
+            console.error("[v0]    Remove DATABASE_URL from .env.local")
+          } else {
+            console.error("[v0] Error Type: UNKNOWN")
+            console.error("[v0] Error Message:", errorMessage)
+            console.error("[v0] ")
+            console.error("[v0] TIP: Switch to SQLite for easier setup:")
+            console.error("[v0]      Remove DATABASE_URL from .env.local")
+            console.error("[v0]      SQLite requires no configuration and works out of the box")
           }
+
+          console.error("[v0] ==========================================")
 
           throw new Error("Database connection failed: " + errorMessage)
         }
@@ -76,8 +122,17 @@ export class DatabaseInitializer {
         console.error(`[v0] Initialization attempt ${attempt} failed:`, error)
 
         if (attempt === retries) {
-          console.error("[v0] All initialization attempts exhausted")
-          console.error("[v0] Please check your database configuration and credentials")
+          console.error("[v0] ==========================================")
+          console.error("[v0] ALL INITIALIZATION ATTEMPTS FAILED")
+          console.error("[v0] ==========================================")
+          console.error("[v0] ")
+          console.error("[v0] Please:")
+          console.error("[v0] 1. Check your .env.local file exists")
+          console.error("[v0] 2. Verify DATABASE_URL is correctly set")
+          console.error("[v0] 3. Test database connection manually")
+          console.error("[v0] 4. Check server logs for more details")
+          console.error("[v0] ")
+          console.error("[v0] ==========================================")
           return false
         }
       }

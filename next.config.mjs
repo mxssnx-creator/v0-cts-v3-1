@@ -2,41 +2,22 @@
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
   },
   transpilePackages: ['lucide-react'],
   experimental: {
-    optimizePackageImports: ['lucide-react', '@/components/ui', '@/components/dashboard', '@/components/settings'],
-    serverMinification: true,
-    optimizeCss: true,
+    optimizePackageImports: ['lucide-react'],
   },
   logging: {
     fetches: {
-      fullUrl: false,
+      fullUrl: true,
     },
   },
   productionBrowserSourceMaps: false,
   compress: true,
-  output: 'standalone',
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, s-maxage=10, stale-while-revalidate=30',
-          },
-        ],
-      },
-    ]
-  },
 }
 
 export default nextConfig

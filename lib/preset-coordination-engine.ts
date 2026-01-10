@@ -982,53 +982,6 @@ export class PresetCoordinationEngine {
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   }
-
-  /**
-   * Calculate drawdown metrics from position data
-   */
-  private calculateDrawdownMetrics(performanceData: any[]): { maxDrawdown: number; drawdownTimeHours: number } {
-    // Sort positions by close time
-    const sortedPositions = [...performanceData]
-      .filter((p) => p.closed_at)
-      .sort((a, b) => new Date(a.closed_at).getTime() - new Date(b.closed_at).getTime())
-
-    let cumulativePnL = 0
-    let peak = 0
-    let maxDrawdown = 0
-    let drawdownStart: Date | null = null
-    let maxDrawdownDuration = 0
-
-    for (const position of sortedPositions) {
-      cumulativePnL += position.profit_loss || 0
-
-      if (cumulativePnL > peak) {
-        // New peak reached - end any current drawdown
-        if (drawdownStart) {
-          const duration = (new Date(position.closed_at).getTime() - drawdownStart.getTime()) / (1000 * 60 * 60)
-          if (duration > maxDrawdownDuration) {
-            maxDrawdownDuration = duration
-          }
-          drawdownStart = null
-        }
-        peak = cumulativePnL
-      } else if (cumulativePnL < peak) {
-        // In drawdown
-        if (!drawdownStart) {
-          drawdownStart = new Date(position.closed_at)
-        }
-
-        const currentDrawdown = peak > 0 ? ((peak - cumulativePnL) / peak) * 100 : 0
-        if (currentDrawdown > maxDrawdown) {
-          maxDrawdown = currentDrawdown
-        }
-      }
-    }
-
-    return {
-      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
-      drawdownTimeHours: Math.round(maxDrawdownDuration * 100) / 100,
-    }
-  }
 }
 
 interface IndicatorSignal {
