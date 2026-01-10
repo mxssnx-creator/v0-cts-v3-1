@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine/"
 import { SystemLogger } from "@/lib/system-logger"
+import { loadConnections } from "@/lib/file-storage"
 
 const activeEngines = new Map<string, TradeEngine>()
 
@@ -21,29 +22,44 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const [connection] = await sql`
-      SELECT * FROM exchange_connections
-      WHERE id = ${connectionId} AND is_active = true
-    `
+    let connection
+    try {
+      const connections = loadConnections()
+      connection = connections.find((c) => c.id === connectionId && c.is_active)
 
-    if (!connection) {
-      console.error("[v0] [Trade Engine] Connection not found or not active:", connectionId)
-      await SystemLogger.logTradeEngine(`Connection not found or not active: ${connectionId}`, "error", {
-        connectionId,
-      })
-      return NextResponse.json({ error: "Connection not found or not active" }, { status: 404 })
+      if (!connection) {
+        console.error("[v0] [Trade Engine] Connection not found or not active:", connectionId)
+        await SystemLogger.logTradeEngine(`Connection not found or not active: ${connectionId}`, "error", {
+          connectionId,
+        })
+        return NextResponse.json({ error: "Connection not found or not active" }, { status: 404 })
+      }
+    } catch (fileError) {
+      console.error("[v0] [Trade Engine] Failed to load connection from file:", fileError)
+      return NextResponse.json({ error: "Failed to load connection configuration" }, { status: 500 })
     }
+    // </CHANGE>
 
-    const [settings] = await sql<{ trade_interval?: number; real_interval?: number }>`
-      SELECT 
-        CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'tradeInterval'), '1.0') AS FLOAT) as trade_interval,
-        CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'realInterval'), '0.3') AS FLOAT) as real_interval
-    `
+    // Get settings from system_settings or use defaults
+    let tradeInterval = 1.0
+    let realInterval = 0.3
+
+    try {
+      const [settings] = await sql<{ trade_interval?: number; real_interval?: number }>`
+        SELECT 
+          CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'tradeInterval'), '1.0') AS FLOAT) as trade_interval,
+          CAST(COALESCE((SELECT value FROM system_settings WHERE key = 'realInterval'), '0.3') AS FLOAT) as real_interval
+      `
+      tradeInterval = settings?.trade_interval || 1.0
+      realInterval = settings?.real_interval || 0.3
+    } catch (dbError) {
+      console.warn("[v0] [Trade Engine] Could not load settings from database, using defaults")
+    }
 
     const config: TradeEngineConfig = {
       connectionId: connectionId,
-      tradeInterval: settings?.trade_interval || 1.0,
-      realInterval: settings?.real_interval || 0.3,
+      tradeInterval: tradeInterval,
+      realInterval: realInterval,
       maxConcurrency: 10,
     }
 
@@ -52,12 +68,17 @@ export async function POST(request: NextRequest) {
 
     activeEngines.set(connectionId, tradeEngine)
 
-    await sql`
-      INSERT INTO trade_engine_state (connection_id, state, updated_at)
-      VALUES (${connectionId}, 'running', CURRENT_TIMESTAMP)
-      ON CONFLICT (connection_id) 
-      DO UPDATE SET state = 'running', updated_at = CURRENT_TIMESTAMP
-    `
+    try {
+      await sql`
+        INSERT INTO trade_engine_state (connection_id, state, updated_at)
+        VALUES (${connectionId}, 'running', CURRENT_TIMESTAMP)
+        ON CONFLICT (connection_id) 
+        DO UPDATE SET state = 'running', updated_at = CURRENT_TIMESTAMP
+      `
+    } catch (dbError) {
+      console.warn("[v0] [Trade Engine] Could not update database state:", dbError)
+    }
+    // </CHANGE>
 
     console.log("[v0] [Trade Engine] Started successfully for connection:", connectionId)
     await SystemLogger.logTradeEngine(`Trade engine started successfully for connection: ${connection.name}`, "info", {

@@ -31,7 +31,7 @@ export async function GET() {
         connections = getPredefinedConnectionsAsStatic()
       }
     } catch (error) {
-      console.log("[v0] Database not ready yet, returning predefined connections")
+      console.log("[v0] Failed to load connections from file, returning predefined")
       connections = getPredefinedConnectionsAsStatic()
     }
 

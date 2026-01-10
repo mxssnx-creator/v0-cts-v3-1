@@ -3161,7 +3161,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <Label>Trailing</Label>
-                        <p className="text-xs text-muted-foreground">Enable trailing stops</p>
+                        <p className="text-xs text-muted-foreground">Enable trailing stop strategy</p>
                       </div>
                       <Switch
                         checked={settings.presetTrailingEnabled === true}
@@ -3172,7 +3172,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <Label>Block</Label>
-                        <p className="text-xs text-muted-foreground">Enable block trading</p>
+                        <p className="text-xs text-muted-foreground">Enable block trading strategy</p>
                       </div>
                       <Switch
                         checked={settings.presetBlockEnabled === true}
@@ -3183,7 +3183,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <Label>DCA</Label>
-                        <p className="text-xs text-muted-foreground">Dollar cost averaging</p>
+                        <p className="text-xs text-muted-foreground">Dollar cost averaging strategy</p>
                       </div>
                       <Switch
                         checked={settings.presetDcaEnabled === true}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -213,6 +213,16 @@ export default function Dashboard() {
     }
   }
 
+  const handleExchangeChange = (value: string) => {
+    setSelectedConnection(value)
+    localStorage.setItem("selectedExchange", value)
+  }
+
+  const handleRefresh = () => {
+    loadConnections()
+    loadSystemStats()
+  }
+
   const getConnectionStatus = (connection: ExchangeConnection) => {
     if (!connection.is_enabled) return "disabled"
     if (connection.is_enabled && !connection.is_live_trade) return "connecting"
@@ -227,61 +237,35 @@ export default function Dashboard() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col w-full min-h-screen bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
-          <SidebarTrigger />
-          <h1 className="text-lg font-semibold">Dashboard</h1>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                loadConnections()
-                loadSystemStats()
-              }}
-            >
+      <div className="flex flex-col min-h-screen">
+        <header className="flex items-center justify-between px-6 py-4 border-b bg-background">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={selectedConnection} onValueChange={handleExchangeChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select Exchange" />
+              </SelectTrigger>
+              <SelectContent>
+                {activeConnections.map((conn) => (
+                  <SelectItem key={conn.id} value={conn.id}>
+                    {conn.name} ({conn.exchange})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 space-y-4">
+        <main className="flex-1 p-6 space-y-6">
+          <SystemOverview stats={systemStats} />
           <RealTimeTicker />
-
           <GlobalTradeEngineControls />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Trade Engine</CardTitle>
-              <CardDescription>Real-time trading engine status and metrics</CardDescription>
-            </CardHeader>
-            <CardContent className="py-2 px-4 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Symbols</p>
-                  <p className="text-2xl font-bold">{systemStats.activeSymbols || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Trading pairs</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Indications</p>
-                  <p className="text-2xl font-bold">
-                    {systemStats.indicationsActive}/{systemStats.indicationsTotal}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Active/Total</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Live Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.livePositions || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Open trades</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pseudo Positions</p>
-                  <p className="text-2xl font-bold">{systemStats.pseudoPositions || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Test trades</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -370,9 +354,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
-          <SystemOverview stats={systemStats} />
-        </div>
+        </main>
       </div>
     </AuthGuard>
   )

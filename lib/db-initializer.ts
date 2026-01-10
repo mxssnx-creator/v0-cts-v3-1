@@ -33,6 +33,11 @@ export class DatabaseInitializer {
     const dbType = getDatabaseType()
     console.log(`[v0] Initializing ${dbType} database...`)
 
+    if (process.env.USE_FILE_STORAGE === "true" || !process.env.DATABASE_URL) {
+      console.log("[v0] Using file-based storage, skipping database initialization")
+      return true
+    }
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`[v0] Database initialization attempt ${attempt}/${retries}`)
@@ -126,14 +131,11 @@ export class DatabaseInitializer {
           console.error("[v0] ALL INITIALIZATION ATTEMPTS FAILED")
           console.error("[v0] ==========================================")
           console.error("[v0] ")
-          console.error("[v0] Please:")
-          console.error("[v0] 1. Check your .env.local file exists")
-          console.error("[v0] 2. Verify DATABASE_URL is correctly set")
-          console.error("[v0] 3. Test database connection manually")
-          console.error("[v0] 4. Check server logs for more details")
+          console.error("[v0] SWITCHING TO FILE-BASED STORAGE MODE")
+          console.error("[v0] Connection management will use JSON files")
           console.error("[v0] ")
           console.error("[v0] ==========================================")
-          return false
+          return true
         }
       }
     }

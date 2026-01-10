@@ -211,12 +211,19 @@ export class GlobalTradeEngineCoordinator {
     this.isPaused = false
 
     try {
-      // Get all active connections
-      const connections = await sql<any>`
-        SELECT id, exchange, api_key, api_secret 
-        FROM connections 
-        WHERE is_active = true
-      `
+      let connections: any[] = []
+      try {
+        const { loadConnections } = await import("@/lib/file-storage")
+        connections = loadConnections().filter((c) => c.is_active)
+      } catch (fileError) {
+        console.error("[v0] Failed to load connections from file, trying database:", fileError)
+        // Fallback to database if file loading fails
+        connections = await sql<any>`
+          SELECT id, exchange, api_key, api_secret 
+          FROM exchange_connections 
+          WHERE is_active = true
+        `
+      }
 
       console.log(`[v0] Found ${connections.length} active connections to resume`)
 
