@@ -40,65 +40,54 @@ const iconMap: Record<string, LucideIcon> = {
 }
 
 export function SystemOverview({ stats }: SystemOverviewProps) {
-  const overviewCards = [
+  const compactStats = [
     {
-      title: "Active Connections",
+      title: "Connections",
       value: stats.activeConnections,
       icon: "Activity",
-      color: "text-blue-500",
-      bgColor: "bg-blue-50",
+      color: "text-blue-600",
     },
     {
-      title: "Total Positions",
+      title: "Positions",
       value: stats.totalPositions,
       icon: "BarChart3",
-      color: "text-green-500",
-      bgColor: "bg-green-50",
+      color: "text-green-600",
     },
     {
       title: "Daily P&L",
       value: `$${stats.dailyPnL.toFixed(2)}`,
       icon: stats.dailyPnL >= 0 ? "TrendingUp" : "TrendingDown",
-      color: stats.dailyPnL >= 0 ? "text-green-500" : "text-red-500",
-      bgColor: stats.dailyPnL >= 0 ? "bg-green-50" : "bg-red-50",
+      color: stats.dailyPnL >= 0 ? "text-green-600" : "text-red-600",
     },
     {
-      title: "Total Balance",
+      title: "Balance",
       value: `$${stats.totalBalance.toFixed(2)}`,
       icon: "DollarSign",
-      color: "text-purple-500",
-      bgColor: "bg-purple-50",
+      color: "text-purple-600",
     },
-  ]
-
-  const systemCards = [
     {
-      title: "Active Indications",
+      title: "Indications",
       value: stats.indicationsActive,
       icon: "Zap",
-      color: "text-orange-500",
-      bgColor: "bg-orange-50",
+      color: "text-orange-600",
     },
     {
-      title: "Active Strategies",
+      title: "Strategies",
       value: stats.strategiesActive,
-      icon: "Users",
-      color: "text-cyan-500",
-      bgColor: "bg-cyan-50",
+      icon: "BarChart3",
+      color: "text-cyan-600",
     },
     {
-      title: "System Load",
+      title: "Load",
       value: `${stats.systemLoad}%`,
       icon: "Activity",
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-50",
+      color: stats.systemLoad > 80 ? "text-red-600" : "text-yellow-600",
     },
     {
-      title: "Database Usage",
+      title: "DB",
       value: `${stats.databaseSize}MB`,
       icon: "Database",
-      color: "text-indigo-500",
-      bgColor: "bg-indigo-50",
+      color: "text-indigo-600",
     },
   ]
 
@@ -108,18 +97,16 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
       <div>
         <h3 className="text-lg font-semibold mb-4">Trading Overview</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {overviewCards.map((card, index) => {
-            const Icon = iconMap[card.icon]
+          {compactStats.slice(0, 4).map((stat, index) => {
+            const Icon = iconMap[stat.icon]
             return (
-              <Card key={index}>
-                <CardContent className="py-3 px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                      <p className="text-2xl font-bold">{card.value}</p>
-                    </div>
-                    <div className={`p-2 rounded-full ${card.bgColor}`}>
-                      <Icon className={`h-6 w-6 ${card.color}`} />
+              <Card key={index} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Icon className={`h-5 w-5 ${stat.color} shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground truncate">{stat.title}</p>
+                      <p className="text-lg font-bold truncate">{stat.value}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -133,18 +120,16 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
       <div>
         <h3 className="text-lg font-semibold mb-4">System Status</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {systemCards.map((card, index) => {
-            const Icon = iconMap[card.icon]
+          {compactStats.slice(4, 8).map((stat, index) => {
+            const Icon = iconMap[stat.icon]
             return (
-              <Card key={index}>
-                <CardContent className="py-3 px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                      <p className="text-2xl font-bold">{card.value}</p>
-                    </div>
-                    <div className={`p-2 rounded-full ${card.bgColor}`}>
-                      <Icon className={`h-6 w-6 ${card.color}`} />
+              <Card key={index} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Icon className={`h-5 w-5 ${stat.color} shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground truncate">{stat.title}</p>
+                      <p className="text-lg font-bold truncate">{stat.value}</p>
                     </div>
                   </div>
                 </CardContent>

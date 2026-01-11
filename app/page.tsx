@@ -313,25 +313,30 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="container mx-auto p-4 space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <main className="container mx-auto p-4 space-y-4">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
             <SystemOverview stats={systemStats} />
           </div>
 
-          <StrategiesOverview strategies={strategies} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <StrategiesOverview strategies={strategies} />
+            </div>
+            <div>
+              <GlobalTradeEngineControls />
+            </div>
+          </div>
 
-          <GlobalTradeEngineControls />
-
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Active Connections</h2>
+              <h2 className="text-xl font-bold">Active Connections</h2>
               <Button onClick={() => setShowAddDialog(true)} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Connection
               </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {activeConnections.map((connection) => (
                 <ConnectionCard
                   key={connection.id}
@@ -347,7 +352,7 @@ export default function Dashboard() {
 
             {activeConnections.length === 0 && (
               <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
+                <CardContent className="flex flex-col items-center justify-center py-8">
                   <p className="text-muted-foreground mb-4">No active connections yet</p>
                   <Button onClick={() => setShowAddDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -361,7 +366,6 @@ export default function Dashboard() {
           <RealTimeTicker />
         </main>
 
-        {/* Add Connection Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogContent>
             <DialogHeader>
