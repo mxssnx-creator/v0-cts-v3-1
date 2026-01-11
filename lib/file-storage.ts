@@ -1,15 +1,19 @@
 import fs from "fs"
 import path from "path"
+import { nanoid } from "nanoid"
 
-const DATA_DIR =
-  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
-    ? path.join("/tmp", "data")
-    : path.join(process.cwd(), "data")
+const IS_SERVERLESS = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
+const DATA_DIR = IS_SERVERLESS ? path.join("/tmp", "data") : path.join(process.cwd(), "data")
 
 const CONNECTIONS_FILE = path.join(DATA_DIR, "connections.json")
+const ACTIVE_CONNECTIONS_FILE = path.join(DATA_DIR, "active-connections.json")
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json")
 const MAIN_INDICATIONS_FILE = path.join(DATA_DIR, "main-indications.json")
 const COMMON_INDICATIONS_FILE = path.join(DATA_DIR, "common-indications.json")
+
+let memoryConnections: Connection[] | null = null
+let memoryActiveConnections: Connection[] | null = null
+let memorySettings: Settings | null = null
 
 const connectionCache = new Map<string, { data: Connection[]; timestamp: number }>()
 const CACHE_TTL = 5000 // 5 seconds
@@ -22,166 +26,7 @@ function ensureDataDir() {
     }
   } catch (error) {
     console.error("[v0] Error creating data directory:", error)
-    console.warn("[v0] Continuing without persistent storage")
-  }
-}
-
-export interface Connection {
-  id: string
-  user_id: number
-  name: string
-  exchange: string
-  exchange_id: number | null
-  api_type: string
-  connection_method: string
-  connection_library: string
-  api_key: string
-  api_secret: string
-  api_passphrase?: string
-  margin_type: string
-  position_mode: string
-  is_testnet: boolean
-  is_enabled: boolean
-  is_live_trade: boolean
-  is_preset_trade: boolean
-  is_active: boolean
-  is_predefined: boolean
-  volume_factor?: number
-  connection_settings?: any
-  last_test_at?: string
-  last_test_status?: string
-  last_test_balance?: number
-  last_test_error?: string
-  last_test_log?: string[]
-  api_capabilities?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface Settings {
-  [key: string]: any
-}
-
-export interface MainIndicationSettings {
-  direction: {
-    enabled: boolean
-    range: { from: number; to: number; step: number }
-    drawdown_ratio: { from: number; to: number; step: number }
-    market_change_range: { from: number; to: number; step: number } // Values: 1, 3, 5, 7, 9 (5 variations)
-    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
-    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
-    min_calculation_time: number // Minimum time for market change calculations
-    interval: number
-    timeout: number
-  }
-  move: {
-    enabled: boolean
-    range: { from: number; to: number; step: number }
-    drawdown_ratio: { from: number; to: number; step: number }
-    market_change_range: { from: number; to: number; step: number } // Values: 1, 3, 5, 7, 9 (5 variations)
-    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
-    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
-    min_calculation_time: number // Minimum time for market change calculations
-    interval: number
-    timeout: number
-  }
-  active: {
-    enabled: boolean
-    range: { from: number; to: number; step: number }
-    activity_calculated: { from: number; to: number; step: number }
-    activity_lastpart: { from: number; to: number; step: number }
-    market_change_range: { from: number; to: number; step: number } // Values: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 (10 variations)
-    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
-    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
-    interval: number
-    timeout: number
-    min_calculation_time: number
-  }
-  optimal: {
-    enabled: boolean
-    range: { from: number; to: number; step: number }
-    drawdown_ratio: { from: number; to: number; step: number }
-    market_change_range: { from: number; to: number; step: number }
-    market_change_lastpart_base: number
-    market_change_lastpart_ratios: { from: number; to: number; step: number }
-    min_calculation_time: number
-    base_positions_limit: number // 250 base pseudo positions max
-    interval: number
-    timeout: number
-    // Performance thresholds
-    initial_min_win_rate: number
-    expanded_min_win_rate: number
-    expanded_min_profit_ratio: number
-    production_min_win_rate: number
-    production_max_drawdown: number
-  }
-}
-
-export interface CommonIndicationSettings {
-  rsi: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    overbought: { from: number; to: number; step: number }
-    oversold: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  macd: {
-    enabled: boolean
-    fastPeriod: { from: number; to: number; step: number }
-    slowPeriod: { from: number; to: number; step: number }
-    signalPeriod: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  bollinger: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    stdDev: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  ema: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  sma: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  stochastic: {
-    enabled: boolean
-    kPeriod: { from: number; to: number; step: number }
-    dPeriod: { from: number; to: number; step: number }
-    overbought: { from: number; to: number; step: number }
-    oversold: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  atr: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    multiplier: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  parabolicSAR: {
-    enabled: boolean
-    acceleration: { from: number; to: number; step: number }
-    maximum: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
-  }
-  adx: {
-    enabled: boolean
-    period: { from: number; to: number; step: number }
-    threshold: { from: number; to: number; step: number }
-    interval: number
-    timeout: number
+    // Don't throw - we'll use memory storage
   }
 }
 
@@ -212,52 +57,73 @@ function setInCache(key: string, data: Connection[]): void {
 
 export function loadConnections(): Connection[] {
   try {
-    ensureDataDir()
+    if (memoryConnections && memoryConnections.length > 0) {
+      console.log("[v0] Loaded", memoryConnections.length, "connections from memory")
+      return memoryConnections
+    }
 
+    // Check cache
     const cached = getFromCache("all_connections")
-    if (cached) {
+    if (cached && cached.length > 0) {
       console.log("[v0] Loaded", cached.length, "connections from cache")
+      memoryConnections = cached
       return cached
     }
 
+    // Try file system
+    ensureDataDir()
     if (fs.existsSync(CONNECTIONS_FILE)) {
-      const data = fs.readFileSync(CONNECTIONS_FILE, "utf-8")
-      if (data && data.trim()) {
-        try {
+      try {
+        const data = fs.readFileSync(CONNECTIONS_FILE, "utf-8")
+        if (data && data.trim()) {
           const connections = JSON.parse(data)
           if (Array.isArray(connections) && connections.length > 0) {
             console.log("[v0] Loaded", connections.length, "connections from file")
+            memoryConnections = connections
             setInCache("all_connections", connections)
             return connections
           }
-        } catch (parseError) {
-          console.error("[v0] Error parsing connections file:", parseError)
         }
+      } catch (parseError) {
+        console.error("[v0] Error parsing connections file:", parseError)
       }
     }
 
-    console.log("[v0] No valid connections file found, creating with defaults")
+    console.log("[v0] No valid connections found, initializing with defaults")
     const defaults = getDefaultConnections()
-    saveConnections(defaults)
+    memoryConnections = defaults
+    setInCache("all_connections", defaults)
+
+    // Try to persist to file but don't fail if it doesn't work
+    try {
+      ensureDataDir()
+      fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(defaults, null, 2), "utf-8")
+      console.log("[v0] Saved default connections to file")
+    } catch (writeError) {
+      console.log("[v0] Could not persist defaults to file (serverless mode)")
+    }
+
     return defaults
   } catch (error) {
-    console.error("[v0] Error loading connections from file:", error)
-    return getDefaultConnections()
+    console.error("[v0] Error loading connections:", error)
+    return []
   }
 }
 
 export function saveConnections(connections: Connection[]): void {
+  memoryConnections = connections
+  setInCache("all_connections", connections)
+  connectionCache.clear()
+  setInCache("all_connections", connections)
+
+  // Try to persist to file
   try {
     ensureDataDir()
     fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(connections, null, 2), "utf-8")
     console.log("[v0] Saved", connections.length, "connections to file")
-
-    // Clear and update cache
-    connectionCache.clear()
-    setInCache("all_connections", connections)
   } catch (error) {
-    console.error("[v0] Error saving connections to file:", error)
-    throw error
+    console.log("[v0] Could not save to file (serverless mode), saved to memory")
+    // Don't throw - memory storage is sufficient for current session
   }
 }
 
@@ -270,6 +136,11 @@ export function checkDuplicateApiKey(apiKey: string, excludeId?: string): Connec
 
 export function loadSettings(): Settings {
   try {
+    if (memorySettings && Object.keys(memorySettings).length > 0) {
+      console.log("[v0] Loaded settings from memory")
+      return memorySettings
+    }
+
     ensureDataDir()
 
     if (fs.existsSync(SETTINGS_FILE)) {
@@ -278,6 +149,7 @@ export function loadSettings(): Settings {
         try {
           const settings = JSON.parse(data)
           console.log("[v0] Loaded settings from file")
+          memorySettings = settings
           return settings
         } catch (parseError) {
           console.error("[v0] Error parsing settings file:", parseError)
@@ -294,13 +166,15 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(settings: Settings): void {
+  memorySettings = settings
+
   try {
     ensureDataDir()
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8")
     console.log("[v0] Saved settings to file")
   } catch (error) {
-    console.error("[v0] Error saving settings to file:", error)
-    throw error
+    console.log("[v0] Could not save settings to file (serverless mode), saved to memory")
+    // Don't throw - memory storage is sufficient for current session
   }
 }
 
@@ -538,7 +412,7 @@ export function clearConnectionCache(exchangeOrId?: string): void {
   }
 }
 
-function getDefaultConnections(): Connection[] {
+export function getDefaultConnections(): Connection[] {
   const now = new Date().toISOString()
   return [
     {
@@ -577,6 +451,66 @@ function getDefaultConnections(): Connection[] {
       name: "BingX Main (Perpetual)",
       exchange: "bingx",
       exchange_id: 9,
+      api_type: "perpetual_futures",
+      connection_method: "rest",
+      connection_library: "rest",
+      api_key: "",
+      api_secret: "",
+      margin_type: "cross",
+      position_mode: "hedge",
+      is_testnet: false,
+      is_enabled: false,
+      is_live_trade: false,
+      is_preset_trade: false,
+      is_active: true,
+      is_predefined: true,
+      volume_factor: 1.0,
+      connection_settings: {},
+      last_test_at: "",
+      last_test_status: "",
+      last_test_balance: 0,
+      last_test_error: "",
+      last_test_log: [],
+      api_capabilities: "",
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: "pionex-main-perpetual",
+      user_id: 1,
+      name: "Pionex Main (Perpetual)",
+      exchange: "pionex",
+      exchange_id: 10,
+      api_type: "perpetual_futures",
+      connection_method: "rest",
+      connection_library: "rest",
+      api_key: "",
+      api_secret: "",
+      margin_type: "cross",
+      position_mode: "hedge",
+      is_testnet: false,
+      is_enabled: false,
+      is_live_trade: false,
+      is_preset_trade: false,
+      is_active: true,
+      is_predefined: true,
+      volume_factor: 1.0,
+      connection_settings: {},
+      last_test_at: "",
+      last_test_status: "",
+      last_test_balance: 0,
+      last_test_error: "",
+      last_test_log: [],
+      api_capabilities: "",
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: "orangex-main-perpetual",
+      user_id: 1,
+      name: "OrangeX Main (Perpetual)",
+      exchange: "orangex",
+      exchange_id: 11,
       api_type: "perpetual_futures",
       connection_method: "rest",
       connection_library: "rest",
@@ -799,5 +733,278 @@ function getDefaultCommonIndicationSettings(): CommonIndicationSettings {
       interval: 1,
       timeout: 3,
     },
+  }
+}
+
+export function loadActiveConnections(): Connection[] {
+  try {
+    // Check memory first
+    if (memoryActiveConnections && memoryActiveConnections.length > 0) {
+      console.log("[v0] Loaded", memoryActiveConnections.length, "active connections from memory")
+      return memoryActiveConnections
+    }
+
+    // Try file system
+    ensureDataDir()
+    if (fs.existsSync(ACTIVE_CONNECTIONS_FILE)) {
+      try {
+        const data = fs.readFileSync(ACTIVE_CONNECTIONS_FILE, "utf-8")
+        if (data && data.trim()) {
+          const connections = JSON.parse(data)
+          if (Array.isArray(connections)) {
+            console.log("[v0] Loaded", connections.length, "active connections from file")
+            memoryActiveConnections = connections
+            return connections
+          }
+        }
+      } catch (parseError) {
+        console.error("[v0] Error parsing active connections file:", parseError)
+      }
+    }
+
+    // Initialize with default active connections (Bybit and BingX) ONLY on first load
+    console.log("[v0] No active connections file found, initializing with Bybit and BingX")
+    const defaults = getDefaultActiveConnections()
+    memoryActiveConnections = defaults
+
+    // Try to persist to file
+    try {
+      ensureDataDir()
+      fs.writeFileSync(ACTIVE_CONNECTIONS_FILE, JSON.stringify(defaults, null, 2), "utf-8")
+      console.log("[v0] Saved default active connections to file")
+    } catch (writeError) {
+      console.log("[v0] Could not persist active connections to file (serverless mode)")
+    }
+
+    return defaults
+  } catch (error) {
+    console.error("[v0] Error loading active connections:", error)
+    return []
+  }
+}
+
+export function saveActiveConnections(connections: Connection[]): boolean {
+  try {
+    memoryActiveConnections = connections
+
+    ensureDataDir()
+    fs.writeFileSync(ACTIVE_CONNECTIONS_FILE, JSON.stringify(connections, null, 2), "utf-8")
+    console.log("[v0] Saved", connections.length, "active connections to file")
+    return true
+  } catch (error) {
+    console.error("[v0] Error saving active connections:", error)
+    // Still update memory even if file write fails
+    memoryActiveConnections = connections
+    return false
+  }
+}
+
+function getDefaultActiveConnections(): Connection[] {
+  return [
+    {
+      id: nanoid(),
+      user_id: 1,
+      name: "Bybit Main",
+      exchange: "bybit",
+      exchange_id: 2,
+      api_type: "perpetual_futures",
+      connection_method: "rest",
+      connection_library: "rest",
+      api_key: "",
+      api_secret: "",
+      margin_type: "cross",
+      position_mode: "hedge",
+      is_testnet: false,
+      is_enabled: false, // Not enabled by default
+      is_live_trade: false,
+      is_preset_trade: false,
+      is_active: true,
+      is_predefined: true,
+      volume_factor: 1.0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: nanoid(),
+      user_id: 1,
+      name: "BingX Main",
+      exchange: "bingx",
+      exchange_id: 9,
+      api_type: "perpetual_futures",
+      connection_method: "rest",
+      connection_library: "rest",
+      api_key: "",
+      api_secret: "",
+      margin_type: "cross",
+      position_mode: "hedge",
+      is_testnet: false,
+      is_enabled: false, // Not enabled by default
+      is_live_trade: false,
+      is_preset_trade: false,
+      is_active: true,
+      is_predefined: true,
+      volume_factor: 1.0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ]
+}
+
+export interface Connection {
+  id: string
+  user_id: number
+  name: string
+  exchange: string
+  exchange_id: number | null
+  api_type: string
+  connection_method: string
+  connection_library: string
+  api_key: string
+  api_secret: string
+  api_passphrase?: string
+  margin_type: string
+  position_mode: string
+  is_testnet: boolean
+  is_enabled: boolean
+  is_live_trade: boolean
+  is_preset_trade: boolean
+  is_active: boolean
+  is_predefined: boolean
+  volume_factor?: number
+  connection_settings?: any
+  last_test_at?: string
+  last_test_status?: string
+  last_test_balance?: number
+  last_test_error?: string
+  last_test_log?: string[]
+  api_capabilities?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Settings {
+  [key: string]: any
+}
+
+export interface MainIndicationSettings {
+  direction: {
+    enabled: boolean
+    range: { from: number; to: number; step: number }
+    drawdown_ratio: { from: number; to: number; step: number }
+    market_change_range: { from: number; to: number; step: number } // Values: 1, 3, 5, 7, 9 (5 variations)
+    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
+    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
+    min_calculation_time: number // Minimum time for market change calculations
+    interval: number
+    timeout: number
+  }
+  move: {
+    enabled: boolean
+    range: { from: number; to: number; step: number }
+    drawdown_ratio: { from: number; to: number; step: number }
+    market_change_range: { from: number; to: number; step: number } // Values: 1, 3, 5, 7, 9 (5 variations)
+    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
+    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
+    min_calculation_time: number // Minimum time for market change calculations
+    interval: number
+    timeout: number
+  }
+  active: {
+    enabled: boolean
+    range: { from: number; to: number; step: number }
+    activity_calculated: { from: number; to: number; step: number }
+    activity_lastpart: { from: number; to: number; step: number }
+    market_change_range: { from: number; to: number; step: number } // Values: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 (10 variations)
+    market_change_lastpart_base: number // Last 20% activity base (0.2 ratio)
+    market_change_lastpart_ratios: { from: number; to: number; step: number } // 1.0, 1.5, 2.0, 2.5 (4 variations)
+    interval: number
+    timeout: number
+    min_calculation_time: number
+  }
+  optimal: {
+    enabled: boolean
+    range: { from: number; to: number; step: number }
+    drawdown_ratio: { from: number; to: number; step: number }
+    market_change_range: { from: number; to: number; step: number }
+    market_change_lastpart_base: number
+    market_change_lastpart_ratios: { from: number; to: number; step: number }
+    min_calculation_time: number
+    base_positions_limit: number // 250 base pseudo positions max
+    interval: number
+    timeout: number
+    // Performance thresholds
+    initial_min_win_rate: number
+    expanded_min_win_rate: number
+    expanded_min_profit_ratio: number
+    production_min_win_rate: number
+    production_max_drawdown: number
+  }
+}
+
+export interface CommonIndicationSettings {
+  rsi: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    overbought: { from: number; to: number; step: number }
+    oversold: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  macd: {
+    enabled: boolean
+    fastPeriod: { from: number; to: number; step: number }
+    slowPeriod: { from: number; to: number; step: number }
+    signalPeriod: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  bollinger: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    stdDev: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  ema: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  sma: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  stochastic: {
+    enabled: boolean
+    kPeriod: { from: number; to: number; step: number }
+    dPeriod: { from: number; to: number; step: number }
+    overbought: { from: number; to: number; step: number }
+    oversold: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  atr: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    multiplier: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  parabolicSAR: {
+    enabled: boolean
+    acceleration: { from: number; to: number; step: number }
+    maximum: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
+  }
+  adx: {
+    enabled: boolean
+    period: { from: number; to: number; step: number }
+    threshold: { from: number; to: number; step: number }
+    interval: number
+    timeout: number
   }
 }

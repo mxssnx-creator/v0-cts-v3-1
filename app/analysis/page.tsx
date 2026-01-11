@@ -10,6 +10,9 @@ import { PositionCalculator } from "@/lib/position-calculator"
 import type { SymbolAnalysis } from "@/lib/position-calculator"
 import { CalculationDemo } from "@/components/analysis/calculation-demo"
 import { TrendingUp, TrendingDown, Activity, DollarSign, Clock, Target } from "lucide-react"
+import { AuthGuard } from "@/components/auth-guard"
+import { PageHeader } from "@/components/layout/page-header"
+import { Calculator } from "lucide-react"
 
 interface ActivePosition {
   id: string
@@ -123,184 +126,198 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Position Analysis</h1>
-          <p className="text-muted-foreground">Real-time position tracking and theoretical calculations</p>
-        </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          <Activity className="w-4 h-4 mr-2" />
-          Live Data
-        </Badge>
-      </div>
+    <AuthGuard>
+      <div className="flex flex-col h-screen">
+        <PageHeader
+          title="Position Analysis"
+          description="Real-time position tracking and theoretical calculations"
+          icon={Calculator}
+          actions={
+            <Badge variant="outline" className="text-sm px-3 py-1">
+              <Activity className="w-3.5 h-3.5 mr-1.5" />
+              Live Data
+            </Badge>
+          }
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter by Connection</CardTitle>
-          <CardDescription>View positions for specific exchange connections</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedConnection} onValueChange={setSelectedConnection}>
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue placeholder="Select connection" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Connections</SelectItem>
-              {connections.map((conn) => (
-                <SelectItem key={conn.id} value={conn.id}>
-                  {conn.name} ({conn.exchange})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+        <div className="flex-1 overflow-auto p-4">
+          <div className="container mx-auto p-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter by Connection</CardTitle>
+                <CardDescription>View positions for specific exchange connections</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedConnection} onValueChange={setSelectedConnection}>
+                  <SelectTrigger className="w-full max-w-xs">
+                    <SelectValue placeholder="Select connection" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Connections</SelectItem>
+                    {connections.map((conn) => (
+                      <SelectItem key={conn.id} value={conn.id}>
+                        {conn.name} ({conn.exchange})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
 
-      {positionStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Active Positions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{formatNumber(positionStats.active_positions)}</div>
-              <p className="text-xs text-muted-foreground">{formatNumber(positionStats.total_positions)} total</p>
-            </CardContent>
-          </Card>
+            {positionStats && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
+                      Active Positions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatNumber(positionStats.active_positions)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{formatNumber(positionStats.total_positions)} total</p>
+                  </CardContent>
+                </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Total P&L
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${positionStats.total_pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {formatCurrency(positionStats.total_pnl)}
-              </div>
-              <p className="text-xs text-muted-foreground">Unrealized profit/loss</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Target className="w-4 h-4" />
-                Win Rate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{positionStats.win_rate.toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground">Closed positions</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Avg Profit/Loss
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Profit:</span>
-                  <span className="font-semibold text-green-600">{formatCurrency(positionStats.avg_profit)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Loss:</span>
-                  <span className="font-semibold text-red-600">{formatCurrency(positionStats.avg_loss)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <Tabs defaultValue="active" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active">Active Positions</TabsTrigger>
-          <TabsTrigger value="theoretical">Theoretical Analysis</TabsTrigger>
-          <TabsTrigger value="demo">Calculation Demo</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="active" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Positions ({activePositions.length})</CardTitle>
-              <CardDescription>Real-time position tracking with P&L updates</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading positions...</div>
-              ) : activePositions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No active positions</div>
-              ) : (
-                <div className="space-y-3">
-                  {activePositions.map((position) => (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Total P&L
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div
-                      key={position.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className={`text-2xl font-bold ${positionStats.total_pnl >= 0 ? "text-green-600" : "text-red-600"}`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded ${position.direction === "long" ? "bg-green-100" : "bg-red-100"}`}>
-                          {position.direction === "long" ? (
-                            <TrendingUp className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-5 h-5 text-red-600" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-semibold">{position.symbol}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {position.direction.toUpperCase()} • {position.leverage}x leverage
-                          </div>
-                        </div>
-                      </div>
+                      {formatCurrency(positionStats.total_pnl)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Unrealized profit/loss</p>
+                  </CardContent>
+                </Card>
 
-                      <div className="text-right space-y-1">
-                        <div className="flex items-center gap-4">
-                          <div className="text-sm">
-                            <div className="text-muted-foreground">Entry</div>
-                            <div className="font-medium">${position.entry_price.toFixed(4)}</div>
-                          </div>
-                          <div className="text-sm">
-                            <div className="text-muted-foreground">Current</div>
-                            <div className="font-medium">${position.current_price.toFixed(4)}</div>
-                          </div>
-                          <div className="text-sm">
-                            <div className="text-muted-foreground">Quantity</div>
-                            <div className="font-medium">{position.quantity}</div>
-                          </div>
-                        </div>
-                        <div
-                          className={`text-lg font-bold ${position.unrealized_pnl >= 0 ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {formatCurrency(position.unrealized_pnl)} ({formatPercent(position.unrealized_pnl_percent)})
-                        </div>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      Win Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">{positionStats.win_rate.toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">Closed positions</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Avg Profit/Loss
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Profit:</span>
+                        <span className="font-semibold text-green-600">{formatCurrency(positionStats.avg_profit)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Loss:</span>
+                        <span className="font-semibold text-red-600">{formatCurrency(positionStats.avg_loss)}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-        <TabsContent value="theoretical" className="space-y-6">
-          {symbolAnalysis && <PositionBreakdown analysis={symbolAnalysis} />}
-        </TabsContent>
+            <Tabs defaultValue="active" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="active">Active Positions</TabsTrigger>
+                <TabsTrigger value="theoretical">Theoretical Analysis</TabsTrigger>
+                <TabsTrigger value="demo">Calculation Demo</TabsTrigger>
+              </TabsList>
 
-        <TabsContent value="demo" className="space-y-6">
-          <CalculationDemo />
-        </TabsContent>
-      </Tabs>
-    </div>
+              <TabsContent value="active" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Active Positions ({activePositions.length})</CardTitle>
+                    <CardDescription>Real-time position tracking with P&L updates</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="text-center py-8 text-muted-foreground">Loading positions...</div>
+                    ) : activePositions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">No active positions</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {activePositions.map((position) => (
+                          <div
+                            key={position.id}
+                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`p-2 rounded ${position.direction === "long" ? "bg-green-100" : "bg-red-100"}`}
+                              >
+                                {position.direction === "long" ? (
+                                  <TrendingUp className="w-5 h-5 text-green-600" />
+                                ) : (
+                                  <TrendingDown className="w-5 h-5 text-red-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-semibold">{position.symbol}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {position.direction.toUpperCase()} • {position.leverage}x leverage
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right space-y-1">
+                              <div className="flex items-center gap-4">
+                                <div className="text-sm">
+                                  <div className="text-muted-foreground">Entry</div>
+                                  <div className="font-medium">${position.entry_price.toFixed(4)}</div>
+                                </div>
+                                <div className="text-sm">
+                                  <div className="text-muted-foreground">Current</div>
+                                  <div className="font-medium">${position.current_price.toFixed(4)}</div>
+                                </div>
+                                <div className="text-sm">
+                                  <div className="text-muted-foreground">Quantity</div>
+                                  <div className="font-medium">{position.quantity}</div>
+                                </div>
+                              </div>
+                              <div
+                                className={`text-lg font-bold ${position.unrealized_pnl >= 0 ? "text-green-600" : "text-red-600"}`}
+                              >
+                                {formatCurrency(position.unrealized_pnl)} (
+                                {formatPercent(position.unrealized_pnl_percent)})
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="theoretical" className="space-y-6">
+                {symbolAnalysis && <PositionBreakdown analysis={symbolAnalysis} />}
+              </TabsContent>
+
+              <TabsContent value="demo" className="space-y-6">
+                <CalculationDemo />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+    </AuthGuard>
   )
 }

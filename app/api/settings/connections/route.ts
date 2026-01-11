@@ -1,7 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { nanoid } from "nanoid"
 import { SystemLogger } from "@/lib/system-logger"
-import { loadConnections, saveConnections, checkDuplicateApiKey, type Connection } from "@/lib/file-storage"
+import {
+  loadConnections,
+  saveConnections,
+  checkDuplicateApiKey,
+  type Connection,
+  getDefaultConnections,
+} from "@/lib/file-storage"
 
 const EXCHANGE_NAME_TO_ID: Record<string, number> = {
   binance: 1,
@@ -19,22 +25,12 @@ const EXCHANGE_NAME_TO_ID: Record<string, number> = {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching all connections from file...")
+    console.log("[v0] Fetching all connections...")
     await SystemLogger.logAPI("Fetching all connections", "info", "GET /api/settings/connections")
 
-    let connections: any[] = []
-    try {
-      connections = loadConnections()
-      if (!Array.isArray(connections) || connections.length === 0) {
-        console.log("[v0] No connections found, connections.json will be created with defaults on next load")
-        connections = loadConnections() // This will create defaults
-      }
-    } catch (error) {
-      console.log("[v0] Failed to load connections from file, error:", error)
-      connections = loadConnections() // Try again, this creates defaults
-    }
+    const connections = loadConnections()
+    console.log("[v0] Loaded connections:", connections.length)
 
-    console.log("[v0] Found connections:", connections.length)
     await SystemLogger.logAPI(`Found ${connections.length} connections`, "info", "GET /api/settings/connections")
 
     const formattedConnections = connections.map((conn) => ({
@@ -49,13 +45,18 @@ export async function GET() {
       exchange_id: conn.exchange_id || EXCHANGE_NAME_TO_ID[conn.exchange?.toLowerCase()] || null,
     }))
 
-    return NextResponse.json(formattedConnections, { status: 200 })
+    return NextResponse.json(formattedConnections, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    })
   } catch (error) {
     console.error("[v0] Error fetching connections:", error)
     await SystemLogger.logError(error, "api", "GET /api/settings/connections")
 
-    // Return empty array on error, not predefined - let loadConnections handle defaults
-    return NextResponse.json([], { status: 200 })
+    return NextResponse.json(getDefaultConnections(), { status: 200 })
   }
 }
 

@@ -45,31 +45,26 @@ export default function Dashboard() {
 
   const loadConnections = useCallback(async () => {
     try {
-      console.log("[v0] Loading connections...")
-      const response = await fetch("/api/settings/connections")
+      console.log("[v0] Loading active connections...")
+      const response = await fetch("/api/active-connections", {
+        cache: "no-store",
+      })
       if (response.ok) {
         const data = await response.json()
-        console.log("[v0] Loaded connections:", data.length)
+        console.log("[v0] Loaded active connections:", data.length)
 
-        // Filter for active connections (is_active = true means it shows in dashboard)
-        const active = data.filter((c: ExchangeConnection) => c.is_active === true)
-
-        // Available connections are those not in active list
-        const available = data.filter((c: ExchangeConnection) => !c.is_active)
-
-        setActiveConnections(active)
-        setAvailableConnections(available)
-        setHasRealConnections(active.some((c: ExchangeConnection) => c.api_key && c.api_key !== ""))
+        setActiveConnections(data)
+        setHasRealConnections(data.some((c: ExchangeConnection) => c.api_key && c.api_key !== ""))
 
         // Set first connection as selected if none selected
-        if (!selectedConnection && active.length > 0) {
-          const enabledConn = active.find((c: ExchangeConnection) => c.is_enabled) || active[0]
+        if (!selectedConnection && data.length > 0) {
+          const enabledConn = data.find((c: ExchangeConnection) => c.is_enabled) || data[0]
           setSelectedConnection(enabledConn.id)
           localStorage.setItem("selectedExchange", enabledConn.id)
         }
       }
     } catch (error) {
-      console.error("[v0] Failed to load connections:", error)
+      console.error("[v0] Failed to load active connections:", error)
     }
   }, [selectedConnection])
 
@@ -190,6 +185,8 @@ export default function Dashboard() {
     try {
       const response = await fetch(`/api/settings/connections/${connectionId}/live-trade`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: true }),
       })
       if (response.ok) {
         toast.success("Live trade toggled successfully")
