@@ -250,6 +250,19 @@ export default function Dashboard() {
     }
   }
 
+  const getConnectionStatus = (
+    connectionId: string,
+    isEnabled: boolean,
+  ): "connected" | "connecting" | "error" | "disabled" => {
+    const status = connectionStatuses[connectionId]?.status
+    // Validate status is one of the allowed values
+    if (status === "connected" || status === "connecting" || status === "error" || status === "disabled") {
+      return status
+    }
+    // Default fallback based on enabled state
+    return isEnabled ? "connecting" : "disabled"
+  }
+
   return (
     <AuthGuard>
       <div className="flex-1 overflow-auto">
@@ -324,9 +337,7 @@ export default function Dashboard() {
                     <ConnectionCard
                       key={connection.id}
                       connection={connection}
-                      status={
-                        connectionStatuses[connection.id]?.status || (connection.is_enabled ? "connected" : "disabled")
-                      }
+                      status={getConnectionStatus(connection.id, connection.is_enabled)}
                       progress={connectionStatuses[connection.id]?.progress || 0}
                       onToggleEnable={() => handleToggleEnable(connection.id)}
                       onToggleLiveTrade={() => handleToggleLiveTrade(connection.id)}
