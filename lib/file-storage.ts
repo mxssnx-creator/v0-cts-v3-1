@@ -225,7 +225,7 @@ export function loadConnections(): Connection[] {
       if (data && data.trim()) {
         try {
           const connections = JSON.parse(data)
-          if (Array.isArray(connections)) {
+          if (Array.isArray(connections) && connections.length > 0) {
             console.log("[v0] Loaded", connections.length, "connections from file")
             setInCache("all_connections", connections)
             return connections
@@ -236,7 +236,7 @@ export function loadConnections(): Connection[] {
       }
     }
 
-    console.log("[v0] No valid connections file found, using defaults")
+    console.log("[v0] No valid connections file found, creating with defaults")
     const defaults = getDefaultConnections()
     saveConnections(defaults)
     return defaults
@@ -252,14 +252,54 @@ export function saveConnections(connections: Connection[]): void {
     fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(connections, null, 2), "utf-8")
     console.log("[v0] Saved", connections.length, "connections to file")
 
+    // Clear and update cache
+    connectionCache.clear()
     setInCache("all_connections", connections)
-
-    const groupedByExchange = groupConnectionsByExchange(connections)
-    for (const [exchange, exchangeConnections] of groupedByExchange.entries()) {
-      setInCache(`exchange:${exchange}`, exchangeConnections)
-    }
   } catch (error) {
     console.error("[v0] Error saving connections to file:", error)
+    throw error
+  }
+}
+
+export function checkDuplicateApiKey(apiKey: string, excludeId?: string): Connection | null {
+  if (!apiKey || apiKey.trim() === "") return null
+
+  const connections = loadConnections()
+  return connections.find((c) => c.api_key === apiKey && c.api_key !== "" && c.id !== excludeId) || null
+}
+
+export function loadSettings(): Settings {
+  try {
+    ensureDataDir()
+
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = fs.readFileSync(SETTINGS_FILE, "utf-8")
+      if (data && data.trim()) {
+        try {
+          const settings = JSON.parse(data)
+          console.log("[v0] Loaded settings from file")
+          return settings
+        } catch (parseError) {
+          console.error("[v0] Error parsing settings file:", parseError)
+        }
+      }
+    }
+
+    console.log("[v0] No settings file found, returning empty object")
+    return {}
+  } catch (error) {
+    console.error("[v0] Error loading settings from file:", error)
+    return {}
+  }
+}
+
+export function saveSettings(settings: Settings): void {
+  try {
+    ensureDataDir()
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8")
+    console.log("[v0] Saved settings to file")
+  } catch (error) {
+    console.error("[v0] Error saving settings to file:", error)
     throw error
   }
 }
@@ -297,44 +337,186 @@ export function loadConnectionsByIds(ids: string[]): Map<string, Connection> {
   return result
 }
 
-export function batchUpdateConnections(updates: Partial<Connection> & { id: string }[]): void {
-  if (updates.length === 0) return
-
-  console.log("[v0] Batch updating", updates.length, "connections")
-
+export function batchUpdateConnections(updates: (Partial<Connection> & { id: string })[]): void {
   const connections = loadConnections()
-  const updateMap = new Map(updates.map((u) => [u.id, u]))
 
-  const updatedConnections = connections.map((conn) => {
-    const update = updateMap.get(conn.id)
-    if (update) {
-      return { ...conn, ...update, updated_at: new Date().toISOString() }
+  for (const update of updates) {
+    const index = connections.findIndex((c) => c.id === update.id)
+    if (index >= 0) {
+      connections[index] = { ...connections[index], ...update, updated_at: new Date().toISOString() }
     }
-    return conn
-  })
-
-  saveConnections(updatedConnections)
-  console.log("[v0] Batch update complete")
-}
-
-function groupConnectionsByExchange(connections: Connection[]): Map<string, Connection[]> {
-  const grouped = new Map<string, Connection[]>()
-
-  for (const conn of connections) {
-    if (!grouped.has(conn.exchange)) {
-      grouped.set(conn.exchange, [])
-    }
-    grouped.get(conn.exchange)!.push(conn)
   }
 
-  return grouped
+  saveConnections(connections)
 }
 
-export function getEnabledConnectionsByExchange(): Map<string, Connection[]> {
+export function updateConnection(id: string, updates: Partial<Connection>): Connection | null {
   const connections = loadConnections()
-  const enabled = connections.filter((c) => c.is_enabled && c.is_active)
+  const index = connections.findIndex((c) => c.id === id)
 
-  return groupConnectionsByExchange(enabled)
+  if (index < 0) {
+    return null
+  }
+
+  connections[index] = { ...connections[index], ...updates, updated_at: new Date().toISOString() }
+  saveConnections(connections)
+
+  return connections[index]
+}
+
+export function deleteConnection(id: string): boolean {
+  const connections = loadConnections()
+  const index = connections.findIndex((c) => c.id === id)
+
+  if (index < 0) {
+    return false
+  }
+
+  connections.splice(index, 1)
+  saveConnections(connections)
+
+  return true
+}
+
+export function getConnectionById(id: string): Connection | null {
+  const connections = loadConnections()
+  return connections.find((c) => c.id === id) || null
+}
+
+export function loadMainIndicationSettings(): MainIndicationSettings {
+  try {
+    ensureDataDir()
+
+    if (fs.existsSync(MAIN_INDICATIONS_FILE)) {
+      const data = fs.readFileSync(MAIN_INDICATIONS_FILE, "utf-8")
+      if (data && data.trim()) {
+        try {
+          const settings = JSON.parse(data)
+          console.log("[v0] Loaded main indication settings from file")
+          return settings
+        } catch (parseError) {
+          console.error("[v0] Error parsing main indications file:", parseError)
+        }
+      }
+    }
+
+    console.log("[v0] No main indications file found, returning defaults")
+    const defaults = getDefaultMainIndicationSettings()
+    saveMainIndicationSettings(defaults)
+    return defaults
+  } catch (error) {
+    console.error("[v0] Error loading main indication settings:", error)
+    return getDefaultMainIndicationSettings()
+  }
+}
+
+export function saveMainIndicationSettings(settings: MainIndicationSettings): void {
+  try {
+    ensureDataDir()
+    fs.writeFileSync(MAIN_INDICATIONS_FILE, JSON.stringify(settings, null, 2), "utf-8")
+    console.log("[v0] Saved main indication settings to file")
+  } catch (error) {
+    console.error("[v0] Error saving main indication settings:", error)
+    throw error
+  }
+}
+
+export function loadCommonIndicationSettings(): CommonIndicationSettings {
+  try {
+    ensureDataDir()
+
+    if (fs.existsSync(COMMON_INDICATIONS_FILE)) {
+      const data = fs.readFileSync(COMMON_INDICATIONS_FILE, "utf-8")
+      if (data && data.trim()) {
+        try {
+          const settings = JSON.parse(data)
+          console.log("[v0] Loaded common indication settings from file")
+          return settings
+        } catch (parseError) {
+          console.error("[v0] Error parsing common indications file:", parseError)
+        }
+      }
+    }
+
+    console.log("[v0] No common indications file found, returning defaults")
+    const defaults = getDefaultCommonIndicationSettings()
+    saveCommonIndicationSettings(defaults)
+    return defaults
+  } catch (error) {
+    console.error("[v0] Error loading common indication settings:", error)
+    return getDefaultCommonIndicationSettings()
+  }
+}
+
+export function saveCommonIndicationSettings(settings: CommonIndicationSettings): void {
+  try {
+    ensureDataDir()
+    fs.writeFileSync(COMMON_INDICATIONS_FILE, JSON.stringify(settings, null, 2), "utf-8")
+    console.log("[v0] Saved common indication settings to file")
+  } catch (error) {
+    console.error("[v0] Error saving common indication settings:", error)
+    throw error
+  }
+}
+
+export async function exportConnectionsToFile() {
+  try {
+    const { query } = await import("@/lib/db")
+    const connections = await query(`
+      SELECT 
+        ec.*,
+        vc.base_volume_factor as volume_factor
+      FROM exchange_connections ec
+      LEFT JOIN volume_configuration vc ON ec.id = vc.connection_id
+      WHERE ec.is_active = true
+      ORDER BY ec.created_at DESC
+    `)
+
+    if (connections.length > 0) {
+      saveConnections(connections)
+      console.log("[v0] Exported", connections.length, "connections to file")
+    }
+  } catch (error) {
+    console.error("[v0] Error exporting connections:", error)
+  }
+}
+
+export async function exportSettingsToFile() {
+  try {
+    const { query } = await import("@/lib/db")
+    const settings = await query(`
+      SELECT category, subcategory, key, value, value_type
+      FROM system_settings
+      ORDER BY category, subcategory, key
+    `)
+
+    const settingsObject: Settings = {}
+    for (const setting of settings) {
+      const key = setting.key
+      let value = setting.value
+
+      if (setting.value_type === "number") {
+        value = Number.parseFloat(value)
+      } else if (setting.value_type === "boolean") {
+        value = value === "true"
+      } else if (setting.value_type === "json") {
+        try {
+          value = JSON.parse(value)
+        } catch {
+          value = setting.value
+        }
+      }
+
+      settingsObject[key] = value
+    }
+
+    if (Object.keys(settingsObject).length > 0) {
+      saveSettings(settingsObject)
+      console.log("[v0] Exported", Object.keys(settingsObject).length, "settings to file")
+    }
+  } catch (error) {
+    console.error("[v0] Error exporting settings:", error)
+  }
 }
 
 export function clearConnectionCache(exchangeOrId?: string): void {
@@ -356,127 +538,8 @@ export function clearConnectionCache(exchangeOrId?: string): void {
   }
 }
 
-export function loadSettings(): Settings {
-  try {
-    ensureDataDir()
-
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const data = fs.readFileSync(SETTINGS_FILE, "utf-8")
-      if (data && data.trim()) {
-        try {
-          const settings = JSON.parse(data)
-          if (settings && typeof settings === "object") {
-            console.log("[v0] Loaded", Object.keys(settings).length, "settings from file")
-            return settings
-          }
-        } catch (parseError) {
-          console.error("[v0] Error parsing settings file:", parseError)
-        }
-      }
-    }
-
-    console.log("[v0] No valid settings file found, using defaults")
-    const defaults = getDefaultSettings()
-    saveSettings(defaults)
-    return defaults
-  } catch (error) {
-    console.error("[v0] Error loading settings from file:", error)
-    return getDefaultSettings()
-  }
-}
-
-export function saveSettings(settings: Settings): void {
-  try {
-    ensureDataDir()
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8")
-    console.log("[v0] Saved", Object.keys(settings).length, "settings to file")
-  } catch (error) {
-    console.error("[v0] Error saving settings to file:", error)
-    throw error
-  }
-}
-
-export function loadMainIndicationSettings(): MainIndicationSettings {
-  try {
-    ensureDataDir()
-
-    if (fs.existsSync(MAIN_INDICATIONS_FILE)) {
-      const data = fs.readFileSync(MAIN_INDICATIONS_FILE, "utf-8")
-      if (data.trim()) {
-        const settings = JSON.parse(data)
-        console.log("[v0] Loaded main indication settings from file")
-        return settings
-      }
-    }
-
-    console.log("[v0] No main indication settings file found, using defaults")
-    const defaults = getDefaultMainIndicationSettings()
-    saveMainIndicationSettings(defaults)
-    return defaults
-  } catch (error) {
-    console.error("[v0] Error loading main indication settings:", error)
-    const defaults = getDefaultMainIndicationSettings()
-    try {
-      saveMainIndicationSettings(defaults)
-    } catch (saveError) {
-      console.error("[v0] Error saving default main indication settings:", saveError)
-    }
-    return defaults
-  }
-}
-
-export function saveMainIndicationSettings(settings: MainIndicationSettings): void {
-  try {
-    ensureDataDir()
-    fs.writeFileSync(MAIN_INDICATIONS_FILE, JSON.stringify(settings, null, 2), "utf-8")
-    console.log("[v0] Saved main indication settings to file")
-  } catch (error) {
-    console.error("[v0] Error saving main indication settings:", error)
-    throw error
-  }
-}
-
-export function loadCommonIndicationSettings(): CommonIndicationSettings {
-  try {
-    ensureDataDir()
-
-    if (fs.existsSync(COMMON_INDICATIONS_FILE)) {
-      const data = fs.readFileSync(COMMON_INDICATIONS_FILE, "utf-8")
-      if (data.trim()) {
-        const settings = JSON.parse(data)
-        console.log("[v0] Loaded common indication settings from file")
-        return settings
-      }
-    }
-
-    console.log("[v0] No common indication settings file found, using defaults")
-    const defaults = getDefaultCommonIndicationSettings()
-    saveCommonIndicationSettings(defaults)
-    return defaults
-  } catch (error) {
-    console.error("[v0] Error loading common indication settings:", error)
-    const defaults = getDefaultCommonIndicationSettings()
-    try {
-      saveCommonIndicationSettings(defaults)
-    } catch (saveError) {
-      console.error("[v0] Error saving default common indication settings:", saveError)
-    }
-    return defaults
-  }
-}
-
-export function saveCommonIndicationSettings(settings: CommonIndicationSettings): void {
-  try {
-    ensureDataDir()
-    fs.writeFileSync(COMMON_INDICATIONS_FILE, JSON.stringify(settings, null, 2), "utf-8")
-    console.log("[v0] Saved common indication settings to file")
-  } catch (error) {
-    console.error("[v0] Error saving common indication settings:", error)
-    throw error
-  }
-}
-
 function getDefaultConnections(): Connection[] {
+  const now = new Date().toISOString()
   return [
     {
       id: "bybit-main-perpetual",
@@ -487,15 +550,15 @@ function getDefaultConnections(): Connection[] {
       api_type: "perpetual_futures",
       connection_method: "rest",
       connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
+      api_key: "",
+      api_secret: "",
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false, // Default to false, user must enable
+      is_enabled: false,
       is_live_trade: false,
       is_preset_trade: false,
-      is_active: true, // Active means it appears in active connections list
+      is_active: true,
       is_predefined: true,
       volume_factor: 1.0,
       connection_settings: {},
@@ -505,8 +568,8 @@ function getDefaultConnections(): Connection[] {
       last_test_error: "",
       last_test_log: [],
       api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     },
     {
       id: "bingx-main-perpetual",
@@ -517,38 +580,8 @@ function getDefaultConnections(): Connection[] {
       api_type: "perpetual_futures",
       connection_method: "rest",
       connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false, // Default to false, user must enable
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true, // Active means it appears in active connections list
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "binance-main-perpetual",
-      user_id: 1,
-      name: "Binance Main (USDⓈ-M Futures)",
-      exchange: "binance",
-      exchange_id: 1,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
+      api_key: "",
+      api_secret: "",
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
@@ -565,191 +598,8 @@ function getDefaultConnections(): Connection[] {
       last_test_error: "",
       last_test_log: [],
       api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "okx-main-perpetual",
-      user_id: 1,
-      name: "OKX Main (Perpetual Swap)",
-      exchange: "okx",
-      exchange_id: 3,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      api_passphrase: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "bitget-main-perpetual",
-      user_id: 1,
-      name: "Bitget Main (USDT Futures)",
-      exchange: "bitget",
-      exchange_id: 4,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      api_passphrase: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "kucoin-main-perpetual",
-      user_id: 1,
-      name: "KuCoin Main (Perpetual Futures)",
-      exchange: "kucoin",
-      exchange_id: 5,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      api_passphrase: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "huobi-main-perpetual",
-      user_id: 1,
-      name: "Huobi Main (Linear Swap)",
-      exchange: "huobi",
-      exchange_id: 6,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "pionex-main-perpetual",
-      user_id: 1,
-      name: "Pionex Main (Perpetual)",
-      exchange: "pionex",
-      exchange_id: 15,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "orangex-main-perpetual",
-      user_id: 1,
-      name: "OrangeX Main (Perpetual)",
-      exchange: "orangex",
-      exchange_id: 16,
-      api_type: "perpetual_futures",
-      connection_method: "rest",
-      connection_library: "rest",
-      api_key: "00998877009988770099887700998877",
-      api_secret: "00998877009988770099887700998877",
-      margin_type: "cross",
-      position_mode: "hedge",
-      is_testnet: false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
-      is_active: true,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     },
   ]
 }
@@ -949,65 +799,5 @@ function getDefaultCommonIndicationSettings(): CommonIndicationSettings {
       interval: 1,
       timeout: 3,
     },
-  }
-}
-
-export async function exportConnectionsToFile() {
-  try {
-    const { query } = await import("@/lib/db")
-    const connections = await query(`
-      SELECT 
-        ec.*,
-        vc.base_volume_factor as volume_factor
-      FROM exchange_connections ec
-      LEFT JOIN volume_configuration vc ON ec.id = vc.connection_id
-      WHERE ec.is_active = true
-      ORDER BY ec.created_at DESC
-    `)
-
-    if (connections.length > 0) {
-      saveConnections(connections)
-      console.log("[v0] Exported", connections.length, "connections to file")
-    }
-  } catch (error) {
-    console.error("[v0] Error exporting connections:", error)
-  }
-}
-
-export async function exportSettingsToFile() {
-  try {
-    const { query } = await import("@/lib/db")
-    const settings = await query(`
-      SELECT category, subcategory, key, value, value_type
-      FROM system_settings
-      ORDER BY category, subcategory, key
-    `)
-
-    const settingsObject: Settings = {}
-    for (const setting of settings) {
-      const key = setting.key
-      let value = setting.value
-
-      if (setting.value_type === "number") {
-        value = Number.parseFloat(value)
-      } else if (setting.value_type === "boolean") {
-        value = value === "true"
-      } else if (setting.value_type === "json") {
-        try {
-          value = JSON.parse(value)
-        } catch {
-          value = setting.value
-        }
-      }
-
-      settingsObject[key] = value
-    }
-
-    if (Object.keys(settingsObject).length > 0) {
-      saveSettings(settingsObject)
-      console.log("[v0] Exported", Object.keys(settingsObject).length, "settings to file")
-    }
-  } catch (error) {
-    console.error("[v0] Error exporting settings:", error)
   }
 }

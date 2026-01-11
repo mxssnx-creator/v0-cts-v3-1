@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,7 +15,6 @@ import { toast } from "sonner"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/lib/auth-context"
-import { getPredefinedConnectionsAsStatic } from "@/lib/connection-predefinitions"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -25,6 +24,9 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
+  const [connectionStatuses, setConnectionStatuses] = useState<
+    Record<string, { status: string; progress: number; message: string }>
+  >({})
   const [systemStats, setSystemStats] = useState({
     activeConnections: 0,
     totalPositions: 0,
@@ -41,12 +43,100 @@ export default function Dashboard() {
   })
   const [strategies, setStrategies] = useState<any[]>([])
 
+  const loadConnections = useCallback(async () => {
+    try {
+      console.log("[v0] Loading connections...")
+      const response = await fetch("/api/settings/connections")
+      if (response.ok) {
+        const data = await response.json()
+        console.log("[v0] Loaded connections:", data.length)
+
+        // Filter for active connections (is_active = true means it shows in dashboard)
+        const active = data.filter((c: ExchangeConnection) => c.is_active === true)
+
+        // Available connections are those not in active list
+        const available = data.filter((c: ExchangeConnection) => !c.is_active)
+
+        setActiveConnections(active)
+        setAvailableConnections(available)
+        setHasRealConnections(active.some((c: ExchangeConnection) => c.api_key && c.api_key !== ""))
+
+        // Set first connection as selected if none selected
+        if (!selectedConnection && active.length > 0) {
+          const enabledConn = active.find((c: ExchangeConnection) => c.is_enabled) || active[0]
+          setSelectedConnection(enabledConn.id)
+          localStorage.setItem("selectedExchange", enabledConn.id)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load connections:", error)
+    }
+  }, [selectedConnection])
+
+  const loadSystemStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/structure/metrics")
+      if (response.ok) {
+        const data = await response.json()
+        setSystemStats({
+          activeConnections: data.activeConnections || 0,
+          totalPositions: data.totalPositions || 0,
+          dailyPnL: data.dailyPnL || 0,
+          totalBalance: data.totalBalance || 0,
+          indicationsActive: data.indicationsActive || 0,
+          indicationsTotal: data.indicationsTotal || 0,
+          strategiesActive: data.strategiesActive || 0,
+          systemLoad: data.systemLoad || 0,
+          databaseSize: data.databaseSize || 0,
+          activeSymbols: data.activeSymbols || 0,
+          livePositions: data.livePositions || 0,
+          pseudoPositions: data.pseudoPositions || 0,
+        })
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load system stats:", error)
+    }
+  }, [])
+
+  const loadStrategies = useCallback(async () => {
+    try {
+      const response = await fetch("/api/strategies/overview")
+      if (response.ok) {
+        const data = await response.json()
+        setStrategies(data.strategies || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load strategies:", error)
+    }
+  }, [])
+
+  const updateConnectionStatuses = useCallback(async () => {
+    if (activeConnections.length === 0) return
+
+    try {
+      const response = await fetch("/api/connections/status")
+      if (response.ok) {
+        const statuses = await response.json()
+        const statusMap: Record<string, { status: string; progress: number; message: string }> = {}
+
+        statuses.forEach((s: any) => {
+          statusMap[s.id] = {
+            status: s.status || "idle",
+            progress: s.progress || 0,
+            message: s.message || "",
+          }
+        })
+
+        setConnectionStatuses(statusMap)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to update connection statuses:", error)
+    }
+  }, [activeConnections])
+
   useEffect(() => {
     const initialize = async () => {
       console.log("[v0] Dashboard initializing...")
-
-      setActiveConnections([])
-
       await loadConnections()
       await loadSystemStats()
       await loadStrategies()
@@ -68,191 +158,64 @@ export default function Dashboard() {
     }, 10000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [loadConnections, loadSystemStats, loadStrategies])
 
   useEffect(() => {
     if (activeConnections.length === 0) return
 
-    const updateConnectionStatuses = async () => {
-      try {
-        const response = await fetch("/api/connections/status")
-        if (response.ok) {
-          const statuses = await response.json()
-          // Update connection states with real data
-          statuses.forEach((statusData: any) => {
-            const conn = activeConnections.find((c) => c.id === statusData.id)
-            if (conn) {
-              // Real-time progress and status updates
-              console.log(`[v0] Connection ${conn.name}: ${statusData.status} - ${statusData.progress}%`)
-            }
-          })
-        }
-      } catch (error) {
-        console.error("[v0] Failed to update connection statuses:", error)
-      }
-    }
-
-    const interval = setInterval(updateConnectionStatuses, 5000) // Update every 5 seconds
-    updateConnectionStatuses() // Initial call
+    updateConnectionStatuses()
+    const interval = setInterval(updateConnectionStatuses, 3000)
 
     return () => clearInterval(interval)
-  }, [activeConnections])
+  }, [activeConnections, updateConnectionStatuses])
 
-  const loadConnections = async () => {
+  const handleToggleEnable = async (connectionId: string) => {
     try {
-      console.log("[v0] Loading connections from API")
-      const response = await fetch("/api/settings/connections")
-
-      if (!response.ok) {
-        console.log("[v0] Connections API returned error")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
-        return
-      }
-
-      const data = await response.json()
-
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
-        return
-      }
-
-      console.log("[v0] Loaded connections:", data.length)
-
-      const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
-      const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
-
-      setActiveConnections(activeConns)
-      setAvailableConnections(notActive)
-
-      const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
-      setHasRealConnections(enabledConnections.length > 0)
-
-      if (activeConns.length > 0 && !selectedConnection) {
-        const savedSelection = localStorage.getItem("selectedExchange")
-        setSelectedConnection(savedSelection || activeConns[0]?.id || "")
-      }
-    } catch (error) {
-      console.error("[v0] Failed to load connections:", error)
-    }
-  }
-
-  const loadSystemStats = async () => {
-    try {
-      console.log("[v0] Loading system stats from API")
-      const response = await fetch("/api/structure/metrics")
-      if (!response.ok) {
-        console.log("[v0] System stats not available yet")
-        return
-      }
-
-      const data = await response.json()
-      console.log("[v0] Loaded system stats")
-      setSystemStats(data)
-    } catch (error) {
-      console.error("[v0] Failed to load system stats:", error)
-    }
-  }
-
-  const loadStrategies = async () => {
-    try {
-      const response = await fetch("/api/strategies/overview")
-      if (response.ok) {
-        const data = await response.json()
-        setStrategies(data)
-      }
-    } catch (error) {
-      console.error("[v0] Failed to load strategies:", error)
-    }
-  }
-
-  const handleToggleEnable = async (id: string, enabled: boolean) => {
-    try {
-      console.log("[v0] Toggling connection:", id, "enabled:", enabled)
-
-      const response = await fetch(`/api/settings/connections/${id}/toggle`, {
+      const response = await fetch(`/api/settings/connections/${connectionId}/toggle`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_enabled: enabled }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to toggle connection")
+      if (response.ok) {
+        toast.success("Connection toggled successfully")
+        await loadConnections()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || "Failed to toggle connection")
       }
-
-      await loadConnections()
-      toast.success(enabled ? "Connection enabled" : "Connection disabled")
     } catch (error) {
-      console.error("[v0] Failed to toggle connection:", error)
       toast.error("Failed to toggle connection")
     }
   }
 
-  const handleToggleLiveTrade = async (id: string, enabled: boolean) => {
+  const handleToggleLiveTrade = async (connectionId: string) => {
     try {
-      console.log("[v0] Toggling live trade:", id, "enabled:", enabled)
-
-      const response = await fetch(`/api/settings/connections/${id}/live-trade`, {
+      const response = await fetch(`/api/settings/connections/${connectionId}/live-trade`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_live_trade: enabled }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to toggle live trade")
+      if (response.ok) {
+        toast.success("Live trade toggled successfully")
+        await loadConnections()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || "Failed to toggle live trade")
       }
-
-      await loadConnections()
-      toast.success(enabled ? "Live trading enabled" : "Live trading disabled")
     } catch (error) {
-      console.error("[v0] Failed to toggle live trade:", error)
       toast.error("Failed to toggle live trade")
     }
   }
 
-  const handleRemoveFromActive = async (id: string) => {
+  const handleDeleteConnection = async (connectionId: string) => {
     try {
-      console.log("[v0] Removing from active:", id)
-
-      const response = await fetch(`/api/settings/connections/${id}/active`, {
+      const response = await fetch(`/api/settings/connections/${connectionId}`, {
         method: "DELETE",
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to remove from active")
+      if (response.ok) {
+        toast.success("Connection removed")
+        await loadConnections()
+      } else {
+        toast.error("Failed to remove connection")
       }
-
-      await loadConnections()
-      toast.success("Connection removed from active")
     } catch (error) {
-      console.error("[v0] Failed to remove from active:", error)
-      toast.error("Failed to remove from active")
-    }
-  }
-
-  const handleAddAsActive = async () => {
-    if (!selectedToAdd) return
-
-    try {
-      console.log("[v0] Adding as active:", selectedToAdd)
-
-      const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add as active")
-      }
-
-      await loadConnections()
-      setShowAddDialog(false)
-      setSelectedToAdd("")
-      toast.success("Connection added to active")
-    } catch (error) {
-      console.error("[v0] Failed to add as active:", error)
-      toast.error("Failed to add as active")
+      toast.error("Failed to remove connection")
     }
   }
 
@@ -261,130 +224,159 @@ export default function Dashboard() {
     localStorage.setItem("selectedExchange", value)
   }
 
-  const handleRefresh = () => {
-    loadConnections()
-    loadSystemStats()
-    loadStrategies()
-  }
+  const handleAddConnection = async () => {
+    if (!selectedToAdd) return
 
-  const getConnectionStatus = (connection: ExchangeConnection): "connected" | "connecting" | "error" | "disabled" => {
-    if (!connection.is_enabled) return "disabled"
-    if (connection.last_test_status === "failed") return "error"
-    if (connection.is_enabled && !connection.is_live_trade) return "connecting"
-    return "connected"
-  }
+    try {
+      const connectionToAdd = availableConnections.find((c) => c.id === selectedToAdd)
+      if (!connectionToAdd) return
 
-  const getConnectionProgress = (connection: ExchangeConnection): number => {
-    // In a real implementation, this would query the trade engine coordinator
-    // For now, return based on connection state
-    if (!connection.is_enabled) return 0
-    if (connection.is_live_trade) return 100
-    // Simulate loading progress based on time since enabled
-    return 45 // This would come from real trade engine status
+      const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: true }),
+      })
+
+      if (response.ok) {
+        toast.success(`Added ${connectionToAdd.name} to active connections`)
+        setShowAddDialog(false)
+        setSelectedToAdd("")
+        await loadConnections()
+      } else {
+        toast.error("Failed to add connection")
+      }
+    } catch (error) {
+      toast.error("Failed to add connection")
+    }
   }
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-background">
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center px-4 gap-4">
-            <SidebarTrigger />
-            <div className="flex-1 flex items-center justify-between">
-              <h1 className="text-lg font-semibold">Dashboard</h1>
-              <div className="flex items-center gap-2">
-                <Select value={selectedConnection} onValueChange={handleExchangeChange}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select Exchange" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeConnections.map((conn) => (
-                      <SelectItem key={conn.id} value={conn.id}>
-                        {conn.name} ({conn.exchange})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="icon" onClick={handleRefresh}>
-                  <RefreshCw className="h-4 w-4" />
+      <div className="flex-1 overflow-auto">
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedConnection} onValueChange={handleExchangeChange}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Select Exchange" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeConnections.map((conn) => (
+                    <SelectItem key={conn.id} value={conn.id}>
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${conn.is_enabled ? "bg-green-500" : "bg-gray-400"}`} />
+                        {conn.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  loadConnections()
+                  loadSystemStats()
+                  loadStrategies()
+                }}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* System Overview and Strategies - Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SystemOverview stats={systemStats} />
+            <StrategiesOverview strategies={strategies} />
+          </div>
+
+          {/* Trade Engine Controls */}
+          <GlobalTradeEngineControls />
+
+          {/* Active Connections */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Active Connections</CardTitle>
+                  <CardDescription>Manage your exchange connections</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
                 </Button>
               </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="container mx-auto p-4 space-y-4 overflow-x-hidden">
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-            <SystemOverview stats={systemStats} />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-            <div className="lg:col-span-2">
-              <StrategiesOverview strategies={strategies} />
-            </div>
-            <div>
-              <GlobalTradeEngineControls />
-            </div>
-          </div>
-
-          <Card className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle>Active Connections</CardTitle>
-                <CardDescription>Manage your exchange connections</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add
-              </Button>
             </CardHeader>
             <CardContent>
               {activeConnections.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>No active connections. Add a connection to get started.</p>
+                  No active connections. Add a connection to get started.
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {activeConnections.map((connection) => (
                     <ConnectionCard
                       key={connection.id}
                       connection={connection}
-                      status={getConnectionStatus(connection)}
-                      progress={getConnectionProgress(connection)}
-                      onToggleEnable={handleToggleEnable}
-                      onToggleLiveTrade={handleToggleLiveTrade}
-                      onDelete={handleRemoveFromActive}
+                      status={
+                        connectionStatuses[connection.id]?.status || (connection.is_enabled ? "connected" : "disabled")
+                      }
+                      progress={connectionStatuses[connection.id]?.progress || 0}
+                      onToggleEnable={() => handleToggleEnable(connection.id)}
+                      onToggleLiveTrade={() => handleToggleLiveTrade(connection.id)}
+                      onDelete={() => handleDeleteConnection(connection.id)}
                     />
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
-        </main>
 
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Connection to Active</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <Select value={selectedToAdd} onValueChange={setSelectedToAdd}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a connection" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableConnections.map((conn) => (
-                    <SelectItem key={conn.id} value={conn.id}>
-                      {conn.name} ({conn.exchange})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button className="w-full" onClick={handleAddAsActive} disabled={!selectedToAdd}>
-                Add to Active
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          {/* Add Connection Dialog */}
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Connection</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {availableConnections.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    No available connections. Create new connections in Settings.
+                  </p>
+                ) : (
+                  <>
+                    <Select value={selectedToAdd} onValueChange={setSelectedToAdd}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a connection" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableConnections.map((conn) => (
+                          <SelectItem key={conn.id} value={conn.id}>
+                            {conn.name} ({conn.exchange})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddConnection} disabled={!selectedToAdd}>
+                        Add Connection
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </AuthGuard>
   )
