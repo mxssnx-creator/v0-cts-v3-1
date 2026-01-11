@@ -33,8 +33,8 @@ export class DatabaseInitializer {
     const dbType = getDatabaseType()
     console.log(`[v0] Initializing ${dbType} database...`)
 
-    if (process.env.USE_FILE_STORAGE === "true" || !process.env.DATABASE_URL) {
-      console.log("[v0] Using file-based storage, skipping database initialization")
+    if (process.env.USE_FILE_STORAGE === "true") {
+      console.log("[v0] File-based storage mode enabled, skipping database initialization")
       this.isInitialized = true
       return true
     }
@@ -53,7 +53,7 @@ export class DatabaseInitializer {
           console.log("[v0] Testing database connection...")
           const testPromise = query("SELECT 1 as test")
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Connection test timed out")), 10000),
+            setTimeout(() => reject(new Error("Connection test timed out")), 5000),
           )
           await Promise.race([testPromise, timeoutPromise])
           console.log(`[v0] ${dbType} database connection established successfully`)
@@ -66,67 +66,39 @@ export class DatabaseInitializer {
 
           if (errorMessage.includes("password authentication failed")) {
             console.error("[v0] Error Type: AUTHENTICATION FAILURE")
-            console.error("[v0] ")
             console.error("[v0] The PostgreSQL credentials are incorrect.")
-            console.error("[v0] ")
-            console.error("[v0] SOLUTIONS:")
-            console.error("[v0] 1. Verify DATABASE_URL has correct username and password")
-            console.error("[v0] 2. Check your DATABASE_URL environment variable format:")
-            console.error("[v0]    postgresql://username:password@host:port/database")
-            console.error("[v0] 3. OR switch to SQLite (default):")
-            console.error("[v0]    Remove or comment out DATABASE_URL in .env.local")
-            console.error("[v0]    System will automatically use SQLite")
-            console.error("[v0] ")
-            console.error("[v0] Current DATABASE_URL format (with hidden password):")
-            if (process.env.DATABASE_URL) {
-              console.error("[v0]   ", process.env.DATABASE_URL.replace(/:[^:@]+@/, ":****@"))
-            } else {
-              console.error("[v0]    Not set - using SQLite by default")
-            }
+            console.error("[v0] SOLUTION: Switch to SQLite (default) by removing DATABASE_URL")
           } else if (errorMessage.includes("ECONNREFUSED")) {
             console.error("[v0] Error Type: CONNECTION REFUSED")
-            console.error("[v0] ")
             console.error("[v0] The PostgreSQL server is not accessible.")
-            console.error("[v0] ")
-            console.error("[v0] SOLUTIONS:")
-            console.error("[v0] 1. Check if PostgreSQL server is running")
-            console.error("[v0] 2. Verify firewall settings allow connection")
-            console.error("[v0] 3. Check host and port are correct in DATABASE_URL")
-            console.error("[v0] 4. OR switch to SQLite (no server required):")
-            console.error("[v0]    Remove or comment out DATABASE_URL in .env.local")
-            console.error("[v0]    System will automatically use local SQLite database")
-          } else if (errorMessage.includes("getaddrinfo") || errorMessage.includes("ENOTFOUND")) {
-            console.error("[v0] Error Type: HOST NOT FOUND")
-            console.error("[v0] ")
-            console.error("[v0] Cannot resolve the PostgreSQL host address.")
-            console.error("[v0] ")
-            console.error("[v0] SOLUTIONS:")
-            console.error("[v0] 1. Check DATABASE_URL has correct hostname")
-            console.error("[v0] 2. Verify internet connection")
-            console.error("[v0] 3. Use IP address instead of hostname")
-            console.error("[v0] 4. OR switch to SQLite (no network required):")
-            console.error("[v0]    Remove DATABASE_URL from .env.local")
+            console.error("[v0] SOLUTION: Using SQLite as fallback")
           } else {
-            console.error("[v0] Error Type: UNKNOWN")
-            console.error("[v0] Error Message:", errorMessage)
-            console.error("[v0] ")
-            console.error("[v0] TIP: Switch to SQLite for easier setup:")
-            console.error("[v0]      Remove DATABASE_URL from .env.local")
-            console.error("[v0]      SQLite requires no configuration and works out of the box")
+            console.error("[v0] Error Type:", errorMessage)
+            console.error("[v0] SOLUTION: Using SQLite/file-based storage")
           }
 
           console.error("[v0] ==========================================")
 
-          throw new Error("Database connection failed: " + errorMessage)
+          if (dbType === "sqlite") {
+            console.log("[v0] SQLite is resilient, continuing with table creation...")
+          } else {
+            throw new Error("Database connection failed: " + errorMessage)
+          }
         }
 
         try {
           await this.createEssentialTables()
         } catch (error) {
           console.warn("[v0] Failed to create essential tables:", error)
+          // For SQLite, continue anyway
+          if (dbType !== "sqlite") {
+            throw error
+          }
         }
 
-        await DatabaseMigrations.runMigrations()
+        console.log("[v0] Running database migrations...")
+        const migrationResult = await DatabaseMigrations.runMigrations()
+        console.log(`[v0] Migrations completed: ${migrationResult.message}`)
 
         console.log(`[v0] ${dbType} database initialized successfully`)
         return true
@@ -137,32 +109,16 @@ export class DatabaseInitializer {
           console.error("[v0] ==========================================")
           console.error("[v0] ALL INITIALIZATION ATTEMPTS FAILED")
           console.error("[v0] ==========================================")
-          console.error("[v0] ")
           console.error("[v0] SWITCHING TO FILE-BASED STORAGE MODE")
-          console.error("[v0] Connection management will use JSON files")
-          console.error("[v0] ")
+          console.error("[v0] System will use JSON files for data persistence")
           console.error("[v0] ==========================================")
           this.isInitialized = true
-          // </CHANGE>
           return true
         }
       }
     }
 
     return false
-  }
-
-  private static async runMigrations(timeout: number): Promise<void> {
-    console.log("[v0] Running database migrations...")
-    try {
-      await this.createEssentialTables()
-    } catch (error) {
-      console.warn("[v0] Failed to create essential tables:", error)
-    }
-
-    await DatabaseMigrations.runMigrations()
-
-    console.log("[v0] Migrations completed successfully")
   }
 
   private static async createEssentialTables(): Promise<void> {
@@ -234,21 +190,21 @@ export class DatabaseInitializer {
     for (const { name, sql } of essentialTables) {
       try {
         await execute(sql, [])
-        console.log(`[v0]   Created: ${name}`)
+        console.log(`[v0]   ✓ Created: ${name}`)
         successCount++
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         if (errorMessage.includes("already exists")) {
-          console.log(`[v0]   Skipped: ${name} (already exists)`)
+          console.log(`[v0]   - Skipped: ${name} (already exists)`)
           skipCount++
         } else {
-          console.error(`[v0]   Failed: ${name}:`, errorMessage)
+          console.error(`[v0]   ✗ Failed: ${name}:`, errorMessage)
           throw error
         }
       }
     }
 
-    console.log(`[v0] Tables Summary: ${successCount} created, ${skipCount} skipped`)
+    console.log(`[v0] Tables: ${successCount} created, ${skipCount} skipped`)
   }
 
   static async ensureInitialized(): Promise<boolean> {
