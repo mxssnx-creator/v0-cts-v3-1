@@ -315,7 +315,7 @@ export default function Dashboard() {
 
         <main className="container mx-auto p-4 space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <SystemOverview {...systemStats} />
+            <SystemOverview stats={systemStats} />
           </div>
 
           <StrategiesOverview strategies={strategies} />

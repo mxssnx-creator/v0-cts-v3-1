@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       `Live trading ${is_live_trade ? "enabled" : "disabled"}: ${connection.name}`,
       connectionId,
       "info",
-      { is_live_trade },
+      { is_live_trade, connection_id: connectionId },
     )
 
     return NextResponse.json({ success: true, is_live_trade })
