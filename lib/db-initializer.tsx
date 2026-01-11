@@ -121,10 +121,12 @@ export class DatabaseInitializer {
         }
 
         try {
-          await this.runMigrations(timeout)
-        } catch (migrationError) {
-          console.warn("[v0] Migrations failed, continuing with file-based storage:", migrationError)
+          await this.createEssentialTables()
+        } catch (error) {
+          console.warn("[v0] Failed to create essential tables:", error)
         }
+
+        await DatabaseMigrations.runMigrations()
 
         console.log(`[v0] ${dbType} database initialized successfully`)
         return true
@@ -158,7 +160,7 @@ export class DatabaseInitializer {
       console.warn("[v0] Failed to create essential tables:", error)
     }
 
-    await DatabaseMigrations.runPendingMigrations()
+    await DatabaseMigrations.runMigrations()
 
     console.log("[v0] Migrations completed successfully")
   }

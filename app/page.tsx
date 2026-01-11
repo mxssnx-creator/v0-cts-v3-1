@@ -350,7 +350,9 @@ export default function Dashboard() {
                       connection={connection}
                       status={getConnectionStatus(connection)}
                       progress={getConnectionProgress(connection)}
-                      onRemove={() => handleRemoveFromActive(connection.id)}
+                      onToggleEnable={handleToggleEnable}
+                      onToggleLiveTrade={handleToggleLiveTrade}
+                      onDelete={handleRemoveFromActive}
                     />
                   ))}
                 </div>

@@ -27,7 +27,7 @@ export async function initializeApplication() {
 
     // Step 1: Run main database migrations
     console.log("[v0] Running database migrations...")
-    await DatabaseMigrations.runPendingMigrations()
+    await DatabaseMigrations.runMigrations()
 
     // Step 2: Run auto-migrations for schema updates
     console.log("[v0] Running auto-migrations...")
