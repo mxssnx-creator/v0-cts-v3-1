@@ -104,124 +104,116 @@ export class DatabaseMigrations {
     }
   }
 
-  private static async ensureMigrationsTable(): Promise<void> {
+  private static async createMigrationsTable(): Promise<void> {
     const dbType = getDatabaseType()
 
-    const createTableSQL =
+    const sql =
       dbType === "postgresql"
-        ? `CREATE TABLE IF NOT EXISTS schema_migrations (
-        id SERIAL PRIMARY KEY,
-        migration_id INTEGER UNIQUE NOT NULL,
-        migration_name TEXT NOT NULL,
-        executed_at TIMESTAMP DEFAULT NOW()
-      )`
-        : `CREATE TABLE IF NOT EXISTS schema_migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        migration_id INTEGER UNIQUE NOT NULL,
-        migration_name TEXT NOT NULL,
-        executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
+        ? `CREATE TABLE IF NOT EXISTS migrations (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          executed_at TIMESTAMP DEFAULT NOW()
+        )`
+        : `CREATE TABLE IF NOT EXISTS migrations (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`
 
-    await execute(createTableSQL, [])
+    await execute(sql)
   }
 
-  private static async isMigrationExecuted(migrationId: number): Promise<boolean> {
+  private static async getAppliedMigrations(): Promise<Set<number>> {
     try {
-      const result = await query<{ migration_id: number }>(
-        "SELECT migration_id FROM schema_migrations WHERE migration_id = ?",
-        [migrationId],
-      )
-      return result.length > 0
+      const results = await query("SELECT id FROM migrations")
+      return new Set(results.map((r: any) => r.id))
     } catch (error) {
-      return false
+      console.log("[v0] Migrations table doesn't exist yet, will create it")
+      return new Set()
     }
   }
 
-  private static async markMigrationExecuted(migration: Migration): Promise<void> {
-    await execute("INSERT INTO schema_migrations (migration_id, migration_name) VALUES (?, ?)", [
-      migration.id,
-      migration.name,
-    ])
+  private static async markMigrationAsExecuted(id: number, name: string): Promise<void> {
+    const dbType = getDatabaseType()
+
+    const sql =
+      dbType === "postgresql"
+        ? `INSERT INTO migrations (id, name, executed_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO NOTHING`
+        : `INSERT OR IGNORE INTO migrations (id, name, executed_at) VALUES (?, ?, datetime('now'))`
+
+    await execute(sql, [id, name])
   }
 
-  static async runPendingMigrations(): Promise<void> {
-    console.log("[v0] Checking for pending database migrations...")
+  static async runMigrations(): Promise<{ success: boolean; applied: number; message: string }> {
+    console.log("[v0] Starting database migrations...")
 
     try {
-      await this.ensureMigrationsTable()
-    } catch (error) {
-      console.error("[v0] Failed to create migrations table:", error)
-      console.log("[v0] Migrations will be skipped - using file-based storage mode")
-      return
-    }
+      const dbType = getDatabaseType()
+      console.log(`[v0] Database type: ${dbType}`)
 
-    let executedCount = 0
-    let skippedCount = 0
+      await this.createMigrationsTable()
 
-    for (const migration of this.migrations) {
-      try {
-        const isExecuted = await this.isMigrationExecuted(migration.id)
+      const appliedMigrations = await this.getAppliedMigrations()
+      console.log(`[v0] Found ${appliedMigrations.size} previously applied migrations`)
 
-        if (isExecuted) {
-          console.log(`[v0] Migration ${migration.id} (${migration.name}) already executed, skipping...`)
-          skippedCount++
-          continue
-        }
-      } catch (error) {
-        console.warn(`[v0] Could not check migration ${migration.id} status, skipping...`)
-        skippedCount++
-        continue
-      }
+      let applied = 0
 
-      try {
-        console.log(`[v0] Running migration ${migration.id}: ${migration.name}...`)
-
-        const sql = await this.loadMigrationSQL(migration)
-
-        if (!sql || sql.trim().length === 0) {
-          console.log(`[v0] Migration ${migration.id} is empty, marking as executed...`)
-          try {
-            await this.markMigrationExecuted(migration)
-          } catch (error) {
-            console.warn(`[v0] Could not mark migration ${migration.id} as executed`)
-          }
-          skippedCount++
+      for (const migration of this.migrations) {
+        if (appliedMigrations.has(migration.id)) {
+          console.log(`[v0] Migration ${migration.id} (${migration.name}) already applied, skipping`)
           continue
         }
 
-        const statements = this.splitSQLStatements(sql)
+        // Load SQL from file or fallback
+        migration.sql = await this.loadMigrationSQL(migration)
 
-        for (const statement of statements) {
-          if (statement.trim()) {
-            try {
-              await execute(statement, [])
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : String(error)
-              if (
-                errorMessage.includes("already exists") ||
-                errorMessage.includes("duplicate") ||
-                errorMessage.includes("unique constraint")
-              ) {
-                console.log(`[v0] Statement already applied (${errorMessage.substring(0, 50)}...)`)
-              } else {
-                console.warn(`[v0] Statement failed:`, errorMessage.substring(0, 100))
-              }
+        if (!migration.sql || migration.sql.trim() === "") {
+          console.log(`[v0] Migration ${migration.id} (${migration.name}) is empty, marking as executed`)
+          await this.markMigrationAsExecuted(migration.id, migration.name)
+          applied++
+          continue
+        }
+
+        try {
+          console.log(`[v0] Applying migration ${migration.id}: ${migration.name}`)
+          await execute(migration.sql)
+
+          await this.markMigrationAsExecuted(migration.id, migration.name)
+
+          migration.executed = true
+          applied++
+          console.log(`[v0] ✓ Migration ${migration.id} applied successfully`)
+        } catch (error: any) {
+          if (error.message?.includes("already exists") || error.message?.includes("duplicate")) {
+            console.log(`[v0] Migration ${migration.id} objects already exist, marking as executed`)
+            await this.markMigrationAsExecuted(migration.id, migration.name)
+            migration.executed = true
+            applied++
+          } else {
+            console.error(`[v0] Failed to apply migration ${migration.id}:`, error)
+            return {
+              success: false,
+              applied,
+              message: `Migration ${migration.id} failed: ${error.message}`,
             }
           }
         }
+      }
 
-        await this.markMigrationExecuted(migration)
-        console.log(`[v0] Migration ${migration.id} completed successfully`)
-        executedCount++
-      } catch (error) {
-        console.error(`[v0] Migration ${migration.id} failed:`, error)
-        console.log(`[v0] Skipping failed migration ${migration.id}, continuing...`)
-        skippedCount++
+      console.log(`[v0] Migrations completed successfully. Applied ${applied} migrations.`)
+      return {
+        success: true,
+        applied,
+        message: `Applied ${applied} migrations`,
+      }
+    } catch (error: any) {
+      console.error("[v0] Migration process failed:", error)
+      return {
+        success: false,
+        applied: 0,
+        message: `Migration failed: ${error.message}`,
       }
     }
-
-    console.log(`[v0] Applied ${executedCount} migrations`)
-    console.log(`[v0] Skipped ${skippedCount} migrations`)
   }
 
   private static splitSQLStatements(sql: string): string[] {

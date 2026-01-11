@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConnectionCard } from "@/components/dashboard/connection-card"
 import { SystemOverview } from "@/components/dashboard/system-overview"
-import { RealTimeTicker } from "@/components/dashboard/real-time-ticker"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import { StrategiesOverview } from "@/components/dashboard/strategies-overview"
 import type { ExchangeConnection } from "@/lib/types"
@@ -313,12 +312,12 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="container mx-auto p-4 space-y-4">
+        <main className="container mx-auto p-4 space-y-4 overflow-x-hidden">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
             <SystemOverview stats={systemStats} />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
             <div className="lg:col-span-2">
               <StrategiesOverview strategies={strategies} />
             </div>
@@ -327,43 +326,37 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Active Connections</h2>
-              <Button onClick={() => setShowAddDialog(true)} size="sm">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle>Active Connections</CardTitle>
+                <CardDescription>Manage your exchange connections</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Connection
+                Add
               </Button>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {activeConnections.map((connection) => (
-                <ConnectionCard
-                  key={connection.id}
-                  connection={connection}
-                  onToggleEnable={handleToggleEnable}
-                  onToggleLiveTrade={handleToggleLiveTrade}
-                  onDelete={handleRemoveFromActive}
-                  status={getConnectionStatus(connection)}
-                  progress={getConnectionProgress(connection)}
-                />
-              ))}
-            </div>
-
-            {activeConnections.length === 0 && (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <p className="text-muted-foreground mb-4">No active connections yet</p>
-                  <Button onClick={() => setShowAddDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Connection
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <RealTimeTicker />
+            </CardHeader>
+            <CardContent>
+              {activeConnections.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No active connections. Add a connection to get started.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {activeConnections.map((connection) => (
+                    <ConnectionCard
+                      key={connection.id}
+                      connection={connection}
+                      status={getConnectionStatus(connection)}
+                      progress={getConnectionProgress(connection)}
+                      onRemove={() => handleRemoveFromActive(connection.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </main>
 
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>

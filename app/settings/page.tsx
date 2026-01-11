@@ -1124,22 +1124,17 @@ export default function SettingsPage() {
     }
   }
 
-  const loadConnections = async () => {
-    try {
-      const response = await fetch("/api/settings/connections")
-      if (response.ok) {
-        const data = await response.json()
-        setConnections(data.connections || [])
-      }
-    } catch (error) {
-      console.error("[v0] Failed to load connections:", error)
-    }
-  }
-
-  // Added dummy function for preset connections to avoid runtime error
+  // Dummy function added to avoid runtime errors if loadPresetConnections is called elsewhere
   const loadPresetConnections = async () => {
     // Placeholder for loading preset connections if needed in the future
   }
+
+  useEffect(() => {
+    // Load connections when the component mounts or when the 'exchange' tab is active
+    if (activeTab === "exchange") {
+      loadConnections()
+    }
+  }, [activeTab])
 
   // Added function to load symbols for a specific exchange connection
   const loadExchangeSymbols = async (connectionId: string) => {
@@ -1531,6 +1526,32 @@ export default function SettingsPage() {
     }
   }
 
+  const loadConnections = async () => {
+    try {
+      const response = await fetch("/api/settings/connections")
+      if (response.ok) {
+        const data = await response.json()
+        setConnections(data.connections || [])
+        // If connections loaded and a selected connection exists, ensure it's still valid
+        if (data.connections && data.connections.length > 0 && selectedExchangeConnection) {
+          const currentConn = data.connections.find((c: ExchangeConnection) => c.id === selectedExchangeConnection)
+          if (!currentConn || !currentConn.is_enabled) {
+            // If selected connection is disabled or deleted, reset selection
+            setSelectedExchangeConnection(null)
+            localStorage.removeItem("activeExchangeConnection")
+          }
+        } else if (data.connections && data.connections.length === 0) {
+          setSelectedExchangeConnection(null)
+          localStorage.removeItem("activeExchangeConnection")
+        }
+      } else {
+        console.error("[v0] Failed to load connections")
+      }
+    } catch (error) {
+      console.error("[v0] Error loading connections:", error)
+    }
+  }
+
   useEffect(() => {
     const loadSettingsAndDB = async () => {
       try {
@@ -1830,7 +1851,7 @@ export default function SettingsPage() {
           setOriginalDatabaseType(dbData.database_type || "sqlite")
         }
 
-        loadConnections()
+        loadConnections() // Load connections on initial mount as well
         loadPresetConnections()
       } catch (error) {
         console.error("[v0] Failed to load settings:", error)
