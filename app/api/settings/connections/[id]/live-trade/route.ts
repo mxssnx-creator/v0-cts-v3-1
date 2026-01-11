@@ -37,11 +37,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (is_live_trade) {
       const coordinator = getGlobalTradeEngineCoordinator()
-      // Create default engine config from connection settings
       const engineConfig = {
-        maxConcurrentSymbols: connection.settings?.maxConcurrentSymbols || 5,
-        batchSize: connection.settings?.batchSize || 10,
-        queryTimeout: connection.settings?.queryTimeout || 5000,
+        connectionId,
+        indicationInterval: 60, // 60 seconds
+        strategyInterval: 120, // 120 seconds
+        realtimeInterval: 5, // 5 seconds
       }
       await coordinator.startEngine(connectionId, engineConfig)
     } else {
