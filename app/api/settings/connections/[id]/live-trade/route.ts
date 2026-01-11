@@ -35,10 +35,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     connections[connectionIndex] = updatedConnection
     saveConnections(connections)
 
-    // Start/stop trade engine if needed
     if (is_live_trade) {
       const coordinator = getGlobalTradeEngineCoordinator()
-      await coordinator.startEngine(connectionId)
+      // Create default engine config from connection settings
+      const engineConfig = {
+        maxConcurrentSymbols: connection.settings?.maxConcurrentSymbols || 5,
+        batchSize: connection.settings?.batchSize || 10,
+        queryTimeout: connection.settings?.queryTimeout || 5000,
+      }
+      await coordinator.startEngine(connectionId, engineConfig)
     } else {
       const coordinator = getGlobalTradeEngineCoordinator()
       await coordinator.stopEngine(connectionId)
