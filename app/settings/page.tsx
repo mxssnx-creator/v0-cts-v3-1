@@ -380,7 +380,7 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="exchange">
-              <ExchangeConnectionManager connections={connections} onUpdate={loadConnections} />
+              <ExchangeConnectionManager onConnectionsChange={loadConnections} />
             </TabsContent>
 
             <TabsContent value="indication" className="space-y-6">
