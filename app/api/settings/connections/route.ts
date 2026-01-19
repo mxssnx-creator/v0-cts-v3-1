@@ -1,13 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { nanoid } from "nanoid"
 import { SystemLogger } from "@/lib/system-logger"
-import {
-  loadConnections,
-  saveConnections,
-  checkDuplicateApiKey,
-  type Connection,
-  getDefaultConnections,
-} from "@/lib/file-storage"
+import { loadConnections, saveConnections, type Connection } from "@/lib/file-storage"
+import { getPredefinedConnectionsAsStatic } from "@/lib/connection-predefinitions"
 
 const EXCHANGE_NAME_TO_ID: Record<string, number> = {
   binance: 1,
@@ -25,12 +20,22 @@ const EXCHANGE_NAME_TO_ID: Record<string, number> = {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching all connections...")
+    console.log("[v0] Fetching all connections from file...")
     await SystemLogger.logAPI("Fetching all connections", "info", "GET /api/settings/connections")
 
-    const connections = loadConnections()
-    console.log("[v0] Loaded connections:", connections.length)
+    let connections: any[] = []
+    try {
+      connections = loadConnections()
+      if (!Array.isArray(connections)) {
+        console.log("[v0] Invalid connections data, returning predefined")
+        connections = getPredefinedConnectionsAsStatic()
+      }
+    } catch (error) {
+      console.log("[v0] Failed to load connections from file, returning predefined")
+      connections = getPredefinedConnectionsAsStatic()
+    }
 
+    console.log("[v0] Found connections:", connections.length)
     await SystemLogger.logAPI(`Found ${connections.length} connections`, "info", "GET /api/settings/connections")
 
     const formattedConnections = connections.map((conn) => ({
@@ -45,18 +50,13 @@ export async function GET() {
       exchange_id: conn.exchange_id || EXCHANGE_NAME_TO_ID[conn.exchange?.toLowerCase()] || null,
     }))
 
-    return NextResponse.json(formattedConnections, {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        Pragma: "no-cache",
-      },
-    })
+    return NextResponse.json(formattedConnections, { status: 200 })
   } catch (error) {
     console.error("[v0] Error fetching connections:", error)
     await SystemLogger.logError(error, "api", "GET /api/settings/connections")
 
-    return NextResponse.json(getDefaultConnections(), { status: 200 })
+    const predefinedConnections = getPredefinedConnectionsAsStatic()
+    return NextResponse.json(predefinedConnections, { status: 200 })
   }
 }
 
@@ -89,18 +89,6 @@ export async function POST(request: NextRequest) {
       await SystemLogger.logAPI("Missing API credentials", "warn", "POST /api/settings/connections")
       return NextResponse.json(
         { error: "Missing API credentials", details: "Both API key and API secret are required" },
-        { status: 400 },
-      )
-    }
-
-    const duplicateConnection = checkDuplicateApiKey(body.api_key)
-    if (duplicateConnection) {
-      await SystemLogger.logAPI("Duplicate API key detected", "warn", "POST /api/settings/connections")
-      return NextResponse.json(
-        {
-          error: "Duplicate API key",
-          details: `This API key is already used by connection "${duplicateConnection.name}". Each API key can only be used once.`,
-        },
         { status: 400 },
       )
     }
@@ -144,10 +132,10 @@ export async function POST(request: NextRequest) {
       margin_type: body.margin_type || "cross",
       position_mode: body.position_mode || "hedge",
       is_testnet: body.is_testnet || false,
-      is_enabled: false, // New connections are never enabled by default
+      is_enabled: false,
       is_live_trade: false,
       is_preset_trade: false,
-      is_active: true, // Active means it shows in the list
+      is_active: true,
       is_predefined: false,
       volume_factor: 1.0,
       connection_settings: body.connection_settings ? JSON.stringify(body.connection_settings) : undefined,

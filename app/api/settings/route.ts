@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
+import { query } from "@/lib/db"
 import { SystemLogger } from "@/lib/system-logger"
-import { loadSettings, saveSettings } from "@/lib/file-storage"
 
 export const runtime = "nodejs"
 
@@ -9,26 +9,62 @@ export async function GET() {
     console.log("[v0] GET /api/settings - Loading settings...")
     await SystemLogger.logAPI("Loading system settings", "info", "GET /api/settings")
 
-    let settings: Record<string, any> = {}
-
+    let dbSettings: Array<{ key: string; value: string }> = []
     try {
-      settings = loadSettings()
-      console.log("[v0] Settings loaded from file:", Object.keys(settings).length, "keys")
+      const result = await query("SELECT key, value FROM system_settings")
+      dbSettings = result as Array<{ key: string; value: string }>
+      if (!Array.isArray(dbSettings)) {
+        console.log("[v0] Invalid settings data, returning empty object")
+        return NextResponse.json({}, { status: 200 })
+      }
     } catch (error) {
-      console.log("[v0] Could not load settings from file, returning defaults")
-      settings = getDefaultSettings()
+      console.log("[v0] Database not ready yet, returning default settings")
+      return NextResponse.json({}, { status: 200 })
     }
 
-    settings = { ...getDefaultSettings(), ...settings }
+    const settings: Record<string, any> = {}
 
+    for (const { key, value } of dbSettings) {
+      // Skip volume factor settings - they're per-connection only
+      if (key.includes("volume_factor")) {
+        continue
+      }
+
+      // Try to parse JSON arrays/objects
+      if (value && (value.startsWith("[") || value.startsWith("{"))) {
+        try {
+          settings[key] = JSON.parse(value)
+          continue
+        } catch (e) {
+          console.warn("[v0] Failed to parse JSON for key:", key, "- treating as string")
+        }
+      }
+
+      // Parse booleans
+      if (value === "true" || value === "false") {
+        settings[key] = value === "true"
+        continue
+      }
+
+      // Parse numbers
+      if (value && !isNaN(Number(value)) && value !== "") {
+        settings[key] = Number(value)
+        continue
+      }
+
+      // Keep as string
+      settings[key] = value || ""
+    }
+
+    console.log("[v0] Settings loaded successfully:", Object.keys(settings).length, "keys")
     await SystemLogger.logAPI(`Settings loaded: ${Object.keys(settings).length} keys`, "info", "GET /api/settings")
 
-    return NextResponse.json({ settings })
+    return NextResponse.json(settings)
   } catch (error) {
     console.error("[v0] Failed to get settings:", error)
     await SystemLogger.logError(error, "api", "GET /api/settings")
 
-    return NextResponse.json({ settings: getDefaultSettings() }, { status: 200 })
+    return NextResponse.json({}, { status: 200 })
   }
 }
 
@@ -36,62 +72,50 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    console.log("[v0] Saving settings:", Object.keys(body).length, "keys")
+    console.log("[v0] Saving settings to database:", Object.keys(body).length, "keys")
     await SystemLogger.logAPI(`Saving ${Object.keys(body).length} settings`, "info", "POST /api/settings")
 
-    try {
-      const currentSettings = loadSettings()
-      const mergedSettings = { ...getDefaultSettings(), ...currentSettings, ...body }
-      saveSettings(mergedSettings)
-      console.log("[v0] Settings saved successfully")
-    } catch (fileError) {
-      console.log("[v0] Settings saved to memory only (serverless mode)")
+    for (const [key, value] of Object.entries(body)) {
+      // Skip volume factor settings - they're per-connection only
+      if (key.includes("volume_factor")) {
+        continue
+      }
+
+      let stringValue: string
+
+      if (value === null || value === undefined) {
+        stringValue = ""
+      } else if (Array.isArray(value) || typeof value === "object") {
+        stringValue = JSON.stringify(value)
+      } else if (typeof value === "boolean") {
+        stringValue = value.toString()
+      } else if (typeof value === "number") {
+        stringValue = value.toString()
+      } else {
+        stringValue = String(value)
+      }
+
+      await query(
+        `INSERT INTO system_settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT(key) DO UPDATE SET
+           value = EXCLUDED.value,
+           updated_at = NOW()`,
+        [key, stringValue],
+      )
     }
 
+    console.log("[v0] Settings saved successfully")
     await SystemLogger.logAPI("Settings saved successfully", "info", "POST /api/settings")
 
-    return NextResponse.json({
-      success: true,
-      message: "Settings saved successfully",
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("[v0] Failed to update settings:", error)
     await SystemLogger.logError(error, "api", "POST /api/settings")
 
-    return NextResponse.json({
-      success: true,
-      message: "Settings saved (may not persist in serverless environment)",
-    })
-  }
-}
-
-function getDefaultSettings(): Record<string, any> {
-  return {
-    database_type: "sqlite",
-    databaseSizeBase: 250,
-    databaseSizeMain: 250,
-    databaseSizeReal: 250,
-    databaseSizePreset: 250,
-    mainEngineIntervalMs: 100,
-    presetEngineIntervalMs: 100,
-    activeOrderHandlingIntervalMs: 50,
-    maxSymbolsPerCycle: 50,
-    enableAutoTrading: false,
-    defaultLeverage: 10,
-    defaultMarginType: "cross",
-    defaultPositionMode: "hedge",
-    // Additional defaults
-    base_volume_factor: 1.0,
-    positions_average: 50,
-    max_leverage: 125,
-    risk_percentage: 20,
-    prehistoricDataDays: 5,
-    marketTimeframe: 1,
-    mainTradeInterval: 1,
-    presetTradeInterval: 2,
-    auto_restart: true,
-    log_level: "info",
-    enable_monitoring: true,
-    enable_notifications: true,
+    return NextResponse.json(
+      { error: "Failed to update settings", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }

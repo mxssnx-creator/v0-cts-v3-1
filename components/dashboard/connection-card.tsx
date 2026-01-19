@@ -71,7 +71,6 @@ export function ConnectionCard({
   const [showPresetDialog, setShowPresetDialog] = useState(false)
   const [showStrategyDialog, setShowStrategyDialog] = useState(false)
   const [showActivateTradeDialog, setShowActivateTradeDialog] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [presetConfig, setPresetConfig] = useState({
     volumeFactor: 1.0,
     profitFactorMin: 0.6,
@@ -851,6 +850,11 @@ export function ConnectionCard({
             </Dialog>
 
             <Dialog open={showPresetConfig} onOpenChange={setShowPresetConfig}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
+                  <Settings className="h-3.5 w-3.5 text-blue-600" />
+                </Button>
+              </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle className="text-base">Preset Configuration</DialogTitle>
@@ -962,7 +966,7 @@ export function ConnectionCard({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={() => onDelete(connection.id)}
               className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -1195,12 +1199,10 @@ export function ConnectionCard({
                   />
                 </div>
                 <div className="flex items-center justify-between p-2 bg-muted rounded">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Active (Advanced)</span>
-                    <Badge variant="default" className="text-xs ml-2">
-                      NEW
-                    </Badge>
-                  </div>
+                  <span className="text-sm">Active (Advanced)</span>
+                  <Badge variant="default" className="text-xs ml-2">
+                    NEW
+                  </Badge>
                   <Switch
                     checked={activeIndications.active_advanced}
                     onCheckedChange={(checked) =>
@@ -1357,36 +1359,6 @@ export function ConnectionCard({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove Connection from Dashboard?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove "{connection.name}" from your active connections?
-              <br />
-              <br />
-              This will only remove it from the dashboard. The connection will still be available in Settings and can be
-              re-added later.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setShowDeleteConfirm(false)
-                onDelete(connection.id)
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Remove
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
