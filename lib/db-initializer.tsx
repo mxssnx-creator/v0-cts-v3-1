@@ -1,27 +1,15 @@
 import { query, execute, getDatabaseType } from "@/lib/db"
 import { DatabaseMigrations } from "@/lib/db-migrations"
 
-interface InitOptions {
-  rebuild?: boolean
-  runChecks?: boolean
-}
-
 export class DatabaseInitializer {
   private static isInitializing = false
   private static isInitialized = false
   private static initPromise: Promise<boolean> | null = null
 
-  static async initialize(retries = 3, timeout = 30000, options: InitOptions = {}): Promise<boolean> {
-    const { rebuild = true, runChecks = true } = options
-    
-    if (this.isInitialized && !rebuild) {
+  static async initialize(retries = 3, timeout = 30000): Promise<boolean> {
+    if (this.isInitialized) {
       console.log("[v0] Database already initialized, skipping...")
       return true
-    }
-
-    if (rebuild && this.isInitialized) {
-      console.log("[v0] Rebuild requested, reinitializing database...")
-      this.isInitialized = false
     }
 
     if (this.isInitializing && this.initPromise) {
@@ -30,7 +18,7 @@ export class DatabaseInitializer {
     }
 
     this.isInitializing = true
-    this.initPromise = this.performInitialization(retries, timeout, { rebuild, runChecks })
+    this.initPromise = this.performInitialization(retries, timeout)
 
     try {
       const result = await this.initPromise
@@ -41,28 +29,9 @@ export class DatabaseInitializer {
     }
   }
 
-  private static async performInitialization(retries: number, timeout: number, options: InitOptions): Promise<boolean> {
-    const { rebuild = true, runChecks = true } = options
+  private static async performInitialization(retries: number, timeout: number): Promise<boolean> {
     const dbType = getDatabaseType()
     console.log(`[v0] Initializing ${dbType} database...`)
-    
-    if (dbType === "sqlite" && rebuild) {
-      console.log("[v0] ==========================================")
-      console.log("[v0] SQLITE REBUILD MODE (takes extra time)")
-      console.log("[v0] - Optimizing database structure")
-      console.log("[v0] - Rebuilding indexes")
-      console.log("[v0] - Analyzing query patterns")
-      console.log("[v0] ==========================================")
-    }
-    
-    if (runChecks) {
-      console.log("[v0] ==========================================")
-      console.log("[v0] BUILD CHECKS ENABLED")
-      console.log("[v0] - Type validation")
-      console.log("[v0] - Schema integrity")
-      console.log("[v0] - Constraint checking")
-      console.log("[v0] ==========================================")
-    }
 
     if (process.env.USE_FILE_STORAGE === "true") {
       console.log("[v0] File-based storage mode enabled, skipping database initialization")
@@ -130,44 +99,6 @@ export class DatabaseInitializer {
         console.log("[v0] Running database migrations...")
         const migrationResult = await DatabaseMigrations.runMigrations()
         console.log(`[v0] Migrations completed: ${migrationResult.message}`)
-        
-        // Run rebuild operations for SQLite
-        if (dbType === "sqlite" && rebuild) {
-          console.log("[v0] Running SQLite optimization...")
-          try {
-            await execute("PRAGMA optimize", [])
-            await execute("ANALYZE", [])
-            console.log("[v0] ✓ Database optimized and analyzed")
-          } catch (error) {
-            console.warn("[v0] ⚠ Optimization warning:", error)
-          }
-        }
-        
-        // Run type and schema checks
-        if (runChecks) {
-          console.log("[v0] Running integrity checks...")
-          try {
-            if (dbType === "sqlite") {
-              const integrityCheck = await query("PRAGMA integrity_check", [])
-              const result = integrityCheck[0]?.integrity_check
-              if (result === "ok") {
-                console.log("[v0] ✓ Integrity check passed")
-              } else {
-                console.warn("[v0] ⚠ Integrity check result:", result)
-              }
-            } else {
-              // For PostgreSQL, check that essential tables exist
-              const tableCheck = await query(
-                `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'`,
-                []
-              )
-              const tableCount = tableCheck[0]?.count || 0
-              console.log(`[v0] ✓ Schema check passed (${tableCount} tables)`)
-            }
-          } catch (error) {
-            console.warn("[v0] ⚠ Check warning:", error)
-          }
-        }
 
         console.log(`[v0] ${dbType} database initialized successfully`)
         return true

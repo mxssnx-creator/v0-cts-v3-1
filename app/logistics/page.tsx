@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import {
   Info,
   Database,
@@ -15,98 +14,39 @@ import {
   Layers,
   Workflow,
   ArrowRight,
+  PlayCircle,
+  PauseCircle,
   Clock,
   Activity,
   Settings,
   BarChart3,
+  GitBranch,
   Zap,
   Shield,
   Target,
   Cpu,
-  RefreshCw,
 } from "lucide-react"
 import { AuthGuard } from "@/components/auth-guard"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
-
-interface SystemState {
-  engines: any[]
-  indications: Record<string, number>
-  pseudoPositions: number
-  realPositions: number
-  performance: any
-  timestamp: string
-}
 
 export default function LogisticsPage() {
   const [activeTab, setActiveTab] = useState("main")
-  const [systemState, setSystemState] = useState<SystemState | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchSystemState = async () => {
-    try {
-      const response = await fetch("/api/logistics/system-state")
-      if (response.ok) {
-        const data = await response.json()
-        setSystemState(data)
-      }
-    } catch (error) {
-      console.error("Failed to fetch system state:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchSystemState()
-    const interval = setInterval(fetchSystemState, 5000) // Refresh every 5 seconds
-    return () => clearInterval(interval)
-  }, [])
 
   return (
     <AuthGuard>
       <div className="flex flex-col h-screen">
         <PageHeader
           title="System Logistics & Trade Workflow"
-          description="Complete end-to-end visualization of Main System, Preset Trade, and Trading Bots with real-time execution data"
+          description="Complete end-to-end visualization of Main System, Preset Trade, and Trading Bots with detailed execution flow"
           icon={Workflow}
         />
 
         <div className="flex-1 overflow-auto p-6">
-          <Card className="border-2 border-primary mb-6">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Database className="h-6 w-6 text-primary" />
-                  <div>
-                    <div className="font-semibold text-lg">Live System Status</div>
-                    <div className="text-sm text-muted-foreground">
-                      {systemState ? (
-                        <>
-                          {systemState.engines.length} Active Engines • {systemState.realPositions} Real Positions •{" "}
-                          {systemState.pseudoPositions} Pseudo Positions • Updated:{" "}
-                          {new Date(systemState.timestamp).toLocaleTimeString()}
-                        </>
-                      ) : (
-                        "Loading system data..."
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <Button onClick={fetchSystemState} variant="outline" size="sm" disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
           <Alert className="border-2 border-primary mb-6">
             <Database className="h-4 w-4" />
             <AlertDescription>
-              <strong>System Architecture:</strong> Dual-mode parallel trade engine with 3 independent loops (Preset,
-              Main, Real Positions), 70+ database indexes, parallel symbol processing, and sub-second query performance
-              for high-frequency operations.
+              <strong>System Architecture:</strong> High-performance trade engine with 70+ database indexes, parallel
+              symbol processing, async coordination, and sub-second query performance for high-frequency operations.
             </AlertDescription>
           </Alert>
 
@@ -131,17 +71,9 @@ export default function LogisticsPage() {
               <Alert className="border-2 border-primary">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Main System Trade Mode:</strong> Advanced step-based indication system with 4 indication types
-                  (Direction, Move, Active, Optimal). Each indication generates up to 250 pseudo positions with parallel
-                  symbol processing.
-                  {systemState && (
-                    <div className="mt-2 flex gap-2">
-                      <Badge variant="secondary">Direction: {systemState.indications["direction"] || 0} active</Badge>
-                      <Badge variant="secondary">Move: {systemState.indications["move"] || 0} active</Badge>
-                      <Badge variant="secondary">Active: {systemState.indications["active"] || 0} active</Badge>
-                      <Badge variant="secondary">Optimal: {systemState.indications["optimal"] || 0} active</Badge>
-                    </div>
-                  )}
+                  <strong>Main System Trade Mode:</strong> Advanced step-based indication system with comprehensive
+                  strategy validation, generating up to 250 pseudo positions per indication across 4 indication types
+                  (Direction, Move, Active, Optimal) with parallel symbol processing.
                 </AlertDescription>
               </Alert>
 
@@ -154,28 +86,11 @@ export default function LogisticsPage() {
                     </div>
                     <div>
                       <div>System Initialization & Startup</div>
-                      <CardDescription className="mt-1">
-                        Core settings load, database preparation, and WebSocket initialization
-                      </CardDescription>
+                      <CardDescription className="mt-1">Core settings load and database preparation</CardDescription>
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-6">
-                  {systemState && systemState.engines.length > 0 && (
-                    <Alert className="mb-4">
-                      <Activity className="h-4 w-4 text-green-500" />
-                      <AlertDescription>
-                        <strong>Current Engine Status:</strong>{" "}
-                        {systemState.engines.map((e: any) => (
-                          <Badge key={e.connection_id} variant="outline" className="ml-2">
-                            {e.connection_name}: {e.status.toUpperCase()}
-                            {e.prehistoric_data_loaded ? " ✓" : " (loading data)"}
-                          </Badge>
-                        ))}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="p-4 rounded-lg border-l-4 border-l-blue-500 bg-blue-500/5">
                       <div className="font-semibold mb-3 flex items-center gap-2">
@@ -198,10 +113,10 @@ export default function LogisticsPage() {
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1 ml-4">
                         <div>• Main Trade Interval: 1.0s</div>
-                        <div>• Preset Trade Interval: 2.0s (independent)</div>
-                        <div>• Real Positions Interval: 0.3s (mirror sync)</div>
-                        <div>• Market Data Timeframe: 1 second candles</div>
-                        <div>• Historical Data Range: 5 days prehistoric</div>
+                        <div>• Preset Trade Interval: 2.0s</div>
+                        <div>• Real Positions Interval: 0.3s</div>
+                        <div>• Market Data Timeframe: 1 second</div>
+                        <div>• Historical Data Range: 5 days</div>
                       </div>
                     </div>
 
@@ -211,8 +126,8 @@ export default function LogisticsPage() {
                         Database Preparation
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• SQLite as default (zero config)</div>
-                        <div>• 70+ performance indexes active</div>
+                        <div>• SQLite as default (optimized)</div>
+                        <div>• 70+ performance indexes created</div>
                         <div>• Connection-level coordination</div>
                         <div>• Symbol-level async processing</div>
                         <div>• Sub-second query performance</div>
@@ -225,11 +140,11 @@ export default function LogisticsPage() {
                         Exchange Connections
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• Load active connections</div>
+                        <div>• Load active connections (Bybit, BingX)</div>
                         <div>• Validate API credentials</div>
-                        <div>• Initialize WebSocket streams (Bybit v5)</div>
+                        <div>• Initialize WebSocket streams</div>
                         <div>• Setup rate limit handlers</div>
-                        <div>• Test connectivity & balance</div>
+                        <div>• Test connectivity</div>
                       </div>
                     </div>
                   </div>
@@ -237,9 +152,8 @@ export default function LogisticsPage() {
                   <Alert className="mt-4">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                     <AlertDescription>
-                      <strong>Initialization Complete:</strong> All systems loaded, database ready with indexes,
-                      connections validated, prehistoric data loading in background. Trade engine ready to start
-                      parallel loops.
+                      <strong>Initialization Complete:</strong> All systems loaded, database ready, connections
+                      validated. Trade engine ready to start interval loops.
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -256,11 +170,6 @@ export default function LogisticsPage() {
                       <div>Main Trade Interval Loop (1.0s)</div>
                       <CardDescription className="mt-1">
                         Non-overlapping execution: Indications → Strategies → Validation → Positions
-                        {systemState?.performance?.avg_cycle_duration && (
-                          <span className="text-green-600 font-semibold ml-2">
-                            Avg: {Math.round(systemState.performance.avg_cycle_duration)}ms
-                          </span>
-                        )}
                       </CardDescription>
                     </div>
                   </CardTitle>
@@ -270,8 +179,7 @@ export default function LogisticsPage() {
                     <Info className="h-4 w-4 text-blue-500" />
                     <AlertDescription>
                       <strong>Non-Overlapping Execution:</strong> New interval cycle starts ONLY after previous cycle
-                      completes entirely. This prevents race conditions and ensures data consistency across all
-                      processing stages.
+                      completes entirely. This prevents race conditions and ensures data consistency.
                     </AlertDescription>
                   </Alert>
 
@@ -294,7 +202,7 @@ export default function LogisticsPage() {
                           <div>• Interval: 60s by default</div>
                           <div>• Timeout: 300s max calculation time</div>
                           <div>• Generates pseudo positions per step</div>
-                          <div>• Validates against 5-day historical data</div>
+                          <div>• Validates against historical data</div>
                         </div>
                       </div>
 
@@ -305,7 +213,7 @@ export default function LogisticsPage() {
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1 ml-4">
                           <div>• Step ranges: 3-30 steps</div>
-                          <div>• Detects price movements patterns</div>
+                          <div>• Detects price movements</div>
                           <div>• Interval: 90s by default</div>
                           <div>• Momentum-based analysis</div>
                           <div>• Volume correlation checks</div>
@@ -324,7 +232,7 @@ export default function LogisticsPage() {
                           <div>• Interval: 30s for quick response</div>
                           <div>• Immediate opportunity capture</div>
                           <div>• High-frequency compatible</div>
-                          <div>• Liquidity validation required</div>
+                          <div>• Liquidity validation</div>
                         </div>
                       </div>
 
@@ -350,11 +258,6 @@ export default function LogisticsPage() {
                         Each indication type generates up to 250 pseudo positions with calculated entry/exit points,
                         stop losses, take profits, and expected profit factors. All data is stored with symbol-level
                         indexing for instant retrieval.
-                        {systemState && (
-                          <span className="font-semibold text-primary ml-2">
-                            Currently: {systemState.pseudoPositions} pseudo positions active
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -376,7 +279,6 @@ export default function LogisticsPage() {
                           <div>• RSI &gt; 70 or RSI &lt; 30 triggers</div>
                           <div>• Volume confirmation required</div>
                           <div>• Trailing stop loss enabled</div>
-                          <div>• Risk/Reward: 1:2 minimum</div>
                         </div>
                       </div>
 
@@ -384,10 +286,9 @@ export default function LogisticsPage() {
                         <div className="font-semibold mb-3">Mean Reversion Strategy</div>
                         <div className="text-sm text-muted-foreground space-y-1 ml-4">
                           <div>• Identifies oversold/overbought</div>
-                          <div>• Bollinger Bands extremes (&gt;2σ)</div>
+                          <div>• Bollinger Bands extremes</div>
                           <div>• Quick profit targets (1-3%)</div>
-                          <div>• Tight stop losses (0.5-1%)</div>
-                          <div>• High win rate strategy</div>
+                          <div>• Tight stop losses</div>
                         </div>
                       </div>
 
@@ -395,10 +296,9 @@ export default function LogisticsPage() {
                         <div className="font-semibold mb-3">Breakout Strategy</div>
                         <div className="text-sm text-muted-foreground space-y-1 ml-4">
                           <div>• Support/resistance breaks</div>
-                          <div>• Volume surge confirmation (2x avg)</div>
+                          <div>• Volume surge confirmation</div>
                           <div>• Explosive move capture</div>
                           <div>• Position size scaling</div>
-                          <div>• Consolidation pattern required</div>
                         </div>
                       </div>
 
@@ -409,7 +309,6 @@ export default function LogisticsPage() {
                           <div>• MACD signal alignment</div>
                           <div>• Long-term position holding</div>
                           <div>• Pyramid entry allowed</div>
-                          <div>• ADX &gt; 25 strength filter</div>
                         </div>
                       </div>
                     </div>
@@ -483,14 +382,9 @@ export default function LogisticsPage() {
                         Performance Metrics Logging
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Every validated position is logged with complete performance metrics: entry/exit prices,
-                        profit/loss, win/loss ratio, holding time, slippage, and strategy effectiveness. This data feeds
-                        into the ML optimization system for continuous improvement.
-                        {systemState && systemState.realPositions > 0 && (
-                          <span className="font-semibold text-primary ml-2">
-                            Currently tracking: {systemState.realPositions} real positions
-                          </span>
-                        )}
+                        Every validated position is logged with: symbol, direction, entry price, quantity, leverage,
+                        profit factor, drawdown time, strategy ID, indication ID, timestamp, and connection ID. This
+                        enables comprehensive performance tracking and strategy optimization.
                       </div>
                     </div>
                   </div>
@@ -505,7 +399,7 @@ export default function LogisticsPage() {
                 </CardContent>
               </Card>
 
-              {/* Phase 3: Real Positions Management Loop */}
+              {/* Phase 3: Real Positions Management */}
               <Card className="border-2 border-green-500/20 shadow-lg">
                 <CardHeader className="bg-gradient-to-r from-green-500/10 to-transparent">
                   <CardTitle className="flex items-center gap-3">
@@ -513,202 +407,407 @@ export default function LogisticsPage() {
                       3
                     </div>
                     <div>
-                      <div>Real Positions Management Loop (0.3s)</div>
+                      <div>Real Positions Management Interval (0.3s)</div>
                       <CardDescription className="mt-1">
-                        Continuous monitoring and management of all active positions with exchange mirroring
+                        Independent exchange position synchronization and order execution
                       </CardDescription>
                     </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-6">
-                  <Alert>
-                    <Activity className="h-4 w-4 text-green-500" />
+                <CardContent className="space-y-6 pt-6">
+                  <Alert className="border-blue-500/50 bg-blue-500/5">
+                    <Info className="h-4 w-4 text-blue-500" />
                     <AlertDescription>
-                      <strong>Real-Time Position Management:</strong> This loop runs independently at 300ms intervals,
-                      monitoring all active positions, updating P&L, checking stop/take profit triggers, and
-                      synchronizing with exchange positions via REST API and WebSocket updates.
+                      <strong>Independent Operation:</strong> This interval runs completely independently from the Trade
+                      Interval Loop, ensuring exchange operations don't block indication/strategy processing.
                     </AlertDescription>
                   </Alert>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="p-4 rounded-lg border-l-4 border-l-green-500 bg-green-500/5">
-                      <div className="font-semibold mb-3">Position Monitoring</div>
-                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• Real-time P&L calculation</div>
-                        <div>• Stop loss / Take profit checks</div>
-                        <div>• Trailing stop updates</div>
-                        <div>• Liquidation price monitoring</div>
-                        <div>• Margin level validation</div>
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="p-4 rounded-lg border-l-4 border-l-green-500 bg-green-500/5">
+                        <div className="font-semibold mb-3 flex items-center gap-2">
+                          <PlayCircle className="h-4 w-4" />
+                          Position Opening
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                          <div>• Fetch pending positions from database</div>
+                          <div>• Check exchange balance & margin</div>
+                          <div>• Execute market/limit orders</div>
+                          <div>• Set stop loss & take profit orders</div>
+                          <div>• Confirm order fill status</div>
+                          <div>• Update database with order IDs</div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg border-l-4 border-l-yellow-500 bg-yellow-500/5">
+                        <div className="font-semibold mb-3 flex items-center gap-2">
+                          <Activity className="h-4 w-4" />
+                          Position Monitoring
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                          <div>• Track all active positions</div>
+                          <div>• Update current PnL in real-time</div>
+                          <div>• Check trailing stop conditions</div>
+                          <div>• Monitor for liquidation risk</div>
+                          <div>• Adjust stop loss if trailing enabled</div>
+                          <div>• Log position state changes</div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg border-l-4 border-l-red-500 bg-red-500/5">
+                        <div className="font-semibold mb-3 flex items-center gap-2">
+                          <PauseCircle className="h-4 w-4" />
+                          Position Closing
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                          <div>• Take profit hit → close immediately</div>
+                          <div>• Stop loss hit → close immediately</div>
+                          <div>• Manual close request → execute</div>
+                          <div>• Time-based close (max duration)</div>
+                          <div>• Record final PnL and metrics</div>
+                          <div>• Archive position data</div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-500/5">
+                        <div className="font-semibold mb-3 flex items-center gap-2">
+                          <GitBranch className="h-4 w-4" />
+                          Exchange Synchronization
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                          <div>• Fetch all open positions from exchange</div>
+                          <div>• Compare with database records</div>
+                          <div>• Reconcile any discrepancies</div>
+                          <div>• Handle partially filled orders</div>
+                          <div>• Process exchange notifications</div>
+                          <div>• Rate limit compliance (10 req/s)</div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-lg border-l-4 border-l-emerald-500 bg-emerald-500/5">
-                      <div className="font-semibold mb-3">Exchange Synchronization</div>
-                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• Mirror exchange positions</div>
-                        <div>• Reconcile any discrepancies</div>
-                        <div>• Update position quantities</div>
-                        <div>• Sync average entry prices</div>
-                        <div>• Handle partial fills</div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-lg border-l-4 border-l-teal-500 bg-teal-500/5">
-                      <div className="font-semibold mb-3">Risk Management</div>
-                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• Portfolio exposure tracking</div>
-                        <div>• Max drawdown monitoring</div>
-                        <div>• Correlation checks</div>
-                        <div>• Auto-hedging if needed</div>
-                        <div>• Emergency position closure</div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-lg border-l-4 border-l-cyan-500 bg-cyan-500/5">
-                      <div className="font-semibold mb-3">Order Management</div>
-                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
-                        <div>• Close triggered positions</div>
-                        <div>• Modify stop/take levels</div>
-                        <div>• Handle order rejections</div>
-                        <div>• Retry failed orders</div>
-                        <div>• Log all order activity</div>
+                    <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                      <div className="font-semibold mb-2">Error Handling & Recovery</div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div>• Network errors: Retry with exponential backoff (max 3 attempts)</div>
+                        <div>• Insufficient balance: Skip order and log warning</div>
+                        <div>• Order rejection: Log reason and mark position as failed</div>
+                        <div>• Exchange downtime: Queue operations for later execution</div>
+                        <div>• Rate limit exceeded: Delay next request automatically</div>
                       </div>
                     </div>
                   </div>
+
+                  <Alert className="border-green-500/50 bg-green-500/5">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <AlertDescription>
+                      <strong>Real Positions Interval Complete:</strong> All exchange operations executed, positions
+                      synced, database updated. Next cycle starts in 0.3s.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+
+              {/* System Coordination Summary */}
+              <Card className="border-2 border-primary shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Workflow className="h-5 w-5 text-primary" />
+                    System Coordination & Performance
+                  </CardTitle>
+                  <CardDescription>How the intervals work together</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 rounded-lg border">
+                      <div className="font-semibold mb-3 text-purple-600">Trade Interval (1.0s)</div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div>
+                          • <strong>Non-overlapping:</strong> Waits for completion
+                        </div>
+                        <div>
+                          • <strong>Parallel Processing:</strong> By symbol
+                        </div>
+                        <div>
+                          • <strong>Output:</strong> Validated real positions
+                        </div>
+                        <div>
+                          • <strong>Dependencies:</strong> Historical data only
+                        </div>
+                        <div>
+                          • <strong>Performance:</strong> ~500-800ms typical
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-lg border">
+                      <div className="font-semibold mb-3 text-green-600">Real Positions Interval (0.3s)</div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div>
+                          • <strong>Independent:</strong> Doesn't block trade interval
+                        </div>
+                        <div>
+                          • <strong>Fast Execution:</strong> Exchange API calls
+                        </div>
+                        <div>
+                          • <strong>Output:</strong> Synced exchange positions
+                        </div>
+                        <div>
+                          • <strong>Dependencies:</strong> Network latency
+                        </div>
+                        <div>
+                          • <strong>Performance:</strong> ~100-200ms typical
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                    <div className="font-semibold mb-2 text-lg">Database Performance Optimizations</div>
+                    <div className="text-sm text-muted-foreground space-y-2">
+                      <div>
+                        • <strong>70+ Indexes:</strong> Symbol, timestamp, connection, indication type, strategy ID
+                      </div>
+                      <div>
+                        • <strong>Query Performance:</strong> Sub-100ms for most operations, sub-10ms for indexed
+                        lookups
+                      </div>
+                      <div>
+                        • <strong>Async Coordination:</strong> Symbol-level semaphores prevent duplicate work
+                      </div>
+                      <div>
+                        • <strong>Caching Layers:</strong> Active positions cached for 1s, market data for 500ms
+                      </div>
+                      <div>
+                        • <strong>Batch Operations:</strong> Up to 10 concurrent symbols processed in parallel
+                      </div>
+                      <div>
+                        • <strong>Connection Pooling:</strong> Reuses database connections, prevents exhaustion
+                      </div>
+                    </div>
+                  </div>
+
+                  <Alert>
+                    <TrendingUp className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>High-Frequency Ready:</strong> The system can handle 100+ symbols across multiple
+                      exchanges with sub-second response times, maintaining data consistency through proper async
+                      coordination.
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* PRESET TRADE TAB */}
             <TabsContent value="preset" className="space-y-6 mt-6">
-              <Alert className="border-2 border-primary">
+              <Alert className="border-2 border-blue-500/50">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Preset Trade Mode:</strong> Uses common technical indicators (RSI, MACD, Bollinger Bands, SAR,
-                  ADX) for quick trade setup. Runs in parallel to Main System with 2.0s intervals. Ideal for preset
-                  indicator configurations and backtesting.
+                  <strong>Preset Trade Mode:</strong> Uses common technical indicators (RSI, MACD, Bollinger Bands,
+                  etc.) with automated configuration testing across 100-1,000 parameter sets for optimal performance
+                  discovery.
                 </AlertDescription>
               </Alert>
 
-              <Card className="border-2 border-indigo-500/20">
+              <Card className="border-2 border-blue-500/20 shadow-lg">
                 <CardHeader>
-                  <CardTitle>Preset Indicator System</CardTitle>
-                  <CardDescription>Configure and test standard technical indicators</CardDescription>
+                  <CardTitle>Preset Trade System Architecture</CardTitle>
+                  <CardDescription>Indicator-based trading with automated optimization</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">RSI (Relative Strength Index)</div>
-                      <div className="text-sm text-muted-foreground">Period: 14, Overbought: 70, Oversold: 30</div>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 rounded-lg border-l-4 border-l-blue-500 bg-blue-500/5">
+                      <div className="font-semibold mb-3">Supported Indicators</div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>
+                          • <strong>RSI:</strong> Period 14, oversold 30, overbought 70
+                        </div>
+                        <div>
+                          • <strong>MACD:</strong> Fast 12, Slow 26, Signal 9
+                        </div>
+                        <div>
+                          • <strong>Bollinger Bands:</strong> Period 20, StdDev 2
+                        </div>
+                        <div>
+                          • <strong>EMA:</strong> Multiple periods (9, 21, 50, 200)
+                        </div>
+                        <div>
+                          • <strong>SMA:</strong> Simple moving averages
+                        </div>
+                        <div>
+                          • <strong>Parabolic SAR:</strong> Trend following
+                        </div>
+                        <div>
+                          • <strong>Stochastic:</strong> Momentum oscillator
+                        </div>
+                        <div>
+                          • <strong>ADX:</strong> Trend strength indicator
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">MACD</div>
-                      <div className="text-sm text-muted-foreground">Fast: 12, Slow: 26, Signal: 9</div>
+
+                    <div className="p-4 rounded-lg border-l-4 border-l-purple-500 bg-purple-500/5">
+                      <div className="font-semibold mb-3">Configuration Testing</div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Test 100-1,000 config combinations</div>
+                        <div>• Backtest on 5 days of historical data</div>
+                        <div>• Calculate profit factor for each</div>
+                        <div>• Rank by performance metrics</div>
+                        <div>• Select top 10 configurations</div>
+                        <div>• Live trade with best performers</div>
+                        <div>• Continuous re-optimization</div>
+                      </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">Bollinger Bands</div>
-                      <div className="text-sm text-muted-foreground">Period: 20, StdDev: 2</div>
+
+                    <div className="p-4 rounded-lg border-l-4 border-l-green-500 bg-green-500/5">
+                      <div className="font-semibold mb-3">Signal Generation</div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Indicator values calculated per candle</div>
+                        <div>• Multi-timeframe analysis (1m, 5m, 15m)</div>
+                        <div>• Signal confluence required (2+ indicators)</div>
+                        <div>• Entry condition validation</div>
+                        <div>• Dynamic stop loss calculation</div>
+                        <div>• Take profit target optimization</div>
+                      </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">Parabolic SAR</div>
-                      <div className="text-sm text-muted-foreground">Acceleration: 0.02, Max: 0.2</div>
-                    </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">ADX</div>
-                      <div className="text-sm text-muted-foreground">Period: 14, Threshold: 25</div>
-                    </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="font-semibold mb-2">EMA Crossover</div>
-                      <div className="text-sm text-muted-foreground">Fast: 9, Slow: 21</div>
+
+                    <div className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-500/5">
+                      <div className="font-semibold mb-3">Performance Tracking</div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Win rate per indicator combination</div>
+                        <div>• Average profit per trade</div>
+                        <div>• Max drawdown percentage</div>
+                        <div>• Sharpe ratio calculation</div>
+                        <div>• Recovery time from losses</div>
+                        <div>• Auto-disable poor performers</div>
+                      </div>
                     </div>
                   </div>
 
-                  <Alert>
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <AlertDescription>
-                      Preset indicators can be configured per connection and tested independently before enabling live
-                      trading. All indicators support custom parameters and can be combined for signal confirmation.
-                    </AlertDescription>
-                  </Alert>
+                  <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                    <div className="font-semibold mb-2">Preset Trade Interval: 2.0s</div>
+                    <div className="text-sm text-muted-foreground">
+                      Runs independently from Main System. Each cycle: fetches market data → calculates all indicators →
+                      generates signals → validates against current positions → executes trades on exchange. Optimized
+                      for indicator-based strategies that don't require step calculations.
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* TRADING BOTS TAB */}
             <TabsContent value="bot" className="space-y-6 mt-6">
-              <Alert className="border-2 border-primary">
+              <Alert className="border-2 border-green-500/50">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Trading Bots:</strong> Specialized automated trading strategies for specific market
-                  conditions. Each bot type has unique logic and risk parameters optimized for its trading style.
+                  <strong>Trading Bots:</strong> Automated custom strategies with independent logic, risk management,
+                  and execution. Each bot type implements specific trading methodologies.
                 </AlertDescription>
               </Alert>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5" />
-                      Grid Trading Bot
-                    </CardTitle>
-                    <CardDescription>Range-bound market profit capture</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground space-y-2">
-                    <div>• Creates buy/sell grid in price range</div>
-                    <div>• Profits from oscillations</div>
-                    <div>• Configurable grid spacing</div>
-                    <div>• Auto-rebalancing</div>
-                  </CardContent>
-                </Card>
+              <Card className="border-2 border-green-500/20 shadow-lg">
+                <CardHeader>
+                  <CardTitle>Trading Bot Categories</CardTitle>
+                  <CardDescription>Specialized automated trading strategies</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 rounded-lg border-l-4 border-l-blue-500 bg-blue-500/5">
+                      <div className="font-semibold mb-3 flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        Grid Trading Bot
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Places buy/sell orders at set intervals</div>
+                        <div>• Profits from price oscillations</div>
+                        <div>• Configurable grid size and spacing</div>
+                        <div>• Works best in ranging markets</div>
+                        <div>• Auto-rebalancing on trends</div>
+                      </div>
+                    </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5" />
-                      DCA Bot (Dollar Cost Average)
-                    </CardTitle>
-                    <CardDescription>Systematic position building</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground space-y-2">
-                    <div>• Averages entry price over time</div>
-                    <div>• Reduces timing risk</div>
-                    <div>• Configurable intervals</div>
-                    <div>• Take profit on target</div>
-                  </CardContent>
-                </Card>
+                    <div className="p-4 rounded-lg border-l-4 border-l-purple-500 bg-purple-500/5">
+                      <div className="font-semibold mb-3 flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        DCA Bot (Dollar Cost Averaging)
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Accumulates positions over time</div>
+                        <div>• Averages entry price on dips</div>
+                        <div>• Reduces timing risk</div>
+                        <div>• Configurable buy intervals</div>
+                        <div>• Smart exit on profit targets</div>
+                      </div>
+                    </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5" />
-                      Arbitrage Bot
-                    </CardTitle>
-                    <CardDescription>Cross-exchange price differences</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground space-y-2">
-                    <div>• Monitors multiple exchanges</div>
-                    <div>• Exploits price discrepancies</div>
-                    <div>• Low-risk strategy</div>
-                    <div>• Requires fast execution</div>
-                  </CardContent>
-                </Card>
+                    <div className="p-4 rounded-lg border-l-4 border-l-green-500 bg-green-500/5">
+                      <div className="font-semibold mb-3 flex items-center gap-2">
+                        <GitBranch className="h-4 w-4" />
+                        Arbitrage Bot
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Finds price differences across exchanges</div>
+                        <div>• Executes simultaneous buy/sell</div>
+                        <div>• Risk-free profits (minus fees)</div>
+                        <div>• Requires fast execution</div>
+                        <div>• Cross-exchange balance management</div>
+                      </div>
+                    </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5" />
-                      Market Making Bot
-                    </CardTitle>
-                    <CardDescription>Liquidity provision with spread capture</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground space-y-2">
-                    <div>• Places bid/ask orders</div>
-                    <div>• Earns spread difference</div>
-                    <div>• Manages inventory risk</div>
-                    <div>• High-frequency updates</div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <div className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-500/5">
+                      <div className="font-semibold mb-3 flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        Market Making Bot
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• Provides liquidity to order books</div>
+                        <div>• Places bids and asks simultaneously</div>
+                        <div>• Profits from bid-ask spread</div>
+                        <div>• Dynamic spread adjustment</div>
+                        <div>• Inventory risk management</div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-lg border-l-4 border-l-pink-500 bg-pink-500/5 md:col-span-2">
+                      <div className="font-semibold mb-3 flex items-center gap-2">
+                        <Cpu className="h-4 w-4" />
+                        Custom Bot Framework
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1 ml-4">
+                        <div>• User-defined trading logic</div>
+                        <div>• Python/TypeScript scripting support</div>
+                        <div>• Access to all market data and indicators</div>
+                        <div>• Built-in risk management hooks</div>
+                        <div>• Backtesting before live deployment</div>
+                        <div>• Real-time performance monitoring</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                    <div className="font-semibold mb-2">Bot Management Features</div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <div>
+                        • <strong>Independent Operation:</strong> Each bot runs in its own process with isolated risk
+                      </div>
+                      <div>
+                        • <strong>Per-Bot Limits:</strong> Max position size, daily loss limits, stop conditions
+                      </div>
+                      <div>
+                        • <strong>Performance Tracking:</strong> Individual PnL, win rate, and execution metrics
+                      </div>
+                      <div>
+                        • <strong>Auto-Shutdown:</strong> Stops trading if performance degrades below threshold
+                      </div>
+                      <div>
+                        • <strong>Logging & Alerts:</strong> Real-time notifications for trades and errors
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

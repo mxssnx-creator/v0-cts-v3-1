@@ -6,15 +6,10 @@ export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}))
-    const { rebuild = true, runChecks = true } = body
-    
     console.log("[DATABASE INIT] Starting database initialization...")
     console.log("[DATABASE INIT] Database type:", getDatabaseType())
-    console.log("[DATABASE INIT] Rebuild: ", rebuild ? "YES (default)" : "NO")
-    console.log("[DATABASE INIT] Run Checks:", runChecks ? "YES (default)" : "NO")
 
-    const success = await DatabaseInitializer.initialize(3, 30000, { rebuild, runChecks })
+    const success = await DatabaseInitializer.initialize()
 
     if (!success) {
       console.error("[DATABASE INIT] Initialization returned false")
