@@ -285,11 +285,11 @@ export default function Dashboard() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex min-h-screen w-full flex-col bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center px-4 gap-4">
+          <div className="flex h-14 items-center gap-4 px-4">
             <SidebarTrigger />
-            <div className="flex-1 flex items-center justify-between">
+            <div className="flex flex-1 items-center justify-between">
               <h1 className="text-lg font-semibold">Dashboard</h1>
               <div className="flex items-center gap-2">
                 <Select value={selectedConnection} onValueChange={handleExchangeChange}>
@@ -312,12 +312,10 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="container mx-auto p-4 space-y-4 overflow-x-hidden">
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-            <SystemOverview stats={systemStats} />
-          </div>
+        <main className="flex-1 space-y-6 p-6">
+          <SystemOverview stats={systemStats} />
 
-          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <StrategiesOverview strategies={strategies} />
             </div>
@@ -326,8 +324,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <Card className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
                 <CardTitle>Active Connections</CardTitle>
                 <CardDescription>Manage your exchange connections</CardDescription>
@@ -339,11 +337,11 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {activeConnections.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No active connections. Add a connection to get started.</p>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-muted-foreground">No active connections. Add a connection to get started.</p>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {activeConnections.map((connection) => (
                     <ConnectionCard
                       key={connection.id}
