@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     try {
       console.log(`[v0] Running migrations on ${normalizedType}...`)
       const migrationResult = await DatabaseMigrations.runMigrations()
-      migrationsApplied = migrationResult.appliedCount || 0
+      migrationsApplied = migrationResult.applied || 0
       console.log(`[v0] Applied ${migrationsApplied} migrations`)
     } catch (migrationError) {
       console.error(`[v0] Migration error (non-fatal):`, migrationError)
