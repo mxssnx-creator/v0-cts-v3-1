@@ -11,8 +11,6 @@ import { StrategyEngine } from "@/lib/strategies"
 import type { StrategyResult } from "@/lib/strategies"
 import { Activity, TrendingUp, BarChart3, Settings, RefreshCw, Target } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-import { AuthGuard } from "@/components/auth-guard"
-import { PageHeader } from "@/components/layout/page-header"
 
 export default function StrategiesPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -133,150 +131,145 @@ export default function StrategiesPage() {
   }
 
   return (
-    <AuthGuard>
-      <div className="flex flex-col h-screen">
-        <PageHeader
-          title="Strategies"
-          description="Manage and optimize trading strategies"
-          icon={TrendingUp}
-          actions={
-            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              Refresh
-            </Button>
-          }
-        />
-
-        <div className="flex-1 overflow-auto p-4">
-          {!hasRealConnections && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-yellow-500" />
-                <div>
-                  <div className="font-semibold text-yellow-900 dark:text-yellow-100">Using Mock Data</div>
-                  <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                    No active exchange connections found. Enable a connection in Settings to see real strategies.
-                  </div>
-                </div>
+    <div className="container mx-auto p-6 space-y-6">
+      {!hasRealConnections && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-yellow-500" />
+            <div>
+              <div className="font-semibold text-yellow-900 dark:text-yellow-100">Using Mock Data</div>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                No active exchange connections found. Enable a connection in Settings to see real strategies.
               </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-500" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.total}</div>
-                    <div className="text-sm text-muted-foreground">Total Strategies</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-green-500" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.active}</div>
-                    <div className="text-sm text-muted-foreground">Active</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-purple-500" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.valid}</div>
-                    <div className="text-sm text-muted-foreground">Valid</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-500" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.profitable}</div>
-                    <div className="text-sm text-muted-foreground">Profitable</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-cyan-500" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.avgProfitFactor.toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">Avg Profit Factor</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1">
-              <StrategyFilters filters={filters} onFiltersChange={setFilters} />
-            </div>
-
-            <div className="lg:col-span-3">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="active">Active ({activeStrategies.length})</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        Showing {filteredStrategies.length} of {strategies.length} strategies
-                      </span>
-                      <Badge variant="outline">Min Profit Factor: {minimalProfitFactor}</Badge>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {filteredStrategies.map((strategy) => (
-                      <StrategyBar
-                        key={strategy.id}
-                        strategy={strategy}
-                        onToggle={handleToggleStrategy}
-                        onVolumeFactorChange={handleVolumeFactorChange}
-                        minimalProfitFactor={minimalProfitFactor}
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="active" className="space-y-4">
-                  <div className="space-y-3">
-                    {activeStrategies.map((strategy) => (
-                      <StrategyBar
-                        key={strategy.id}
-                        strategy={strategy}
-                        onToggle={handleToggleStrategy}
-                        onVolumeFactorChange={handleVolumeFactorChange}
-                        minimalProfitFactor={minimalProfitFactor}
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
             </div>
           </div>
         </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Strategies</h1>
+          <p className="text-muted-foreground">Manage and optimize trading strategies</p>
+        </div>
+        <Button onClick={() => window.location.reload()}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
-    </AuthGuard>
+
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <div className="text-sm text-muted-foreground">Total Strategies</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-green-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.active}</div>
+                <div className="text-sm text-muted-foreground">Active</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.valid}</div>
+                <div className="text-sm text-muted-foreground">Valid</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-orange-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.profitable}</div>
+                <div className="text-sm text-muted-foreground">Profitable</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-cyan-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.avgProfitFactor.toFixed(2)}</div>
+                <div className="text-sm text-muted-foreground">Avg Profit Factor</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1">
+          <StrategyFilters filters={filters} onFiltersChange={setFilters} />
+        </div>
+
+        <div className="lg:col-span-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="active">Active ({activeStrategies.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {filteredStrategies.length} of {strategies.length} strategies
+                  </span>
+                  <Badge variant="outline">Min Profit Factor: {minimalProfitFactor}</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {filteredStrategies.map((strategy) => (
+                  <StrategyBar
+                    key={strategy.id}
+                    strategy={strategy}
+                    onToggle={handleToggleStrategy}
+                    onVolumeFactorChange={handleVolumeFactorChange}
+                    minimalProfitFactor={minimalProfitFactor}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="active" className="space-y-4">
+              <div className="space-y-3">
+                {activeStrategies.map((strategy) => (
+                  <StrategyBar
+                    key={strategy.id}
+                    strategy={strategy}
+                    onToggle={handleToggleStrategy}
+                    onVolumeFactorChange={handleVolumeFactorChange}
+                    minimalProfitFactor={minimalProfitFactor}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
   )
 }

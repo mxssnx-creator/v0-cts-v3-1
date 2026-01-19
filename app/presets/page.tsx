@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { AuthGuard } from "@/components/auth-guard"
-import { PageHeader } from "@/components/layout/page-header"
 import {
   RefreshCw,
   Target,
@@ -180,204 +178,190 @@ export default function PresetsPage() {
   }
 
   return (
-    <AuthGuard>
-      <div className="flex flex-col h-screen">
-        <PageHeader
-          title="Presets"
-          description="Manage preset types, configurations, and optimal settings"
-          icon={Target}
-          actions={
-            <Button size="sm" variant="outline" onClick={loadData}>
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              Refresh
-            </Button>
-          }
-        />
-
-        <div className="flex-1 overflow-auto p-4">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Preset Coordination System</h1>
-                <p className="text-muted-foreground">
-                  Manage preset types, configuration sets, and automated trading coordination
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <Select
-                  value={indicationCategoryFilter}
-                  onValueChange={(value: "all" | "main" | "common") => setIndicationCategoryFilter(value)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filter by Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Indications</SelectItem>
-                    <SelectItem value="main">
-                      <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-green-500" />
-                        Main (Direction/Move/Active)
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="common">
-                      <div className="flex items-center gap-2">
-                        <LineChart className="h-4 w-4 text-blue-500" />
-                        Common (RSI/MACD/SAR/ATR)
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-l-4 border-green-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-5 w-5 text-green-500" />
-                    <div>
-                      <div className="font-semibold text-green-700 dark:text-green-300">Main Indications</div>
-                      <div className="text-sm text-muted-foreground">Direction, Move, Active, Optimal</div>
-                      <Badge variant="outline" className="mt-1">
-                        {stats.mainSets} Sets
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-l-4 border-blue-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <LineChart className="h-5 w-5 text-blue-500" />
-                    <div>
-                      <div className="font-semibold text-blue-700 dark:text-blue-300">Common Indicators</div>
-                      <div className="text-sm text-muted-foreground">RSI, MACD, Bollinger, SAR, ADX</div>
-                      <Badge variant="outline" className="mt-1">
-                        {stats.commonSets} Sets
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-l-4 border-purple-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-purple-500" />
-                    <div>
-                      <div className="font-semibold text-purple-700 dark:text-purple-300">Additional (Enhancement)</div>
-                      <div className="text-sm text-muted-foreground">Trailing Stop - Dynamic profit protection</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-l-4 border-orange-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <SlidersHorizontal className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <div className="font-semibold text-orange-700 dark:text-orange-300">Adjust (Volume/Position)</div>
-                      <div className="text-sm text-muted-foreground">Block & DCA - Volume adjustments</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-blue-500" />
-                    <div>
-                      <div className="text-2xl font-bold">{stats.totalTypes}</div>
-                      <div className="text-sm text-muted-foreground">Preset Types</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Settings2 className="h-5 w-5 text-purple-500" />
-                    <div>
-                      <div className="text-2xl font-bold">{filteredConfigSets.length}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Config Sets {indicationCategoryFilter !== "all" && `(${indicationCategoryFilter})`}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-500" />
-                    <div>
-                      <div className="text-2xl font-bold">{stats.validResults}</div>
-                      <div className="text-sm text-muted-foreground">Valid Results</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <div className="text-2xl font-bold">{stats.avgProfitFactor.toFixed(2)}</div>
-                      <div className="text-sm text-muted-foreground">Avg Profit Factor</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="preset-types">Preset Types</TabsTrigger>
-                <TabsTrigger value="config-sets">Configuration Sets</TabsTrigger>
-                <TabsTrigger value="results">Coordination Results</TabsTrigger>
-                <TabsTrigger value="auto-optimal">
-                  <Zap className="h-4 w-4 mr-2" />
-                  Auto Optimal
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="preset-types" className="space-y-4">
-                <PresetTypeManager presetTypes={presetTypes} onRefresh={loadPresetTypes} />
-              </TabsContent>
-
-              <TabsContent value="config-sets" className="space-y-4">
-                <ConfigurationSetManager
-                  configSets={filteredConfigSets}
-                  presetTypes={presetTypes}
-                  onRefresh={loadConfigSets}
-                  indicationCategoryFilter={indicationCategoryFilter}
-                />
-              </TabsContent>
-
-              <TabsContent value="results" className="space-y-4">
-                <CoordinationResults
-                  results={filteredResults}
-                  presetTypes={presetTypes}
-                  configSets={filteredConfigSets}
-                  onRefresh={loadResults}
-                />
-              </TabsContent>
-
-              <TabsContent value="auto-optimal" className="space-y-4">
-                <AutoOptimalConfigurationForm onCalculate={handleAutoOptimalCalculate} />
-                {autoOptimalResults.length > 0 && (
-                  <AutoOptimalResults results={autoOptimalResults} onSaveSet={handleSaveAutoOptimalSet} />
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
+    <div className="container mx-auto py-2 px-4 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Preset Coordination System</h1>
+          <p className="text-muted-foreground">
+            Manage preset types, configuration sets, and automated trading coordination
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Select
+            value={indicationCategoryFilter}
+            onValueChange={(value: "all" | "main" | "common") => setIndicationCategoryFilter(value)}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Indications</SelectItem>
+              <SelectItem value="main">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-green-500" />
+                  Main (Direction/Move/Active)
+                </div>
+              </SelectItem>
+              <SelectItem value="common">
+                <div className="flex items-center gap-2">
+                  <LineChart className="h-4 w-4 text-blue-500" />
+                  Common (RSI/MACD/SAR/ATR)
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={loadData} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh All
+          </Button>
         </div>
       </div>
-    </AuthGuard>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-green-500" />
+              <div>
+                <div className="font-semibold text-green-700 dark:text-green-300">Main Indications</div>
+                <div className="text-sm text-muted-foreground">Direction, Move, Active, Optimal</div>
+                <Badge variant="outline" className="mt-1">
+                  {stats.mainSets} Sets
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <LineChart className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="font-semibold text-blue-700 dark:text-blue-300">Common Indicators</div>
+                <div className="text-sm text-muted-foreground">RSI, MACD, Bollinger, SAR, ADX</div>
+                <Badge variant="outline" className="mt-1">
+                  {stats.commonSets} Sets
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-purple-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="font-semibold text-purple-700 dark:text-purple-300">Additional (Enhancement)</div>
+                <div className="text-sm text-muted-foreground">Trailing Stop - Dynamic profit protection</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-orange-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal className="h-5 w-5 text-orange-500" />
+              <div>
+                <div className="font-semibold text-orange-700 dark:text-orange-300">Adjust (Volume/Position)</div>
+                <div className="text-sm text-muted-foreground">Block & DCA - Volume adjustments</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.totalTypes}</div>
+                <div className="text-sm text-muted-foreground">Preset Types</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="text-2xl font-bold">{filteredConfigSets.length}</div>
+                <div className="text-sm text-muted-foreground">
+                  Config Sets {indicationCategoryFilter !== "all" && `(${indicationCategoryFilter})`}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.validResults}</div>
+                <div className="text-sm text-muted-foreground">Valid Results</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-orange-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.avgProfitFactor.toFixed(2)}</div>
+                <div className="text-sm text-muted-foreground">Avg Profit Factor</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="preset-types">Preset Types</TabsTrigger>
+          <TabsTrigger value="config-sets">Configuration Sets</TabsTrigger>
+          <TabsTrigger value="results">Coordination Results</TabsTrigger>
+          <TabsTrigger value="auto-optimal">
+            <Zap className="h-4 w-4 mr-2" />
+            Auto Optimal
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preset-types" className="space-y-4">
+          <PresetTypeManager presetTypes={presetTypes} onRefresh={loadPresetTypes} />
+        </TabsContent>
+
+        <TabsContent value="config-sets" className="space-y-4">
+          <ConfigurationSetManager
+            configSets={filteredConfigSets}
+            presetTypes={presetTypes}
+            onRefresh={loadConfigSets}
+            indicationCategoryFilter={indicationCategoryFilter}
+          />
+        </TabsContent>
+
+        <TabsContent value="results" className="space-y-4">
+          <CoordinationResults
+            results={filteredResults}
+            presetTypes={presetTypes}
+            configSets={filteredConfigSets}
+            onRefresh={loadResults}
+          />
+        </TabsContent>
+
+        <TabsContent value="auto-optimal" className="space-y-4">
+          <AutoOptimalConfigurationForm onCalculate={handleAutoOptimalCalculate} />
+          {autoOptimalResults.length > 0 && (
+            <AutoOptimalResults results={autoOptimalResults} onSaveSet={handleSaveAutoOptimalSet} />
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

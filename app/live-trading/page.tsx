@@ -10,8 +10,6 @@ import { TradingEngine } from "@/lib/trading"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-import { AuthGuard } from "@/components/auth-guard"
-import { PageHeader } from "@/components/layout/page-header"
 
 export default function LiveTradingPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -149,136 +147,128 @@ export default function LiveTradingPage() {
     refreshData()
   }
 
-  const loadPositions = () => {
-    refreshData()
-  }
-
   return (
-    <AuthGuard>
-      <div className="flex flex-col h-screen">
-        <PageHeader
-          title="Live Trading"
-          description="Monitor and manage active trading positions"
-          icon={Activity}
-          actions={
-            <>
-              <Select value={selectedConnection} onValueChange={setSelectedConnection}>
-                <SelectTrigger className="w-[180px] h-8">
-                  <SelectValue placeholder="Select connection" />
-                </SelectTrigger>
-                <SelectContent>
-                  {connections.map((conn) => (
-                    <SelectItem key={conn.id} value={conn.id}>
-                      {conn.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" variant="outline" onClick={loadPositions}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                Refresh
-              </Button>
-            </>
-          }
-        />
-
-        <div className="flex-1 overflow-auto p-4">
-          {!hasRealConnections && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-yellow-500" />
-                <div>
-                  <div className="font-semibold text-yellow-900 dark:text-yellow-100">Using Mock Data</div>
-                  <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                    No active exchange connections found. Enable a connection in Settings to see real trading data.
-                  </div>
-                </div>
+    <div className="container mx-auto p-6 space-y-6">
+      {!hasRealConnections && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-yellow-500" />
+            <div>
+              <div className="font-semibold text-yellow-900 dark:text-yellow-100">Using Mock Data</div>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                No active exchange connections found. Enable a connection in Settings to see real trading data.
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* Main Content */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="positions" className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Open Positions ({openPositions.length})
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Position History
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
-              <TradingOverview
-                stats={tradingStats}
-                timeRangeStats={timeRangeStats}
-                onCloseProfitablePositions={handleCloseProfitablePositions}
-                onCloseAllPositions={handleCloseAllPositions}
-              />
-            </TabsContent>
-
-            <TabsContent value="positions" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Open Positions ({openPositions.length})</h2>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleCloseProfitablePositions}>
-                    Close Profitable
-                  </Button>
-                  <Button variant="destructive" onClick={handleCloseAllPositions}>
-                    Close All
-                  </Button>
-                </div>
-              </div>
-
-              {openPositions.length === 0 ? (
-                <div className="text-center py-12">
-                  <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Open Positions</h3>
-                  <p className="text-muted-foreground">All positions are currently closed or no trading activity.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {openPositions.map((position) => (
-                    <PositionCard
-                      key={position.id}
-                      position={position}
-                      onClose={handleClosePosition}
-                      showCloseButton={true}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Position History ({closedPositions.length})</h2>
-                <p className="text-sm text-muted-foreground">Last 50 closed positions</p>
-              </div>
-
-              {closedPositions.length === 0 ? (
-                <div className="text-center py-12">
-                  <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Trading History</h3>
-                  <p className="text-muted-foreground">No closed positions found for this connection.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {closedPositions.map((position) => (
-                    <PositionCard key={position.id} position={position} showCloseButton={false} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Live Trading</h1>
+          <p className="text-muted-foreground">Monitor active positions and trading activity</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Select value={selectedConnection} onValueChange={setSelectedConnection}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {connections.map((conn) => (
+                <SelectItem key={conn.id} value={conn.id}>
+                  {conn.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={refreshData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
       </div>
-    </AuthGuard>
+
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="positions" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Open Positions ({openPositions.length})
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Position History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <TradingOverview
+            stats={tradingStats}
+            timeRangeStats={timeRangeStats}
+            onCloseProfitablePositions={handleCloseProfitablePositions}
+            onCloseAllPositions={handleCloseAllPositions}
+          />
+        </TabsContent>
+
+        <TabsContent value="positions" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Open Positions ({openPositions.length})</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCloseProfitablePositions}>
+                Close Profitable
+              </Button>
+              <Button variant="destructive" onClick={handleCloseAllPositions}>
+                Close All
+              </Button>
+            </div>
+          </div>
+
+          {openPositions.length === 0 ? (
+            <div className="text-center py-12">
+              <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Open Positions</h3>
+              <p className="text-muted-foreground">All positions are currently closed or no trading activity.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {openPositions.map((position) => (
+                <PositionCard
+                  key={position.id}
+                  position={position}
+                  onClose={handleClosePosition}
+                  showCloseButton={true}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Position History ({closedPositions.length})</h2>
+            <p className="text-sm text-muted-foreground">Last 50 closed positions</p>
+          </div>
+
+          {closedPositions.length === 0 ? (
+            <div className="text-center py-12">
+              <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Trading History</h3>
+              <p className="text-muted-foreground">No closed positions found for this connection.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {closedPositions.map((position) => (
+                <PositionCard key={position.id} position={position} showCloseButton={false} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
