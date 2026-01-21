@@ -3,7 +3,7 @@
  * Provides utilities for working with separate indication and strategy tables
  */
 
-import { sql } from "@/lib/db"
+import { sql, query } from "@/lib/db"
 import type { IndicationType, StrategyType } from "@/lib/constants/types"
 
 // =============================================================================
@@ -288,16 +288,21 @@ export async function updateIndication(
   data: Record<string, any>,
 ) {
   const tableName = getIndicationTableName(indicationType)
-  const setClause = Object.entries(data)
-    .map(([key, _]) => `${key} = $${key}`)
+  const entries = Object.entries(data)
+  const setClause = entries
+    .map(([key, _], i) => `${key} = $${i + 1}`)
     .join(", ")
+  const values = [...entries.map(([_, val]) => val), id]
 
-  return await sql`
-    UPDATE ${sql(tableName)}
-    SET ${sql.unsafe(setClause)}, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${id}
+  const queryText = `
+    UPDATE ${tableName}
+    SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $${values.length}
     RETURNING *
   `
+  
+  const result = await query(queryText, values)
+  return result[0]
 }
 
 /**
@@ -315,7 +320,7 @@ export async function insertStrategy(strategyType: StrategyType, data: Record<st
     RETURNING *
   `
 
-  const result = await sql(queryText, values)
+  const result = await query(queryText, values)
   return result[0]
 }
 
@@ -337,7 +342,7 @@ export async function updateStrategy(strategyType: StrategyType, id: string, dat
     RETURNING *
   `
   
-  const result = await sql(queryText, values)
+  const result = await query(queryText, values)
   return result[0]
 }
 
