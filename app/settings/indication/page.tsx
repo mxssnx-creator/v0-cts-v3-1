@@ -9,7 +9,7 @@ export default function IndicationSettingsPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.push("/settings/indication/main")
+    router.push("/settings/indications/main")
   }, [router])
 
   return (
