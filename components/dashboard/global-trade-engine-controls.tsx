@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Play, Pause, Square, Activity, Clock, Zap } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface EngineStatus {
   running: boolean

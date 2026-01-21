@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Plus, Edit, Trash2, Save, X, Settings, Info } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 import type { PresetConfigurationSet } from "@/lib/types-preset-coordination"
 import {
   INDICATOR_DEFAULTS,

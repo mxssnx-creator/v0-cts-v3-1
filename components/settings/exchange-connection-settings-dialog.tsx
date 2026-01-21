@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface ConnectionSettings {
   baseVolumeFactor: number

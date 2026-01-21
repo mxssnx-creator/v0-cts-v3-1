@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Database, Download, Server, CheckCircle2, XCircle, Loader2, Terminal, Package, FileText, Archive } from 'lucide-react'
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface InstallLog {
   timestamp: string

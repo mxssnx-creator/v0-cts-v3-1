@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface ConnectionInfoDialogProps {
   open: boolean

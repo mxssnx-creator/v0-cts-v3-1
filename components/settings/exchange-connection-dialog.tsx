@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConnectionPredefinitionSelector } from "./connection-predefinition-selector"
 import { Save, Loader2, ExternalLink, Info } from 'lucide-react'
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 import { EXCHANGE_CONFIGS, getExchangeConfig } from "@/lib/config"
 import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
 

@@ -6,7 +6,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
+export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
 
@@ -33,7 +33,3 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>
 }
-
-// Export both as default and named for compatibility
-export default AuthGuard
-export { AuthGuard }

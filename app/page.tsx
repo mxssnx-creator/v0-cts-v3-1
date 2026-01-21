@@ -11,7 +11,7 @@ import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-e
 import { StrategiesOverview } from "@/components/dashboard/strategies-overview"
 import type { ExchangeConnection } from "@/lib/types"
 import { RefreshCw, Plus } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/lib/auth-context"

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 export default function AutoIndicationPage() {
   const [settings, setSettings] = useState<any>({

@@ -18,7 +18,7 @@ import {
   RefreshCw,
   Settings,
 } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 import { getExchangeConfig } from "@/lib/config"
 import { ExchangeConnectionDialog } from "./exchange-connection-dialog"
 import { ConnectionInfoDialog } from "./connection-info-dialog"

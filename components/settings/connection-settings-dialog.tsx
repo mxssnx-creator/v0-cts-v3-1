@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Save } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/simple-toast"
 
 interface ConnectionSettingsDialogProps {
   open: boolean
