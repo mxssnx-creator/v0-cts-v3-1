@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Loader2, Trash2, Rocket, Info, ExternalLink } from 'lucide-react'
+import { Plus, Loader2, Trash2, Rocket, Info, ExternalLink, User, CheckCircle2 } from 'lucide-react'
 import { toast } from "@/lib/simple-toast"
 import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
+import { USER_CONNECTIONS } from "@/lib/user-connections-config"
 import type { ExchangeConnection } from "@/lib/types"
 import {
   Dialog,
@@ -44,6 +45,9 @@ export default function ExchangeConnectionManagerV2() {
   const [showPredefined, setShowPredefined] = useState(false)
   const [initializingPredefined, setInitializingPredefined] = useState(false)
   const [selectedPredefined, setSelectedPredefined] = useState<string>("")
+  const [showUserConnections, setShowUserConnections] = useState(false)
+  const [importingUser, setImportingUser] = useState(false)
+  const [userConnectionsStatus, setUserConnectionsStatus] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     name: "",
@@ -60,7 +64,44 @@ export default function ExchangeConnectionManagerV2() {
 
   useEffect(() => {
     loadConnections()
+    loadUserConnectionsStatus()
   }, [])
+
+  const loadUserConnectionsStatus = async () => {
+    try {
+      const response = await fetch("/api/settings/connections/import-user")
+      if (response.ok) {
+        const data = await response.json()
+        setUserConnectionsStatus(data.data || [])
+      }
+    } catch (error) {
+      console.error("Failed to load user connections status:", error)
+    }
+  }
+
+  const importUserConnections = async () => {
+    setImportingUser(true)
+    try {
+      const response = await fetch("/api/settings/connections/import-user", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to import user connections")
+      }
+
+      const data = await response.json()
+      toast.success(`${data.data.imported} connections imported, ${data.data.skipped} skipped`)
+      await loadConnections()
+      await loadUserConnectionsStatus()
+    } catch (error) {
+      console.error("Import error:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to import")
+    } finally {
+      setImportingUser(false)
+    }
+  }
 
   const loadConnections = async () => {
     try {
@@ -321,11 +362,133 @@ export default function ExchangeConnectionManagerV2() {
               <CardDescription>Manage your exchange API connections</CardDescription>
             </div>
             <div className="flex gap-2">
+              <Dialog open={showUserConnections} onOpenChange={setShowUserConnections}>
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    <User className="h-4 w-4 mr-2" />
+                    My Connections ({USER_CONNECTIONS.length})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Your Pre-Configured Connections</DialogTitle>
+                    <DialogDescription>
+                      Import your personal exchange connections with API credentials already configured.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button onClick={importUserConnections} disabled={importingUser} className="w-full">
+                        {importingUser ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Importing...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Import All {USER_CONNECTIONS.length} Connections
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {userConnectionsStatus.map((conn) => (
+                        <Card key={conn.id} className={conn.imported ? "border-green-500/50" : ""}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-base">{conn.displayName}</CardTitle>
+                                  {conn.imported && (
+                                    <Badge variant="outline" className="text-green-600 border-green-600">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Imported
+                                    </Badge>
+                                  )}
+                                  {conn.enabled && (
+                                    <Badge variant="default" className="text-xs">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </div>
+                                <CardDescription className="text-xs mt-1">
+                                  {conn.exchange.toUpperCase()} • {conn.connectionType} • {conn.name}
+                                </CardDescription>
+                              </div>
+                              {conn.maxLeverage && (
+                                <Badge variant="outline" className="ml-2">
+                                  {conn.maxLeverage}x
+                                </Badge>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <p className="text-muted-foreground">API Type</p>
+                                <p className="font-medium capitalize">{conn.apiType.replace(/_/g, " ")}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Exchange</p>
+                                <p className="font-medium capitalize">{conn.exchange}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Status</p>
+                                <p className="font-medium">{conn.imported ? "Ready" : "Not Imported"}</p>
+                              </div>
+                            </div>
+
+                            {conn.documentation && (
+                              <div className="flex flex-wrap gap-2 pt-2">
+                                {conn.documentation.official && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 bg-transparent"
+                                    onClick={() => window.open(conn.documentation.official, "_blank")}
+                                  >
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    Official Docs
+                                  </Button>
+                                )}
+                                {conn.documentation.npm && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 bg-transparent"
+                                    onClick={() => window.open(conn.documentation.npm, "_blank")}
+                                  >
+                                    NPM
+                                  </Button>
+                                )}
+                                {conn.documentation.pip && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 bg-transparent"
+                                    onClick={() => window.open(conn.documentation.pip, "_blank")}
+                                  >
+                                    Python
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Dialog open={showPredefined} onOpenChange={setShowPredefined}>
                 <DialogTrigger asChild>
                   <Button variant="outline">
                     <Rocket className="h-4 w-4 mr-2" />
-                    Predefined Connections
+                    Predefined
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
