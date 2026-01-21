@@ -307,14 +307,15 @@ export async function insertStrategy(strategyType: StrategyType, data: Record<st
   const tableName = getStrategyTableName(strategyType)
   const columns = Object.keys(data)
   const values = Object.values(data)
-
-  const query = sql`
-    INSERT INTO ${sql(tableName)} (${sql(columns.join(", "))})
-    VALUES (${sql(values.join(", "))})
+  
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(", ")
+  const queryText = `
+    INSERT INTO ${tableName} (${columns.join(", ")})
+    VALUES (${placeholders})
     RETURNING *
   `
 
-  const result = await query
+  const result = await sql(queryText, values)
   return result[0]
 }
 
@@ -323,16 +324,21 @@ export async function insertStrategy(strategyType: StrategyType, data: Record<st
  */
 export async function updateStrategy(strategyType: StrategyType, id: string, data: Record<string, any>) {
   const tableName = getStrategyTableName(strategyType)
-  const setClause = Object.entries(data)
-    .map(([key, _]) => `${key} = $${key}`)
+  const entries = Object.entries(data)
+  const setClause = entries
+    .map(([key, _], i) => `${key} = $${i + 1}`)
     .join(", ")
+  const values = [...entries.map(([_, val]) => val), id]
 
-  return await sql`
-    UPDATE ${sql(tableName)}
-    SET ${sql.unsafe(setClause)}, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${id}
+  const queryText = `
+    UPDATE ${tableName}
+    SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $${values.length}
     RETURNING *
   `
+  
+  const result = await sql(queryText, values)
+  return result[0]
 }
 
 // =============================================================================
