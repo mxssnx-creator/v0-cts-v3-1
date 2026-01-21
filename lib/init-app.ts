@@ -1,6 +1,5 @@
 "use server"
 
-import { ProductionMigrationRunner } from "@/lib/db-migration-runner"
 import { runAutoMigrations } from "@/lib/auto-migrate"
 
 let initializationComplete = false
@@ -29,8 +28,9 @@ export async function initializeApplication() {
       console.log("[v0] ================================================")
       console.log("[v0]")
 
-      // Step 1: Run production migration system
+      // Step 1: Run production migration system (dynamic import to avoid build issues)
       console.log("[v0] Running Production Migration System...")
+      const { ProductionMigrationRunner } = await import("@/lib/db-migration-runner")
       const migrationResult = await ProductionMigrationRunner.runAllMigrations()
       
       if (!migrationResult.success) {

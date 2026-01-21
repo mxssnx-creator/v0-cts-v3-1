@@ -1,8 +1,9 @@
 "use server"
 
 import { execute, getDatabaseType, query } from "@/lib/db"
-import fs from "fs"
-import path from "path"
+import fs from "node:fs"
+import path from "node:path"
+import crypto from "node:crypto"
 
 interface MigrationResult {
   success: boolean
