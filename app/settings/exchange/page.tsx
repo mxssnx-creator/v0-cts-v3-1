@@ -7,13 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Save, RefreshCw } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import AuthGuard from "@/components/auth-guard"
 
 export default function ExchangeSettingsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -55,18 +54,15 @@ export default function ExchangeSettingsPage() {
       })
 
       if (response.ok) {
-        toast({
-          title: "Settings saved",
+        toast.success("Settings saved", {
           description: "Exchange settings have been saved successfully.",
         })
       } else {
         throw new Error("Failed to save settings")
       }
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to save settings. Please try again.",
-        variant: "destructive",
       })
     } finally {
       setSaving(false)
