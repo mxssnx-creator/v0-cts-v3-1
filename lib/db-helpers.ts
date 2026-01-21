@@ -53,13 +53,14 @@ export async function getActiveIndications(
 ) {
   if (indicationType) {
     const tableName = getIndicationTableName(indicationType)
-    return await sql`
-      SELECT * FROM ${sql(tableName)}
-      WHERE connection_id = ${connectionId}
-        AND symbol = ${symbol}
+    const queryText = `
+      SELECT * FROM ${tableName}
+      WHERE connection_id = $1
+        AND symbol = $2
         AND status = 'active'
       ORDER BY calculated_at DESC
     `
+    return await query(queryText, [connectionId, symbol])
   }
 
   // Query all indication types
@@ -88,13 +89,14 @@ export async function getBestPerformingIndications(
   limit: number = 10,
 ) {
   const tableName = getIndicationTableName(indicationType)
-  return await sql`
-    SELECT * FROM ${sql(tableName)}
-    WHERE connection_id = ${connectionId}
+  const queryText = `
+    SELECT * FROM ${tableName}
+    WHERE connection_id = $1
       AND status = 'active'
     ORDER BY profit_factor DESC, confidence DESC
-    LIMIT ${limit}
+    LIMIT $2
   `
+  return await query(queryText, [connectionId, limit])
 }
 
 /**
@@ -106,12 +108,13 @@ export async function getRecentIndications(
   minutes: number = 60,
 ) {
   const tableName = getIndicationTableName(indicationType)
-  return await sql`
-    SELECT * FROM ${sql(tableName)}
-    WHERE connection_id = ${connectionId}
-      AND calculated_at > NOW() - INTERVAL '${sql.unsafe(minutes.toString())} minutes'
+  const queryText = `
+    SELECT * FROM ${tableName}
+    WHERE connection_id = $1
+      AND calculated_at > NOW() - INTERVAL '${minutes} minutes'
     ORDER BY calculated_at DESC
   `
+  return await query(queryText, [connectionId])
 }
 
 // =============================================================================
@@ -128,13 +131,14 @@ export async function getActiveStrategies(
 ) {
   if (strategyType) {
     const tableName = getStrategyTableName(strategyType)
-    return await sql`
-      SELECT * FROM ${sql(tableName)}
-      WHERE connection_id = ${connectionId}
-        AND symbol = ${symbol}
+    const queryText = `
+      SELECT * FROM ${tableName}
+      WHERE connection_id = $1
+        AND symbol = $2
         AND status IN ('active', 'open')
       ORDER BY created_at DESC
     `
+    return await query(queryText, [connectionId, symbol])
   }
 
   // Query all strategy types
