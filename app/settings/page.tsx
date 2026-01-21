@@ -2319,7 +2319,7 @@ export default function SettingsPage() {
                     <CardDescription>Manage exchange API connections and settings</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ExchangeConnectionManager onConnectionsChange={loadConnections} />
+                    <ExchangeConnectionManager />
                   </CardContent>
                 </Card>
 

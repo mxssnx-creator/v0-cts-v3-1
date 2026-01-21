@@ -1,26 +1,19 @@
 import { NextResponse } from "next/server"
-import { getCorsHeaders } from "./cors"
 
 /**
- * Standardized API response utilities with CORS support
+ * Standardized API response utilities
  */
 
 export interface ApiResponseOptions {
   status?: number
   headers?: Record<string, string>
-  cors?: boolean
 }
 
 /**
  * Create a success response
  */
 export function successResponse(data: any, options: ApiResponseOptions = {}): NextResponse {
-  const { status = 200, headers = {}, cors = true } = options
-
-  const responseHeaders = {
-    ...headers,
-    ...(cors ? getCorsHeaders() : {}),
-  }
+  const { status = 200, headers = {} } = options
 
   return NextResponse.json(
     {
@@ -30,7 +23,7 @@ export function successResponse(data: any, options: ApiResponseOptions = {}): Ne
     },
     {
       status,
-      headers: responseHeaders,
+      headers,
     },
   )
 }
@@ -42,12 +35,7 @@ export function errorResponse(
   message: string,
   options: ApiResponseOptions & { code?: string; details?: any } = {},
 ): NextResponse {
-  const { status = 500, headers = {}, cors = true, code, details } = options
-
-  const responseHeaders = {
-    ...headers,
-    ...(cors ? getCorsHeaders() : {}),
-  }
+  const { status = 500, headers = {}, code, details } = options
 
   return NextResponse.json(
     {
@@ -61,7 +49,7 @@ export function errorResponse(
     },
     {
       status,
-      headers: responseHeaders,
+      headers,
     },
   )
 }
