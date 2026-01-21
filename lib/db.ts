@@ -51,11 +51,17 @@ function getDatabaseTypeFromSettings(): string {
   return "sqlite"
 }
 
-const DATABASE_TYPE = getDatabaseTypeFromSettings()
+let DATABASE_TYPE: string | null = null
 
 function getClient(): Database.Database | Pool {
   if (isBuildPhase) {
     throw new Error("[v0] Database not available during build phase")
+  }
+
+  const dbType = getDatabaseTypeFromSettings()
+
+  if (DATABASE_TYPE === null) {
+    DATABASE_TYPE = dbType
   }
 
   if (DATABASE_TYPE === "sqlite") {
@@ -82,7 +88,7 @@ function getClient(): Database.Database | Pool {
       console.log("[v0] SQLite database client initialized successfully")
     }
     return sqliteClient
-  } else if (DATABASE_TYPE === "postgresql" || DATABASE_TYPE === "remote") {
+  } else if (dbType === "postgresql" || dbType === "remote") {
     if (!DATABASE_URL) {
       throw new Error(
         "[v0] PostgreSQL selected but no valid DATABASE_URL found. " +
@@ -138,8 +144,12 @@ function getClient(): Database.Database | Pool {
     return sqlClient
   }
 
-  throw new Error(`[v0] Unsupported database type: ${DATABASE_TYPE}`)
+  throw new Error(`[v0] Unknown database type: ${dbType}`)
 }
+
+const getDatabaseType = getDatabaseTypeFromSettings
+
+export { getDatabaseType }
 
 export async function query<T = any>(queryText: string, params: any[] = []): Promise<T[]> {
   try {
@@ -284,5 +294,4 @@ export function resetDatabaseClients() {
 export const db = getClient
 export const getDb = getClient
 export { getClient }
-export const getDatabaseType = () => DATABASE_TYPE
 export default getClient
