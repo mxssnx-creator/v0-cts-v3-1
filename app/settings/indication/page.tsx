@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation"
 import { RefreshCw } from "lucide-react"
 import AuthGuard from "@/components/auth-guard"
 
-export default function SettingsPage() {
+export default function IndicationSettingsPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect to the overall settings page by default
-    router.push("/settings/overall")
+    router.push("/settings/indication/main")
   }, [router])
 
   return (

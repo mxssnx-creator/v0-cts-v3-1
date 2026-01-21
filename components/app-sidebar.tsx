@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -17,6 +19,8 @@ import {
   LogOut,
   MessageSquare,
   FlaskConical,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import {
   Sidebar,
@@ -38,7 +42,14 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import type React from "react"
 
-const menuItems = [
+type MenuItem = {
+  title: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  subItems?: Array<{ title: string; href: string }>
+}
+
+const menuItems: MenuItem[] = [
   {
     title: "Overview",
     href: "/",
@@ -93,6 +104,13 @@ const menuItems = [
     title: "Settings",
     href: "/settings",
     icon: Cog,
+    subItems: [
+      { title: "Overall", href: "/settings/overall" },
+      { title: "Exchange", href: "/settings/exchange" },
+      { title: "Indication", href: "/settings/indication" },
+      { title: "Strategy", href: "/settings/strategy" },
+      { title: "System", href: "/settings/system" },
+    ],
   },
 ]
 
@@ -118,10 +136,15 @@ export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
 
   const handleLogout = () => {
     logout()
     router.push("/login")
+  }
+
+  const toggleSubmenu = (title: string) => {
+    setOpenSubmenu(openSubmenu === title ? null : title)
   }
 
   return (
@@ -146,16 +169,55 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                const isActive = pathname === item.href
+                const isActive = pathname === item.href || (item.subItems && item.subItems.some((sub) => pathname === sub.href))
+                const hasSubItems = item.subItems && item.subItems.length > 0
+                const isOpen = openSubmenu === item.title
+
                 return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="h-9">
-                      <Link href={item.href} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        <span className="text-sm">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <div key={item.href}>
+                    <SidebarMenuItem>
+                      {hasSubItems ? (
+                        <SidebarMenuButton
+                          onClick={() => toggleSubmenu(item.title)}
+                          isActive={isActive}
+                          tooltip={item.title}
+                          className="h-9"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span className="text-sm">{item.title}</span>
+                          {isOpen ? (
+                            <ChevronDown className="ml-auto h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="ml-auto h-4 w-4" />
+                          )}
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="h-9">
+                          <Link href={item.href} className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            <span className="text-sm">{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+
+                    {hasSubItems && isOpen && (
+                      <div className="ml-6 mt-1 space-y-1 group-data-[collapsible=icon]:hidden">
+                        {item.subItems?.map((subItem) => {
+                          const isSubActive = pathname === subItem.href
+                          return (
+                            <SidebarMenuItem key={subItem.href}>
+                              <SidebarMenuButton asChild isActive={isSubActive} className="h-8">
+                                <Link href={subItem.href} className="flex items-center gap-2">
+                                  <span className="text-xs">{subItem.title}</span>
+                                </Link>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </SidebarMenu>
