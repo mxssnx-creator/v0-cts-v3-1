@@ -37,6 +37,9 @@ export const STRATEGY_TYPES = {
   BASE: "base", // Last N positions analysis
   MAIN: "main", // Multi-position coordination (was "partial")
   REAL: "real", // Exchange-mirrored live positions
+  BLOCK: "block", // Block trading strategy
+  DCA: "dca", // Dollar-cost averaging strategy
+  TRAILING: "trailing", // Trailing stop strategy
 } as const
 
 export type StrategyType = (typeof STRATEGY_TYPES)[keyof typeof STRATEGY_TYPES]
@@ -45,9 +48,19 @@ export const STRATEGY_TYPE_LABELS: Record<StrategyType, string> = {
   [STRATEGY_TYPES.BASE]: "Base Strategy",
   [STRATEGY_TYPES.MAIN]: "Main Strategy",
   [STRATEGY_TYPES.REAL]: "Real Strategy",
+  [STRATEGY_TYPES.BLOCK]: "Block Strategy",
+  [STRATEGY_TYPES.DCA]: "DCA Strategy",
+  [STRATEGY_TYPES.TRAILING]: "Trailing Strategy",
 }
 
-export const DEFAULT_STRATEGY_TYPES: StrategyType[] = [STRATEGY_TYPES.BASE, STRATEGY_TYPES.MAIN, STRATEGY_TYPES.REAL]
+export const DEFAULT_STRATEGY_TYPES: StrategyType[] = [
+  STRATEGY_TYPES.BASE,
+  STRATEGY_TYPES.MAIN,
+  STRATEGY_TYPES.REAL,
+  STRATEGY_TYPES.BLOCK,
+  STRATEGY_TYPES.DCA,
+  STRATEGY_TYPES.TRAILING,
+]
 
 // ============================================================================
 // INTERNAL CALCULATION TYPES - Not shown in UI, just for calculation logistics
