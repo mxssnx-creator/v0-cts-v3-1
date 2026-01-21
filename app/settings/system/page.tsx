@@ -70,18 +70,15 @@ export default function SystemSettingsPage() {
       })
 
       if (response.ok) {
-        toast({
-          title: "Settings saved",
+        toast.success("Settings saved", {
           description: "System settings have been saved successfully. Some changes may require a restart.",
         })
       } else {
         throw new Error("Failed to save settings")
       }
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to save settings. Please try again.",
-        variant: "destructive",
       })
     } finally {
       setSaving(false)
