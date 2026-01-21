@@ -49,18 +49,15 @@ export default function ConnectionSettingsPage() {
       })
 
       if (response.ok) {
-        toast({
-          title: "Settings saved",
+        toast.success("Settings saved", {
           description: "Connection settings have been saved successfully.",
         })
       } else {
         throw new Error("Failed to save settings")
       }
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to save settings. Please try again.",
-        variant: "destructive",
       })
     } finally {
       setSaving(false)
