@@ -8,9 +8,18 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Loader2, Trash2 } from 'lucide-react'
+import { Plus, Loader2, Trash2, Rocket, Info, ExternalLink } from 'lucide-react'
 import { toast } from "@/lib/simple-toast"
+import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
 import type { ExchangeConnection } from "@/lib/types"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const EXCHANGES = {
   bybit: { name: "Bybit", apiTypes: ["unified", "perpetual_futures", "spot"] },
@@ -32,6 +41,9 @@ export default function ExchangeConnectionManagerV2() {
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [showPredefined, setShowPredefined] = useState(false)
+  const [initializingPredefined, setInitializingPredefined] = useState(false)
+  const [selectedPredefined, setSelectedPredefined] = useState<string>("")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -205,6 +217,69 @@ export default function ExchangeConnectionManagerV2() {
     }
   }
 
+  const initializePredefinedConnections = async () => {
+    setInitializingPredefined(true)
+    try {
+      const response = await fetch("/api/settings/connections/init-predefined", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.details || "Failed to initialize predefined connections")
+      }
+
+      const data = await response.json()
+      toast.success(`${data.count} predefined connections initialized`)
+      await loadConnections()
+      setShowPredefined(false)
+    } catch (error) {
+      console.error("Initialize error:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to initialize")
+    } finally {
+      setInitializingPredefined(false)
+    }
+  }
+
+  const addPredefinedConnection = async (predefinedId: string) => {
+    try {
+      const predefined = CONNECTION_PREDEFINITIONS.find((p) => p.id === predefinedId)
+      if (!predefined) {
+        toast.error("Predefined connection not found")
+        return
+      }
+
+      const response = await fetch("/api/settings/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: predefined.name,
+          exchange: predefined.id.split("-")[0],
+          api_type: predefined.apiType,
+          connection_method: predefined.connectionMethod,
+          connection_library: "native",
+          api_key: predefined.apiKey || "",
+          api_secret: predefined.apiSecret || "",
+          margin_type: predefined.marginType,
+          position_mode: predefined.positionMode,
+          is_testnet: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to add connection" }))
+        throw new Error(error.error || "Failed to add connection")
+      }
+
+      toast.success(`${predefined.displayName} added successfully`)
+      setSelectedPredefined("")
+      await loadConnections()
+    } catch (error) {
+      console.error("Add predefined error:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to add connection")
+    }
+  }
+
   if (loading) {
     return (
       <Card>
@@ -245,10 +320,114 @@ export default function ExchangeConnectionManagerV2() {
               <CardTitle>Exchange Connections</CardTitle>
               <CardDescription>Manage your exchange API connections</CardDescription>
             </div>
-            <Button onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Connection
-            </Button>
+            <div className="flex gap-2">
+              <Dialog open={showPredefined} onOpenChange={setShowPredefined}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Predefined Connections
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Predefined Exchange Connections</DialogTitle>
+                    <DialogDescription>
+                      Quick setup with pre-configured exchange connections. Select from popular exchanges with
+                      optimized settings.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button onClick={initializePredefinedConnections} disabled={initializingPredefined}>
+                        {initializingPredefined ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Initializing...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Initialize All Predefined
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {CONNECTION_PREDEFINITIONS.map((predefined) => (
+                        <Card key={predefined.id} className="hover:border-primary transition-colors">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base">{predefined.displayName}</CardTitle>
+                                <CardDescription className="text-xs mt-1">{predefined.description}</CardDescription>
+                              </div>
+                              <Badge variant="outline" className="ml-2">
+                                {predefined.maxLeverage}x
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <p className="text-muted-foreground">API Type</p>
+                                <p className="font-medium capitalize">{predefined.apiType.replace(/_/g, " ")}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Margin</p>
+                                <p className="font-medium capitalize">{predefined.marginType}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Position Mode</p>
+                                <p className="font-medium capitalize">{predefined.positionMode}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Contract</p>
+                                <p className="font-medium">{predefined.contractType}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
+                              <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="text-muted-foreground">
+                                Default settings: PF {predefined.defaultSettings.profitFactorMinBase}, Trailing{" "}
+                                {predefined.defaultSettings.trailingWithTrailing ? "On" : "Off"}
+                              </span>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => addPredefinedConnection(predefined.id)}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Add
+                              </Button>
+                              {predefined.documentationUrl && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(predefined.documentationUrl, "_blank")}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Button onClick={() => setShowAddForm(!showAddForm)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Custom
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
