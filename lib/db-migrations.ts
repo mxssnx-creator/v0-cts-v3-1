@@ -153,6 +153,9 @@ export class DatabaseMigrations {
 
       await this.createMigrationsTable()
 
+      // Run unified setup script first (idempotent, safe to run multiple times)
+      await this.runUnifiedSetup()
+
       const appliedMigrations = await this.getAppliedMigrations()
       console.log(`[v0] Found ${appliedMigrations.size} previously applied migrations`)
 
@@ -213,6 +216,52 @@ export class DatabaseMigrations {
         applied: 0,
         message: `Migration failed: ${error.message}`,
       }
+    }
+  }
+
+  private static async runUnifiedSetup(): Promise<void> {
+    try {
+      const unifiedScriptPath = path.join(process.cwd(), "scripts", "unified_complete_setup.sql")
+      
+      if (!fs.existsSync(unifiedScriptPath)) {
+        console.log("[v0] Unified setup script not found, skipping")
+        return
+      }
+
+      console.log("[v0] Running unified database setup...")
+      const sql = fs.readFileSync(unifiedScriptPath, "utf-8")
+      
+      // Split and execute each statement
+      const statements = this.splitSQLStatements(sql)
+        .filter((s) => s.trim().length > 0 && !s.trim().startsWith("--"))
+      
+      let executed = 0
+      let skipped = 0
+      
+      for (const statement of statements) {
+        try {
+          if (statement.trim()) {
+            await execute(statement, [])
+            executed++
+          }
+        } catch (error: any) {
+          const errorMsg = error?.message || String(error)
+          if (
+            errorMsg.includes("already exists") || 
+            errorMsg.includes("duplicate") ||
+            errorMsg.includes("UNIQUE constraint") ||
+            errorMsg.includes("no such table")
+          ) {
+            skipped++
+          } else {
+            console.warn(`[v0] Non-critical error in unified setup:`, errorMsg.substring(0, 150))
+          }
+        }
+      }
+      
+      console.log(`[v0] Unified setup complete: ${executed} statements executed, ${skipped} skipped/ignored`)
+    } catch (error) {
+      console.warn("[v0] Could not run unified setup, continuing with individual migrations:", error)
     }
   }
 

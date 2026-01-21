@@ -123,7 +123,56 @@ export class DatabaseInitializer {
 
   private static async createEssentialTables(): Promise<void> {
     const dbType = getDatabaseType()
-    console.log(`[v0] Creating essential tables for ${dbType}...`)
+    console.log(`[v0] Running master initialization script for ${dbType}...`)
+
+    try {
+      // Try to read and execute the master initialization script
+      const fs = await import("fs")
+      const path = await import("path")
+      const scriptPath = path.join(process.cwd(), "scripts", "000_master_initialization.sql")
+      
+      if (fs.existsSync(scriptPath)) {
+        console.log(`[v0] Found master initialization script at ${scriptPath}`)
+        const sql = fs.readFileSync(scriptPath, "utf-8")
+        
+        // Split SQL into individual statements and execute them
+        const statements = sql
+          .split(";")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && !s.startsWith("--"))
+        
+        let successCount = 0
+        let skipCount = 0
+        
+        for (const statement of statements) {
+          try {
+            if (statement.trim()) {
+              await execute(statement, [])
+              successCount++
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            if (errorMessage.includes("already exists") || errorMessage.includes("duplicate")) {
+              skipCount++
+            } else {
+              console.warn(`[v0] Warning during table creation:`, errorMessage)
+            }
+          }
+        }
+        
+        console.log(`[v0] Master initialization: ${successCount} statements executed, ${skipCount} skipped`)
+      } else {
+        console.log(`[v0] Master initialization script not found, using fallback`)
+        await this.createFallbackTables(dbType)
+      }
+    } catch (error) {
+      console.error(`[v0] Error loading master script, using fallback:`, error)
+      await this.createFallbackTables(dbType)
+    }
+  }
+
+  private static async createFallbackTables(dbType: string): Promise<void> {
+    console.log(`[v0] Creating fallback essential tables for ${dbType}...`)
 
     const essentialTables =
       dbType === "postgresql"
