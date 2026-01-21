@@ -249,12 +249,13 @@ export async function getAllStrategyPerformance(connectionId: string) {
  * Get daily performance summary
  */
 export async function getDailyPerformanceSummary(connectionId: string, days: number = 7) {
-  return await sql`
+  const queryText = `
     SELECT * FROM v_daily_performance
-    WHERE connection_id = ${connectionId}
-      AND trade_date >= CURRENT_DATE - INTERVAL '${sql.unsafe(days.toString())} days'
+    WHERE connection_id = $1
+      AND trade_date >= CURRENT_DATE - INTERVAL '$2 days'
     ORDER BY trade_date DESC
   `
+  return await query(queryText, [connectionId, days])
 }
 
 // =============================================================================
@@ -268,14 +269,15 @@ export async function insertIndication(indicationType: IndicationType, data: Rec
   const tableName = getIndicationTableName(indicationType)
   const columns = Object.keys(data)
   const values = Object.values(data)
-
-  const query = sql`
-    INSERT INTO ${sql(tableName)} (${sql(columns.join(", "))})
-    VALUES (${sql(values.join(", "))})
+  
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(", ")
+  const queryText = `
+    INSERT INTO ${tableName} (${columns.join(", ")})
+    VALUES (${placeholders})
     RETURNING *
   `
 
-  const result = await query
+  const result = await query(queryText, values)
   return result[0]
 }
 
