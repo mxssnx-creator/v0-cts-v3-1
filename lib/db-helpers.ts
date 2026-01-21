@@ -161,22 +161,24 @@ export async function getBestPerformingStrategies(
   const tableName = getStrategyTableName(strategyType)
 
   if (strategyType === "real") {
-    return await sql`
-      SELECT * FROM ${sql(tableName)}
-      WHERE connection_id = ${connectionId}
+    const queryText = `
+      SELECT * FROM ${tableName}
+      WHERE connection_id = $1
         AND status = 'open'
       ORDER BY profit_loss DESC
-      LIMIT ${limit}
+      LIMIT $2
     `
+    return await query(queryText, [connectionId, limit])
   }
 
-  return await sql`
-    SELECT * FROM ${sql(tableName)}
-    WHERE connection_id = ${connectionId}
+  const queryText = `
+    SELECT * FROM ${tableName}
+    WHERE connection_id = $1
       AND status = 'active'
     ORDER BY profit_factor DESC, win_rate DESC
-    LIMIT ${limit}
+    LIMIT $2
   `
+  return await query(queryText, [connectionId, limit])
 }
 
 /**
@@ -186,7 +188,7 @@ export async function getStrategyStatistics(connectionId: string, strategyType: 
   const tableName = getStrategyTableName(strategyType)
 
   if (strategyType === "real") {
-    return await sql`
+    const queryText = `
       SELECT 
         COUNT(*) as total_positions,
         SUM(CASE WHEN profit_loss > 0 THEN 1 ELSE 0 END) as winning_positions,
@@ -197,13 +199,14 @@ export async function getStrategyStatistics(connectionId: string, strategyType: 
         MIN(profit_loss) as max_loss,
         CAST(SUM(CASE WHEN profit_loss > 0 THEN 1 ELSE 0 END) AS FLOAT) / 
           NULLIF(COUNT(*), 0) as win_rate
-      FROM ${sql(tableName)}
-      WHERE connection_id = ${connectionId}
+      FROM ${tableName}
+      WHERE connection_id = $1
         AND status = 'closed'
     `
+    return await query(queryText, [connectionId])
   }
 
-  return await sql`
+  const queryText = `
     SELECT 
       COUNT(*) as total_strategies,
       AVG(profit_factor) as avg_profit_factor,
@@ -211,10 +214,11 @@ export async function getStrategyStatistics(connectionId: string, strategyType: 
       SUM(total_trades) as total_trades,
       SUM(winning_trades) as total_winning_trades,
       SUM(losing_trades) as total_losing_trades
-    FROM ${sql(tableName)}
-    WHERE connection_id = ${connectionId}
+    FROM ${tableName}
+    WHERE connection_id = $1
       AND status = 'active'
   `
+  return await query(queryText, [connectionId])
 }
 
 // =============================================================================
