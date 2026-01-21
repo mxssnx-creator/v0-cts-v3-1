@@ -5,13 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Save, RefreshCw } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import AuthGuard from "@/components/auth-guard"
 
 export default function ConnectionSettingsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 

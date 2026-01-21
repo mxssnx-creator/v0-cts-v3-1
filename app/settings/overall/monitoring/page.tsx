@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Save, RefreshCw } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import AuthGuard from "@/components/auth-guard"
 
 export default function MonitoringSettingsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
