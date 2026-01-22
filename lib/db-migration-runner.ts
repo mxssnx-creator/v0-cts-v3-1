@@ -1,17 +1,36 @@
 "use server"
 
-// Guard against build-time execution
-let ProductionMigrationRunner: any
+// Only import these at runtime, not during build
+let execute: any, getDatabaseType: any, query: any, fs: any, path: any, crypto: any
 
-if (process.env.NEXT_PHASE === "phase-production-build") {
-  // Export stub during build to prevent errors
-  const stub = {
-    runAllMigrations: async () => ({ success: true, applied: 0, skipped: 0, failed: 0, message: "Build time stub" }),
+async function ensureImports() {
+  if (!execute) {
+    const db = await import("@/lib/db")
+    execute = db.execute
+    getDatabaseType = db.getDatabaseType
+    query = db.query
+    
+    const fsModule = await import("node:fs")
+    fs = fsModule.default
+    
+    const pathModule = await import("node:path")
+    path = pathModule.default
+    
+    const cryptoModule = await import("node:crypto")
+    crypto = cryptoModule.default
   }
-  ProductionMigrationRunner = stub
-} else {
-  // Runtime code below - only execute when not in build phase
-  ProductionMigrationRunner = class {
+}
+
+interface MigrationResult {
+  success: boolean
+  applied: number
+  skipped: number
+  failed: number
+  message: string
+  details: string[]
+}
+
+export class ProductionMigrationRunner {
     private static migrationLog: string[] = []
 
     /**
@@ -542,38 +561,7 @@ if (process.env.NEXT_PHASE === "phase-production-build") {
     private static log(message: string): void {
       const timestamp = new Date().toISOString()
       const logMessage = `[${timestamp}] ${message}`
-      console.log(`[v0] ${message}`)
+      console.log(logMessage)
       this.migrationLog.push(logMessage)
     }
-  }
-}
-
-// Only import these at runtime, not during build
-let execute: any, getDatabaseType: any, query: any, fs: any, path: any, crypto: any
-
-async function ensureImports() {
-  if (!execute) {
-    const db = await import("@/lib/db")
-    execute = db.execute
-    getDatabaseType = db.getDatabaseType
-    query = db.query
-    
-    const fsModule = await import("node:fs")
-    fs = fsModule.default
-    
-    const pathModule = await import("node:path")
-    path = pathModule.default
-    
-    const cryptoModule = await import("node:crypto")
-    crypto = cryptoModule.default
-  }
-}
-
-interface MigrationResult {
-  success: boolean
-  applied: number
-  skipped: number
-  failed: number
-  message: string
-  details: string[]
 }
