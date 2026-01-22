@@ -30,8 +30,8 @@ export async function initializeApplication() {
 
       // Step 1: Run production migration system (dynamic import to avoid build issues)
       console.log("[v0] Running Production Migration System...")
-      const { ProductionMigrationRunner } = await import("@/lib/db-migration-runner")
-      const migrationResult = await ProductionMigrationRunner.runAllMigrations()
+      const { runAllMigrations } = await import("@/lib/db-migration-runner")
+      const migrationResult = await runAllMigrations()
       
       if (!migrationResult.success) {
         throw new Error(migrationResult.message)
