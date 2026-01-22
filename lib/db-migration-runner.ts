@@ -1,9 +1,28 @@
 "use server"
 
-import { execute, getDatabaseType, query } from "@/lib/db"
-import fs from "node:fs"
-import path from "node:path"
-import crypto from "node:crypto"
+// Check if we're in a build environment
+const isBuildTime = typeof window === "undefined" && !process.env.VERCEL_ENV && process.env.NODE_ENV !== "production"
+
+// Only import these at runtime, not during build
+let execute: any, getDatabaseType: any, query: any, fs: any, path: any, crypto: any
+
+async function ensureImports() {
+  if (!execute) {
+    const db = await import("@/lib/db")
+    execute = db.execute
+    getDatabaseType = db.getDatabaseType
+    query = db.query
+    
+    const fsModule = await import("node:fs")
+    fs = fsModule.default
+    
+    const pathModule = await import("node:path")
+    path = pathModule.default
+    
+    const cryptoModule = await import("node:crypto")
+    crypto = cryptoModule.default
+  }
+}
 
 interface MigrationResult {
   success: boolean
@@ -22,6 +41,8 @@ export class ProductionMigrationRunner {
    * This is called automatically on application startup
    */
   static async runAllMigrations(): Promise<MigrationResult> {
+    await ensureImports()
+    
     const startTime = Date.now()
     this.log("=".repeat(80))
     this.log("PRODUCTION DATABASE MIGRATION SYSTEM")
