@@ -49,17 +49,55 @@ export async function register() {
             const sqlPath = path.join(process.cwd(), "scripts", "unified_complete_setup.sql")
             
             if (fs.existsSync(sqlPath)) {
+              console.log("[v0] Reading unified_complete_setup.sql...")
               const sql = fs.readFileSync(sqlPath, "utf-8")
               
-              // Clean SQL: remove comment markers and normalize
-              const cleanSql = sql
-                .split('\n')
-                .map(line => line.replace(/^\s*>\s*/, '').trim())
-                .filter(line => line.length > 0 && !line.startsWith('--'))
-                .join('\n')
+              console.log(`[v0] SQL file loaded: ${sql.length} characters, ${sql.split('\n').length} lines`)
+              console.log(`[v0] First 200 chars: ${sql.substring(0, 200)}`)
               
-              client.exec(cleanSql)
-              console.log("[v0] Database schema initialized successfully")
+              try {
+                // Execute the SQL file directly - SQLite exec() handles multi-statement SQL
+                const startExec = Date.now()
+                console.log("[v0] Executing SQL initialization script...")
+                
+                // Split SQL into statements for better error handling
+                const statements = sql
+                  .split(';')
+                  .map(s => s.trim())
+                  .filter(s => s.length > 0 && !s.startsWith('--'))
+                
+                console.log(`[v0] Executing ${statements.length} SQL statements...`)
+                
+                let executed = 0
+                let skipped = 0
+                
+                for (const stmt of statements) {
+                  try {
+                    client.exec(stmt + ';')
+                    executed++
+                  } catch (stmtError: any) {
+                    // Skip if table/index already exists
+                    if (stmtError.message?.includes('already exists')) {
+                      skipped++
+                    } else {
+                      console.warn(`[v0] Statement warning: ${stmtError.message?.substring(0, 100)}`)
+                    }
+                  }
+                }
+                
+                const execDuration = Date.now() - startExec
+                console.log(`[v0] ✅ Database initialized: ${executed} executed, ${skipped} skipped in ${execDuration}ms`)
+                
+                // Verify tables were actually created
+                const allTables = client.prepare(
+                  "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                ).all()
+                console.log(`[v0] Database now has ${allTables.length} tables`)
+              } catch (execError) {
+                console.error("[v0] ❌ SQL execution error:", execError)
+                console.error("[v0] Error details:", execError instanceof Error ? execError.message : String(execError))
+                console.error("[v0] This will cause missing table errors throughout the application")
+              }
               
               // Verify tables were created
               const stillMissing = criticalTables.filter(table => !checkTable(table))
@@ -67,6 +105,50 @@ export async function register() {
                 console.warn(`[v0] WARNING: Some tables still missing: ${stillMissing.join(', ')}`)
               } else {
                 console.log("[v0] All critical tables verified")
+                
+                // Record migrations in migrations table
+                try {
+                  // Check if migrations table exists
+                  const hasMigrationsTable = checkTable('migrations')
+                  
+                  if (hasMigrationsTable) {
+                    // Record each executed statement as a migration
+                    const statements = sql
+                      .split(';')
+                      .map(s => s.trim())
+                      .filter(s => s.length > 0 && !s.startsWith('--'))
+                    
+                    let recorded = 0
+                    for (let i = 0; i < statements.length; i++) {
+                      try {
+                        const stmt = statements[i]
+                        const stmtType = stmt.split(/\s+/)[0].toUpperCase()
+                        const stmtPreview = stmt.substring(0, 50).replace(/\s+/g, ' ')
+                        const migrationName = `init_${i.toString().padStart(3, '0')}_${stmtType}_${stmtPreview.substring(0, 40)}`
+                        
+                        // Check if already recorded
+                        const exists = client.prepare(
+                          "SELECT COUNT(*) as count FROM migrations WHERE name = ?"
+                        ).get(migrationName)
+                        
+                        if (exists.count === 0) {
+                          client.prepare(
+                            "INSERT INTO migrations (name, executed_at) VALUES (?, CURRENT_TIMESTAMP)"
+                          ).run(migrationName)
+                          recorded++
+                        }
+                      } catch (migError) {
+                        // Silently skip migration tracking errors
+                      }
+                    }
+                    
+                    if (recorded > 0) {
+                      console.log(`[v0] Recorded ${recorded} migrations`)
+                    }
+                  }
+                } catch (migError) {
+                  console.warn("[v0] Failed to record migrations:", migError)
+                }
               }
             } else {
               console.warn("[v0] unified_complete_setup.sql not found")
@@ -93,6 +175,16 @@ export async function register() {
       console.log(`[v0] Initialization completed in ${duration}ms`)
       console.log("[v0] System ready to accept requests")
       console.log("=".repeat(60))
+
+      // Start automatic backup system (every 6 hours)
+      try {
+        const { getAutoBackupManager } = await import("./lib/auto-backup")
+        const backupManager = getAutoBackupManager()
+        backupManager.start(6) // Backup every 6 hours
+        console.log("[v0] ✅ Auto-backup system started (6 hour interval)")
+      } catch (error) {
+        console.warn("[v0] ⚠️  Failed to start auto-backup system:", error)
+      }
     } catch (error) {
       console.log("=".repeat(60))
       console.log("[v0] ⚠️  INITIALIZATION COMPLETED WITH WARNINGS")

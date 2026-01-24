@@ -341,7 +341,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground">No active connections. Add a connection to get started.</p>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-4">
                   {activeConnections.map((connection) => (
                     <ConnectionCard
                       key={connection.id}

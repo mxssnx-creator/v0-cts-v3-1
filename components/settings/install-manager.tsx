@@ -18,7 +18,8 @@ import {
   RefreshCw,
   AlertCircle,
   Server,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Download
 } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 
@@ -436,12 +437,12 @@ export default function InstallManager() {
                       {status.tableCount} tables
                     </Badge>
                   </div>
-              <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                <span>Migrations Applied</span>
-                <Badge variant={status.migrationsApplied > 0 ? "default" : "secondary"}>
-                  {status.migrationsApplied} migrations
-                </Badge>
-              </div>
+                  <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                    <span>Migrations Applied</span>
+                    <Badge variant={status.migrationsApplied > 0 ? "default" : "secondary"}>
+                      {status.migrationsApplied} migrations
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
@@ -453,111 +454,111 @@ export default function InstallManager() {
                 </Alert>
               )}
 
-          {/* Installation Action */}
-          {!status.isInstalled && (
-            <Alert>
-              <Server className="h-4 w-4" />
-              <AlertDescription>
-                The database is not installed. Click the button below to initialize the database with all required
-                tables, indexes, and migrations.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-4">
-            {/* Primary Installation */}
-            <div className="flex gap-2">
-              <Button
-                onClick={runInstallation}
-                disabled={installing || (status.isInstalled && status.databaseConnected)}
-                className="flex-1"
-              >
-                {installing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Installing...
-                  </>
-                ) : status.isInstalled ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Already Installed
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Initialize Database
-                  </>
-                )}
-              </Button>
-              
-              {status.isInstalled && (
-                <>
-                  <Button onClick={runMigrations} variant="default" disabled={installing}>
-                    {installing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <Database className="h-4 w-4 mr-2" />
-                        Run Migrations
-                      </>
-                    )}
-                  </Button>
-                  <Button onClick={runInstallation} variant="outline" disabled={installing}>
-                    {installing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Reinstalling...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Reinstall
-                      </>
-                    )}
-                  </Button>
-                </>
+              {/* Installation Action */}
+              {!status.isInstalled && (
+                <Alert>
+                  <Server className="h-4 w-4" />
+                  <AlertDescription>
+                    The database is not installed. Click the button below to initialize the database with all required
+                    tables, indexes, and migrations.
+                  </AlertDescription>
+                </Alert>
               )}
-            </div>
 
-            {/* Migration Tools - Only show when installed */}
-            {status.isInstalled && (
-              <div className="space-y-3 pt-2 border-t">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold">Migration Tools</h4>
-                  <Badge variant="secondary" className="text-xs">Advanced</Badge>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={quickReinit} disabled={installing} size="sm" variant="default">
-                    {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1.5" />}
-                    Quick Reinit
+              <div className="space-y-4">
+                {/* Primary Installation */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={runInstallation}
+                    disabled={installing || (status.isInstalled && status.databaseConnected)}
+                    className="flex-1"
+                  >
+                    {installing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Installing...
+                      </>
+                    ) : status.isInstalled ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Already Installed
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Initialize Database
+                      </>
+                    )}
                   </Button>
-                  <Button onClick={runMigrations} disabled={installing} size="sm" variant="outline">
-                    {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <Play className="h-3 w-3 mr-1.5" />}
-                    Run Migrations
-                  </Button>
-                  <Button onClick={directInit} disabled={installing} size="sm" variant="secondary">
-                    {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <Database className="h-3 w-3 mr-1.5" />}
-                    Direct Init
-                  </Button>
-                  <Button onClick={resetAndInit} disabled={installing} size="sm" variant="destructive">
-                    {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <AlertCircle className="h-3 w-3 mr-1.5" />}
-                    Reset All
-                  </Button>
+                  
+                  {status.isInstalled && (
+                    <>
+                      <Button onClick={runMigrations} variant="default" disabled={installing}>
+                        {installing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Running...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="h-4 w-4 mr-2" />
+                            Run Migrations
+                          </>
+                        )}
+                      </Button>
+                      <Button onClick={runInstallation} variant="outline" disabled={installing}>
+                        {installing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Reinstalling...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reinstall
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
 
-                <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg space-y-1">
-                  <p><strong>Quick Reinit:</strong> Re-executes SQL file to add missing tables (recommended)</p>
-                  <p><strong>Run Migrations:</strong> Executes migrations with tracking</p>
-                  <p><strong>Direct Init:</strong> Full SQLite batch initialization</p>
-                  <p><strong>Reset All:</strong> Drops all tables then recreates (⚠️ loses data)</p>
-                </div>
+                {/* Migration Tools - Only show when installed */}
+                {status.isInstalled && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold">Migration Tools</h4>
+                      <Badge variant="secondary" className="text-xs">Advanced</Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button onClick={quickReinit} disabled={installing} size="sm" variant="default">
+                        {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1.5" />}
+                        Quick Reinit
+                      </Button>
+                      <Button onClick={runMigrations} disabled={installing} size="sm" variant="outline">
+                        {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <Play className="h-3 w-3 mr-1.5" />}
+                        Run Migrations
+                      </Button>
+                      <Button onClick={directInit} disabled={installing} size="sm" variant="secondary">
+                        {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <Database className="h-3 w-3 mr-1.5" />}
+                        Direct Init
+                      </Button>
+                      <Button onClick={resetAndInit} disabled={installing} size="sm" variant="destructive">
+                        {installing ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <AlertCircle className="h-3 w-3 mr-1.5" />}
+                        Reset All
+                      </Button>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg space-y-1">
+                      <p><strong>Quick Reinit:</strong> Re-executes SQL file to add missing tables (recommended)</p>
+                      <p><strong>Run Migrations:</strong> Executes migrations with tracking</p>
+                      <p><strong>Direct Init:</strong> Full SQLite batch initialization</p>
+                      <p><strong>Reset All:</strong> Drops all tables then recreates (⚠️ loses data)</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
               {/* Installation Log */}
               {installLog.length > 0 && (
@@ -717,10 +718,58 @@ export default function InstallManager() {
         </TabsContent>
       </Tabs>
 
+      {/* NPX Installation Instructions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>NPX Installation</CardTitle>
+          <CardDescription>Install and deploy CTS v3.1 using NPX commands</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium mb-2">Quick Start with shadcn CLI</p>
+              <div className="bg-muted/50 p-3 rounded-lg font-mono text-sm">
+                <code className="text-primary">npx shadcn@latest init</code>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Recommended method: Uses shadcn CLI to set up the project with all components
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Add Components</p>
+              <div className="bg-muted/50 p-3 rounded-lg font-mono text-sm space-y-1">
+                <div><code className="text-primary">npx shadcn@latest add button card dialog</code></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Add individual shadcn/ui components as needed
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Alternative: Clone from GitHub</p>
+              <div className="bg-muted/50 p-3 rounded-lg font-mono text-sm space-y-1">
+                <div><code>git clone https://github.com/your-repo/cts-v3.1.git</code></div>
+                <div><code>cd cts-v3.1</code></div>
+                <div><code className="text-primary">npm install</code></div>
+                <div><code className="text-primary">npm run dev</code></div>
+              </div>
+            </div>
+          </div>
+
+          <Alert>
+            <Download className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              <strong>Note:</strong> After installation, run the database initialization from the Status tab above to create all required tables and configure the system.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
       {/* Installation Guide */}
       <Card>
         <CardHeader>
-          <CardTitle>Installation Guide</CardTitle>
+          <CardTitle>Database Installation Guide</CardTitle>
           <CardDescription>What happens during database initialization</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -730,7 +779,7 @@ export default function InstallManager() {
             </div>
             <div>
               <p className="font-medium">Create Database Schema</p>
-              <p className="text-muted-foreground">All 25+ tables with proper indexes and constraints</p>
+              <p className="text-muted-foreground">All 30+ tables with proper indexes and constraints</p>
             </div>
           </div>
           <div className="flex gap-3">

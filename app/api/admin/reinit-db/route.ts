@@ -18,10 +18,17 @@ export async function POST() {
       const sql = fs.readFileSync(sqlPath, "utf-8")
 
       console.log("[v0] Executing unified_complete_setup.sql...")
+      console.log(`[v0] SQL file size: ${sql.length} characters`)
       const startTime = Date.now()
       
       // Execute the entire SQL file
-      client.exec(sql)
+      try {
+        client.exec(sql)
+        console.log("[v0] SQL execution completed successfully")
+      } catch (execError) {
+        console.error("[v0] SQL execution error:", execError)
+        throw new Error(`SQL execution failed: ${execError instanceof Error ? execError.message : String(execError)}`)
+      }
       
       const duration = Date.now() - startTime
       

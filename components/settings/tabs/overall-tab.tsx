@@ -1,0 +1,464 @@
+"use client"
+
+import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager-v2"
+import InstallManager from "@/components/settings/install-manager"
+import { X, Plus } from "lucide-react"
+import type { ExchangeConnection } from "@/lib/types"
+import { LogsViewer } from "@/components/settings/logs-viewer"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { StatisticsOverview } from "@/components/settings/statistics-overview"
+import { Settings } from "../types"
+
+interface OverallTabProps {
+  settings: Settings
+  handleSettingChange: (key: keyof Settings, value: any) => void
+  addMainSymbol: () => void
+  removeMainSymbol: (symbol: string) => void
+  addForcedSymbol: () => void
+  removeForcedSymbol: (symbol: string) => void
+  newMainSymbol: string
+  setNewMainSymbol: (value: string) => void
+  newForcedSymbol: string
+  setNewForcedSymbol: (value: string) => void
+  connections: ExchangeConnection[]
+  databaseType: "sqlite" | "postgresql" | "remote"
+  setDatabaseType: (value: "sqlite" | "postgresql" | "remote") => void
+  databaseChanged: boolean
+}
+
+export function OverallTab({
+  settings,
+  handleSettingChange,
+  addMainSymbol,
+  removeMainSymbol,
+  addForcedSymbol,
+  removeForcedSymbol,
+  newMainSymbol,
+  setNewMainSymbol,
+  newForcedSymbol,
+  setNewForcedSymbol,
+  connections,
+  databaseType,
+  setDatabaseType,
+  databaseChanged,
+}: OverallTabProps) {
+  const [overallSubTab, setOverallSubTab] = useState("main")
+
+  return (
+    <TabsContent value="overall" className="space-y-6 animate-in fade-in duration-300">
+      <Tabs value={overallSubTab} onValueChange={setOverallSubTab}>
+        <TabsList className="grid grid-cols-5 w-full bg-muted/50 p-1">
+          <TabsTrigger value="main" className="settings-tab-trigger">Main</TabsTrigger>
+          <TabsTrigger value="connection" className="settings-tab-trigger">Connection</TabsTrigger>
+          <TabsTrigger value="monitoring" className="settings-tab-trigger">Monitoring</TabsTrigger>
+          <TabsTrigger value="install" className="settings-tab-trigger">Install</TabsTrigger>
+          <TabsTrigger value="backup" className="settings-tab-trigger">Backup</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="main" className="space-y-6 mt-6">
+          <Card className="settings-card border-2">
+            <CardHeader className="settings-card-header">
+              <CardTitle className="text-2xl flex items-center gap-2">
+                Main Configuration
+              </CardTitle>
+              <CardDescription className="text-base">Core trading parameters and symbol selection</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8 p-6">
+              <div className="settings-section">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Data & Timeframe Configuration</h3>
+                <p className="settings-description mt-2">
+                  Configure historical data retrieval and market timeframes
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Days of Prehistoric Data</Label>
+                      <span className="text-sm font-medium">{settings.prehistoricDataDays || 5} days</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={15}
+                      step={1}
+                      value={[settings.prehistoricDataDays || 5]}
+                      onValueChange={([value]) => handleSettingChange("prehistoricDataDays", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Historical data to load on startup (1-15 days)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Market Timeframe</Label>
+                    <Select
+                      value={String(settings.marketTimeframe || 1)}
+                      onValueChange={(value) => handleSettingChange("marketTimeframe", Number.parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select timeframe" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 second</SelectItem>
+                        <SelectItem value="5">5 seconds</SelectItem>
+                        <SelectItem value="15">15 seconds</SelectItem>
+                        <SelectItem value="30">30 seconds</SelectItem>
+                        <SelectItem value="60">1 minute</SelectItem>
+                        <SelectItem value="300">5 minutes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Market data update interval</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="settings-divider my-8" />
+
+              <div className="settings-section">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Volume Configuration</h3>
+                <p className="settings-description mt-2">
+                  Configure volume factors and position calculation settings
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Base Volume Factor</Label>
+                      <span className="text-sm font-medium">{settings.base_volume_factor || 1}</span>
+                    </div>
+                    <Slider
+                      min={0.5}
+                      max={10}
+                      step={0.5}
+                      value={[settings.base_volume_factor || 1]}
+                      onValueChange={([value]) => handleSettingChange("base_volume_factor", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Position volume multiplier (0.5-10)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Range Percentage (Loss Trigger)</Label>
+                      <span className="text-sm font-medium">{settings.negativeChangePercent || 20}%</span>
+                    </div>
+                    <Slider
+                      min={5}
+                      max={30}
+                      step={5}
+                      value={[settings.negativeChangePercent || 20]}
+                      onValueChange={([value]) => {
+                        handleSettingChange("negativeChangePercent", value)
+                        handleSettingChange("risk_percentage" as any, value)
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Market price change % to trigger loss calculation (5-30%)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Positions Average</Label>
+                      <span className="text-sm font-medium">{settings.positions_average || 50}</span>
+                    </div>
+                    <Slider
+                      min={20}
+                      max={300}
+                      step={10}
+                      value={[settings.positions_average || 50]}
+                      onValueChange={([value]) => handleSettingChange("positions_average", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Target positions count for volume averaging calculation (20-300)
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Minimum Volume Enforcement</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Require minimum trading volume for positions
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.min_volume_enforcement !== false}
+                      onCheckedChange={(checked) => handleSettingChange("min_volume_enforcement", checked)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Position Configuration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Position cost as ratio/percentage used for pseudo position calculations (Base/Main/Real levels).
+                  Volume is calculated ONLY at Exchange level when orders are executed. This value is
+                  account-balance independent.
+                </p>
+
+                <div className="space-y-2">
+                  <Label>Position Cost Percentage (0.01% - 1.0%)</Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      min={0.01}
+                      max={1.0}
+                      step={0.01}
+                      value={[settings.exchangePositionCost ?? settings.positionCost ?? 0.1]}
+                      onValueChange={([value]) => {
+                        handleSettingChange("exchangePositionCost", value)
+                        handleSettingChange("positionCost", value)
+                      }}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-medium w-16 text-right">
+                      {(settings.exchangePositionCost ?? settings.positionCost ?? 0.1).toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Position cost ratio used for Base/Main/Real pseudo position calculations (count-based, no
+                    volume). Volume is calculated at Exchange level: volume = (accountBalance × positionCost) /
+                    (entryPrice × leverage). Range: 0.01% - 1.0%, Default: 0.1%
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Leverage Configuration</h3>
+                <p className="text-sm text-muted-foreground">Configure leverage settings and limits</p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Leverage Percentage</Label>
+                      <span className="text-sm font-medium">{settings.leveragePercentage || 100}%</span>
+                    </div>
+                    <Slider
+                      min={5}
+                      max={100}
+                      step={5}
+                      value={[settings.leveragePercentage || 100]}
+                      onValueChange={([value]) => handleSettingChange("leveragePercentage", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Percentage of max leverage to use (5-100%)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Max Leverage</Label>
+                      <span className="text-sm font-medium">{settings.max_leverage || 125}x</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={125}
+                      step={1}
+                      value={[settings.max_leverage || 125]}
+                      onValueChange={([value]) => handleSettingChange("max_leverage", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Maximum leverage allowed (1-125x)</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Use Maximal Leverage</Label>
+                      <p className="text-xs text-muted-foreground">Always use maximum available leverage</p>
+                    </div>
+                    <Switch
+                      checked={settings.useMaximalLeverage !== false}
+                      onCheckedChange={(checked) => handleSettingChange("useMaximalLeverage", checked)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Symbol Configuration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Configure symbol selection and ordering from exchanges
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Symbol Order Type</Label>
+                    <Select
+                      value={settings.symbolOrderType || "volume24h"}
+                      onValueChange={(value) => handleSettingChange("symbolOrderType", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="volume24h">24h Volume (Highest First)</SelectItem>
+                        <SelectItem value="marketCap">Market Cap (Largest First)</SelectItem>
+                        <SelectItem value="priceChange24h">24h Price Change</SelectItem>
+                        <SelectItem value="volatility">Volatility (Most Volatile)</SelectItem>
+                        <SelectItem value="trades24h">24h Trades (Most Active)</SelectItem>
+                        <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Order symbols retrieved from exchange</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Number of Symbols</Label>
+                      <span className="text-sm font-medium">{settings.numberOfSymbolsToSelect || 8}</span>
+                    </div>
+                    <Slider
+                      min={2}
+                      max={30}
+                      step={1}
+                      value={[settings.numberOfSymbolsToSelect || 8]}
+                      onValueChange={([value]) => handleSettingChange("numberOfSymbolsToSelect", value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Count of symbols to retrieve from exchange (2-30)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Quote Asset</Label>
+                    <Select
+                      value={settings.quoteAsset || "USDT"}
+                      onValueChange={(value) => handleSettingChange("quoteAsset", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USDT">USDT</SelectItem>
+                        <SelectItem value="USDC">USDC</SelectItem>
+                        <SelectItem value="BUSD">BUSD</SelectItem>
+                        <SelectItem value="BTC">BTC</SelectItem>
+                        <SelectItem value="ETH">ETH</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Quote currency for trading pairs</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Use Main Symbols Only</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Trade only configured main symbols instead of exchange retrieval
+                      </p>
+                    </div>
+                    <Switch
+                      id="useMainSymbols"
+                      checked={settings.useMainSymbols || false}
+                      onCheckedChange={(checked) => handleSettingChange("useMainSymbols", checked)}
+                    />
+                  </div>
+                </div>
+
+                {/* Main Symbols Configuration */}
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Main Symbols</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Primary trading symbols - used when {"Use Main Symbols Only"} is enabled
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(settings.mainSymbols || ["BTC", "ETH", "BNB", "XRP", "ADA", "SOL"]).map((symbol) => (
+                      <Badge key={symbol} variant="secondary" className="flex items-center gap-1 px-3 py-1">
+                        {symbol}
+                        <button onClick={() => removeMainSymbol(symbol)} className="ml-1 hover:text-destructive" type="button">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add symbol (e.g., DOGE)"
+                      value={newMainSymbol}
+                      onChange={(e) => setNewMainSymbol(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && addMainSymbol()}
+                      className="max-w-[200px]"
+                    />
+                    <Button variant="outline" size="sm" onClick={addMainSymbol}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Forced Symbols Configuration */}
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Forced Symbols</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Symbols always included in trading regardless of other settings
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(settings.forcedSymbols || ["XRP", "BCH"]).map((symbol) => (
+                      <Badge key={symbol} variant="default" className="flex items-center gap-1 px-3 py-1">
+                        {symbol}
+                        <button
+                          onClick={() => removeForcedSymbol(symbol)}
+                          className="ml-1 hover:text-destructive"
+                          type="button"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add symbol (e.g., MATIC)"
+                      value={newForcedSymbol}
+                      onChange={(e) => setNewForcedSymbol(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && addForcedSymbol()}
+                      className="max-w-[200px]"
+                    />
+                    <Button variant="outline" size="sm" onClick={addForcedSymbol}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="connection" className="space-y-4">
+          <ExchangeConnectionManager connections={connections} />
+        </TabsContent>
+
+        <TabsContent value="monitoring" className="space-y-4">
+          <StatisticsOverview />
+        </TabsContent>
+
+        <TabsContent value="install" className="space-y-4">
+          <InstallManager />
+        </TabsContent>
+
+        <TabsContent value="backup" className="space-y-4">
+          <LogsViewer />
+        </TabsContent>
+      </Tabs>
+    </TabsContent>
+  )
+}

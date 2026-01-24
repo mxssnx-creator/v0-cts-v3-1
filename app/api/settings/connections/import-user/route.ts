@@ -15,11 +15,11 @@ export async function POST() {
 
     for (const userConn of USER_CONNECTIONS) {
       try {
-        // Check if connection already exists
-        const existing = await query(
-          `SELECT id FROM connections WHERE name = $1 AND exchange = $2`,
-          [userConn.name, userConn.exchange]
-        )
+  // Check if connection already exists
+  const existing = await query(
+    `SELECT id FROM exchange_connections WHERE name = $1 AND exchange = $2`,
+    [userConn.name, userConn.exchange]
+  )
 
         if (existing.length > 0) {
           console.log(`[v0] Skipping ${userConn.displayName} - already exists`)
@@ -27,9 +27,9 @@ export async function POST() {
           continue
         }
 
-        // Insert the connection
-        await query(
-          `INSERT INTO connections (
+  // Insert the connection
+  await query(
+    `INSERT INTO exchange_connections (
             name,
             exchange,
             api_type,
@@ -57,7 +57,7 @@ export async function POST() {
             userConn.marginType || "cross",
             userConn.positionMode || "hedge",
             userConn.isTestnet,
-            false, // Start disabled for safety
+            true, // Enabled by default
             false,
             false,
           ]
@@ -97,7 +97,7 @@ export async function GET() {
     const connections = await Promise.all(
       USER_CONNECTIONS.map(async (userConn) => {
         const existing = await query(
-          `SELECT id, is_enabled FROM connections WHERE name = $1 AND exchange = $2`,
+          `SELECT id, is_enabled FROM exchange_connections WHERE name = $1 AND exchange = $2`,
           [userConn.name, userConn.exchange]
         )
 

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         ON CONFLICT (id) DO UPDATE SET
           is_predefined = true,
           is_active = true,
-          is_enabled = false
+          is_enabled = true
       `
 
       // Initialize volume configuration

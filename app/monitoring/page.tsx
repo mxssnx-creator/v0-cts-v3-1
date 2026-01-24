@@ -21,6 +21,9 @@ import {
 } from "lucide-react"
 import type { JSX } from "react/jsx-runtime"
 import { TradeEngineStatus } from "@/components/monitoring/trade-engine-status"
+import { MonitoringAlerts } from "@/components/monitoring/monitoring-alerts"
+import { BackupManager } from "@/components/monitoring/backup-manager"
+import { EmergencyStopButton } from "@/components/emergency-stop-button"
 
 type LogLevel = "info" | "warning" | "error" | "debug"
 type SystemState = "active" | "inactive" | "error" | "warning"
@@ -345,6 +348,7 @@ export default function MonitoringPage() {
           <p className="text-muted-foreground">Real-time system states, logs, and error tracking</p>
         </div>
         <div className="flex gap-2">
+          <EmergencyStopButton />
           <Button
             variant="outline"
             onClick={() => {
@@ -368,8 +372,10 @@ export default function MonitoringPage() {
       </div>
 
       <Tabs defaultValue="states" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="states">System States</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+          <TabsTrigger value="backup">Backup</TabsTrigger>
           <TabsTrigger value="trade-engines">Trade Engines</TabsTrigger>
           <TabsTrigger value="site">Site Logs</TabsTrigger>
           <TabsTrigger value="toasts">Toast Messages</TabsTrigger>
@@ -453,6 +459,14 @@ export default function MonitoringPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-4">
+          <MonitoringAlerts />
+        </TabsContent>
+
+        <TabsContent value="backup" className="space-y-4">
+          <BackupManager />
         </TabsContent>
 
         <TabsContent value="trade-engines" className="space-y-4">

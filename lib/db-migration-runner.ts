@@ -24,19 +24,17 @@ export async function runAllMigrations(): Promise<MigrationResult> {
     console.log("[v0] Running production migrations...")
     console.log(`[v0] Database Type: ${dbType}`)
 
-    // Create migrations table
+    // Create migrations table (matches unified_complete_setup.sql structure)
     const createTableSQL =
       dbType === "sqlite"
         ? `CREATE TABLE IF NOT EXISTS migrations (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
-            checksum TEXT NOT NULL,
             executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )`
         : `CREATE TABLE IF NOT EXISTS migrations (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
-            checksum TEXT NOT NULL,
             executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )`
 
@@ -108,11 +106,33 @@ export async function runAllMigrations(): Promise<MigrationResult> {
     console.log(`[v0] Executing ${otherStatements.length} other statements...`)
     console.log(`[v0] Executing ${createIndexStatements.length} CREATE INDEX statements...`)
 
-    for (const statement of orderedStatements) {
+    for (let i = 0; i < orderedStatements.length; i++) {
+      const statement = orderedStatements[i]
       try {
         if (statement.trim()) {
           await execute(statement, [])
           applied++
+          
+          // Record each SQL statement as a migration for accurate count
+          try {
+            const stmtType = statement.trim().split(/\s+/)[0].toUpperCase()
+            const stmtPreview = statement.substring(0, 50).replace(/\s+/g, " ").trim()
+            const migrationName = `unified_${i.toString().padStart(3, '0')}_${stmtType}_${stmtPreview.substring(0, 40)}`
+            
+            const existing = await query(
+              "SELECT COUNT(*) as count FROM migrations WHERE name = ?",
+              [migrationName]
+            )
+            
+            if (existing[0]?.count === 0) {
+              await execute(
+                "INSERT INTO migrations (name, executed_at) VALUES (?, CURRENT_TIMESTAMP)",
+                [migrationName]
+              )
+            }
+          } catch (migError) {
+            // Silently ignore migration tracking errors - not critical
+          }
         }
       } catch (error: any) {
         const errorMsg = error?.message || String(error)

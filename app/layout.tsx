@@ -9,6 +9,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
 import { DatabaseInitAlert } from "@/components/database-init-alert"
+import { initializeApplication } from "@/lib/init-app"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -16,13 +17,13 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Database initialization is now handled via web-based install at /settings
-  // This allows the app to start even if database is not ready
+  // Auto-initialize database on first load
+  await initializeApplication()
   
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>

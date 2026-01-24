@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE INDEX IF NOT EXISTS idx_system_settings_category ON system_settings(category);
 CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(key);
 
+-- Migrations tracking table
+CREATE TABLE IF NOT EXISTS migrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_migrations_name ON migrations(name);
+
 -- Site logs
 CREATE TABLE IF NOT EXISTS site_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

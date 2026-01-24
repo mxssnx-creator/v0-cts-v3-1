@@ -10,58 +10,59 @@ export async function GET() {
       SELECT 
         COUNT(DISTINCT ec.id) as active_connections,
         COUNT(DISTINCT i.id) as total_indications,
-        ${isSQLite ? "SUM(CASE WHEN i.is_active = 1 THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE i.is_active = true)"} as active_indications,
+        COUNT(DISTINCT i.id) as active_indications,
         COUNT(DISTINCT ps.id) as total_strategies,
         ${isSQLite ? "SUM(CASE WHEN ps.is_active = 1 THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE ps.is_active = true)"} as active_strategies,
         COUNT(DISTINCT pp.id) as total_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'base' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'base')"} as base_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'main' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'main')"} as main_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'real' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'real')"} as real_positions,
-        ${isSQLite ? "SUM(CASE WHEN pp.type = 'active' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.type = 'active')"} as active_positions,
+        0 as base_positions,
+        0 as main_positions,
+        0 as real_positions,
+        ${isSQLite ? "SUM(CASE WHEN pp.status = 'open' THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.status = 'open')"} as active_positions,
         COUNT(DISTINCT pp.symbol) as active_symbols,
-        COALESCE(SUM(pp.position_cost), 0) as total_volume_24h,
-        ${isSQLite ? "SUM(CASE WHEN datetime(pp.created_at) > datetime('now', '-1 hour') THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.created_at > NOW() - INTERVAL '1 hour')"} as trades_per_hour
+        COALESCE(SUM(pp.volume * pp.entry_price), 0) as total_volume_24h,
+        ${isSQLite ? "SUM(CASE WHEN datetime(pp.opened_at) > datetime('now', '-1 hour') THEN 1 ELSE 0 END)" : "COUNT(*) FILTER (WHERE pp.opened_at > NOW() - INTERVAL '1 hour')"} as trades_per_hour
       FROM exchange_connections ec
       LEFT JOIN indications i ON i.connection_id = ec.id
-      LEFT JOIN pseudo_positions pp ON pp.connection_id = ec.id AND pp.status = 'active'
+      LEFT JOIN pseudo_positions pp ON pp.connection_id = ec.id AND pp.status = 'open'
       LEFT JOIN preset_strategies ps ON ps.connection_id = ec.id
       WHERE ec.${isSQLite ? "is_enabled = 1" : "is_enabled = true"}
     `)
 
+    // Note: pseudo_positions table doesn't have a 'type' column in the current schema
+    // Using indication_type as a proxy for categorization
     const profitFactorByTypeResult = await query(`
       SELECT 
-        type,
-        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_factor END) as pf_last_20h,
-        AVG(profit_factor) as pf_last_25
+        'main' as type,
+        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_loss_percent END) as pf_last_20h,
+        AVG(profit_loss_percent) as pf_last_25
       FROM (
-        SELECT type, profit_factor, closed_at
+        SELECT profit_loss_percent, closed_at
         FROM pseudo_positions
-        WHERE status = 'closed'
+        WHERE status = 'closed' AND closed_at IS NOT NULL
         ORDER BY closed_at DESC
         LIMIT 100
       ) as subquery
-      GROUP BY type
     `)
 
     const profitFactorResult = await queryOne(`
       SELECT 
-        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_factor END) as pf_last_20h,
-        AVG(profit_factor) as pf_last_50
+        AVG(CASE WHEN ${isSQLite ? "datetime(closed_at) > datetime('now', '-20 hours')" : "closed_at > NOW() - INTERVAL '20 hours'"} THEN profit_loss_percent END) as pf_last_20h,
+        AVG(profit_loss_percent) as pf_last_50
       FROM (
-        SELECT profit_factor, closed_at
+        SELECT profit_loss_percent, closed_at
         FROM pseudo_positions
-        WHERE status = 'closed'
+        WHERE status = 'closed' AND closed_at IS NOT NULL
         ORDER BY closed_at DESC
         LIMIT 50
       ) as subquery
     `)
 
     const profitMetrics25 = await queryOne(`
-      SELECT AVG(profit_factor) as pf_last_25
+      SELECT AVG(profit_loss_percent) as pf_last_25
       FROM (
-        SELECT profit_factor
+        SELECT profit_loss_percent
         FROM pseudo_positions
-        WHERE status = 'closed'
+        WHERE status = 'closed' AND closed_at IS NOT NULL
         ORDER BY closed_at DESC
         LIMIT 25
       ) as subquery

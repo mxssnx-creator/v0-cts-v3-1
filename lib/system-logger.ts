@@ -50,16 +50,25 @@ export class SystemLogger {
       // Disable database logging for critical errors to prevent spam
       if (dbError instanceof Error) {
         const errorMsg = dbError.message.toLowerCase()
+        const errorCode = (dbError as any).code || ""
         
         if (errorMsg.includes("no such table: site_logs")) {
           console.warn(
             "[SystemLogger] site_logs table not found - disabling database logging. Please run database initialization."
           )
           SystemLogger.dbLoggingDisabled = true
-        } else if (errorMsg.includes("readonly") || errorMsg.includes("disk i/o error")) {
-          console.warn(
-            "[SystemLogger] Database is read-only or has I/O errors - disabling database logging. This is normal in serverless environments."
-          )
+        } else if (
+          errorMsg.includes("readonly") || 
+          errorMsg.includes("disk i/o error") ||
+          errorCode === "SQLITE_IOERR" ||
+          errorCode.startsWith("SQLITE_IOERR_")
+        ) {
+          // Only log this warning once, then fail silently
+          if (!SystemLogger.dbLoggingDisabled) {
+            console.warn(
+              "[SystemLogger] Database is read-only or has I/O errors - disabling database logging. This is normal in serverless environments."
+            )
+          }
           SystemLogger.dbLoggingDisabled = true
         } else {
           console.error("[SystemLogger] Failed to log to database:", dbError)
