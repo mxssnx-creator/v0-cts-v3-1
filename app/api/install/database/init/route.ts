@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query, getDatabaseType } from "@/lib/db"
-import { DatabaseInitializer } from "@/lib/db-initializer"
+import { runAllMigrations } from "@/lib/db-migration-runner"
 
 export const runtime = "nodejs"
 
@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
     console.log("[DATABASE INIT] Starting database initialization...")
     console.log("[DATABASE INIT] Database type:", getDatabaseType())
 
-    const success = await DatabaseInitializer.initialize()
+    const result = await runAllMigrations()
 
-    if (!success) {
+    if (!result.success) {
       console.error("[DATABASE INIT] Initialization returned false")
-      throw new Error("Database initialization failed")
+      throw new Error(result.message || "Database initialization failed")
     }
 
     const dbType = getDatabaseType()

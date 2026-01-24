@@ -1,24 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query, execute } from "@/lib/db"
 import { nanoid } from "nanoid"
-import { DatabaseInitializer } from "@/lib/db-initializer"
 import { SystemLogger } from "@/lib/system-logger"
 
 export const runtime = "nodejs"
 
-async function ensurePresetsTables() {
-  try {
-    await DatabaseInitializer.ensureInitialized()
-    console.log("[v0] Presets tables verified")
-  } catch (error) {
-    console.error("[v0] Failed to ensure presets tables:", error)
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     console.log("[v0] GET /api/presets - Starting...")
-    await ensurePresetsTables()
 
     const searchParams = request.nextUrl.searchParams
     const activeOnly = searchParams.get("active") === "true"
@@ -78,8 +67,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensurePresetsTables()
-
     const body = await request.json()
 
     if (!body.name) {

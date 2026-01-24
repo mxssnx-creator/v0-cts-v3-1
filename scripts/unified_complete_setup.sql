@@ -322,6 +322,51 @@ CREATE INDEX IF NOT EXISTS idx_strategies_trailing_conn_symbol ON strategies_tra
 CREATE INDEX IF NOT EXISTS idx_strategies_trailing_success ON strategies_trailing(connection_id, trail_success_rate DESC);
 
 -- =============================================================================
+-- TRADE ENGINE AND TRACKING TABLES
+-- =============================================================================
+
+-- Trade Engine State
+CREATE TABLE IF NOT EXISTS trade_engine_state (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  connection_id INTEGER NOT NULL,
+  status TEXT DEFAULT 'stopped' CHECK (status IN ('running', 'stopped', 'paused', 'error')),
+  last_indication_run DATETIME,
+  last_strategy_run DATETIME,
+  last_realtime_run DATETIME,
+  prehistoric_data_loaded INTEGER DEFAULT 0,
+  prehistoric_data_start DATETIME,
+  prehistoric_data_end DATETIME,
+  active_positions_count INTEGER DEFAULT 0,
+  total_volume REAL DEFAULT 0,
+  error_message TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(connection_id),
+  FOREIGN KEY (connection_id) REFERENCES exchange_connections(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_trade_engine_state_connection ON trade_engine_state(connection_id);
+CREATE INDEX IF NOT EXISTS idx_trade_engine_state_status ON trade_engine_state(status);
+
+-- Indications (main table)
+CREATE TABLE IF NOT EXISTS indications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  connection_id INTEGER NOT NULL,
+  symbol TEXT NOT NULL,
+  indication_type TEXT NOT NULL,
+  timeframe TEXT NOT NULL,
+  value REAL NOT NULL,
+  profit_factor REAL,
+  confidence REAL,
+  metadata TEXT,
+  calculated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (connection_id) REFERENCES exchange_connections(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_indications_connection ON indications(connection_id);
+CREATE INDEX IF NOT EXISTS idx_indications_symbol ON indications(symbol);
+CREATE INDEX IF NOT EXISTS idx_indications_calculated_at ON indications(calculated_at DESC);
+
+-- =============================================================================
 -- PRESET AND CONFIGURATION TABLES
 -- =============================================================================
 
@@ -333,6 +378,19 @@ CREATE TABLE IF NOT EXISTS preset_types (
   is_active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Preset Type Sets
+CREATE TABLE IF NOT EXISTS preset_type_sets (
+  id TEXT PRIMARY KEY,
+  preset_type_id TEXT NOT NULL,
+  configuration_set_id TEXT NOT NULL,
+  priority INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(preset_type_id, configuration_set_id)
+);
+CREATE INDEX IF NOT EXISTS idx_preset_type_sets_preset ON preset_type_sets(preset_type_id);
+CREATE INDEX IF NOT EXISTS idx_preset_type_sets_config ON preset_type_sets(configuration_set_id);
 
 -- Preset configurations
 CREATE TABLE IF NOT EXISTS preset_configurations (
@@ -351,6 +409,47 @@ CREATE TABLE IF NOT EXISTS preset_configurations (
 CREATE INDEX IF NOT EXISTS idx_preset_config_preset_type ON preset_configurations(preset_type_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_preset_config_connection ON preset_configurations(connection_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_preset_config_indication ON preset_configurations(indication_type, strategy_type, is_active);
+
+-- Preset strategies (validated strategies per preset)
+CREATE TABLE IF NOT EXISTS preset_strategies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  preset_id INTEGER,
+  connection_id INTEGER NOT NULL,
+  symbol TEXT NOT NULL,
+  indication_type TEXT NOT NULL,
+  indication_range INTEGER NOT NULL,
+  strategy_type TEXT NOT NULL,
+  takeprofit_factor REAL NOT NULL,
+  stoploss_ratio REAL NOT NULL,
+  trailing_enabled INTEGER DEFAULT 0,
+  trail_start REAL,
+  trail_stop REAL,
+  block_adjustment_enabled INTEGER DEFAULT 0,
+  block_size INTEGER,
+  block_adjustment_ratio REAL,
+  dca_adjustment_enabled INTEGER DEFAULT 0,
+  dca_levels INTEGER,
+  volume_factor REAL DEFAULT 1.0,
+  profit_factor REAL NOT NULL,
+  win_rate REAL,
+  total_trades INTEGER DEFAULT 0,
+  winning_trades INTEGER DEFAULT 0,
+  losing_trades INTEGER DEFAULT 0,
+  max_drawdown REAL,
+  is_validated INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  last_validated_at DATETIME,
+  validation_period_start DATETIME,
+  validation_period_end DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (connection_id) REFERENCES exchange_connections(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_preset_strategies_connection ON preset_strategies(connection_id);
+CREATE INDEX IF NOT EXISTS idx_preset_strategies_symbol ON preset_strategies(symbol);
+CREATE INDEX IF NOT EXISTS idx_preset_strategies_validated ON preset_strategies(is_validated);
+CREATE INDEX IF NOT EXISTS idx_preset_strategies_active ON preset_strategies(is_active);
+CREATE INDEX IF NOT EXISTS idx_preset_strategies_profit_factor ON preset_strategies(profit_factor DESC);
 
 -- =============================================================================
 -- MARKET DATA AND TRADING TABLES
@@ -468,7 +567,7 @@ CREATE TABLE IF NOT EXISTS pseudo_positions (
 CREATE INDEX IF NOT EXISTS idx_pseudo_positions_conn_symbol ON pseudo_positions(connection_id, symbol, status);
 CREATE INDEX IF NOT EXISTS idx_pseudo_positions_status ON pseudo_positions(status, connection_id);
 CREATE INDEX IF NOT EXISTS idx_pseudo_positions_indication ON pseudo_positions(connection_id, indication_type, strategy_type);
-CREATE INDEX IF NOT EXISTS idx_pseudo_positions_created ON pseudo_positions(connection_id, symbol, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pseudo_positions_created ON pseudo_positions(connection_id, symbol, opened_at DESC);
 
 -- =============================================================================
 -- PERFORMANCE AND STATISTICS TABLES

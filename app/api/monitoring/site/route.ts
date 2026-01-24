@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server"
 import { query, execute, getDatabaseType } from "@/lib/db"
-import { DatabaseInitializer } from "@/lib/db-initializer"
 import { ErrorLogger } from "@/lib/error-logger"
 
 async function ensureSiteLogsTable() {
   try {
-    await DatabaseInitializer.ensureInitialized()
-
     console.log("[v0] Checking if site_logs table exists...")
 
     const dbType = getDatabaseType()
@@ -94,25 +91,35 @@ export async function GET(request: Request) {
 
     let logs
     const dbType = getDatabaseType()
-    const placeholder = dbType === "sqlite" ? "?" : "$"
 
     if (level && level !== "all" && category && category !== "all") {
       logs = await query(
-        `SELECT * FROM site_logs WHERE level = ${placeholder}1 AND category = ${placeholder}2 ORDER BY timestamp DESC LIMIT ${placeholder}3`,
+        dbType === "sqlite"
+          ? `SELECT * FROM site_logs WHERE level = ? AND category = ? ORDER BY timestamp DESC LIMIT ?`
+          : `SELECT * FROM site_logs WHERE level = $1 AND category = $2 ORDER BY timestamp DESC LIMIT $3`,
         [level, category, limit],
       )
     } else if (level && level !== "all") {
       logs = await query(
-        `SELECT * FROM site_logs WHERE level = ${placeholder}1 ORDER BY timestamp DESC LIMIT ${placeholder}2`,
+        dbType === "sqlite"
+          ? `SELECT * FROM site_logs WHERE level = ? ORDER BY timestamp DESC LIMIT ?`
+          : `SELECT * FROM site_logs WHERE level = $1 ORDER BY timestamp DESC LIMIT $2`,
         [level, limit],
       )
     } else if (category && category !== "all") {
       logs = await query(
-        `SELECT * FROM site_logs WHERE category = ${placeholder}1 ORDER BY timestamp DESC LIMIT ${placeholder}2`,
+        dbType === "sqlite"
+          ? `SELECT * FROM site_logs WHERE category = ? ORDER BY timestamp DESC LIMIT ?`
+          : `SELECT * FROM site_logs WHERE category = $1 ORDER BY timestamp DESC LIMIT $2`,
         [category, limit],
       )
     } else {
-      logs = await query(`SELECT * FROM site_logs ORDER BY timestamp DESC LIMIT ${placeholder}1`, [limit])
+      logs = await query(
+        dbType === "sqlite"
+          ? `SELECT * FROM site_logs ORDER BY timestamp DESC LIMIT ?`
+          : `SELECT * FROM site_logs ORDER BY timestamp DESC LIMIT $1`,
+        [limit],
+      )
     }
 
     console.log("[v0] Fetched", logs.length, "site logs")
@@ -136,14 +143,19 @@ export async function POST(request: Request) {
     console.log("[v0] Inserting site log:", { level, category, message })
 
     const dbType = getDatabaseType()
-    const placeholder = dbType === "sqlite" ? "?" : "$"
-    const timestampFunc = dbType === "sqlite" ? "datetime('now')" : "NOW()"
 
+    // Don't include timestamp - let database use DEFAULT value
+    // SQLite uses ? placeholders, PostgreSQL uses $1, $2, etc.
     const result = await execute(
-      `INSERT INTO site_logs (
-        level, category, message, context, user_id, connection_id, 
-        error_message, error_stack, metadata, timestamp
-      ) VALUES (${placeholder}1, ${placeholder}2, ${placeholder}3, ${placeholder}4, ${placeholder}5, ${placeholder}6, ${placeholder}7, ${placeholder}8, ${placeholder}9, ${timestampFunc})`,
+      dbType === "sqlite"
+        ? `INSERT INTO site_logs (
+            level, category, message, context, user_id, connection_id, 
+            error_message, error_stack, metadata
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        : `INSERT INTO site_logs (
+            level, category, message, context, user_id, connection_id, 
+            error_message, error_stack, metadata
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         level,
         category,

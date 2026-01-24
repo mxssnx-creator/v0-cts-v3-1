@@ -6047,7 +6047,7 @@ export default function SettingsPage() {
                       </li>
                       <li>
                         <strong>PostgreSQL (Remote):</strong> For distributed systems with remote database server (e.g.,
-                        Vercel Postgres, Supabase).
+                        Vercel Postgres).
                       </li>
                     </ul>
                   </div>

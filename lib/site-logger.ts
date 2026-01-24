@@ -7,7 +7,10 @@ export class SiteLogger {
     if (typeof window === "undefined") return
 
     try {
+      // Store logs locally for download functionality
       const logData = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
         level,
         category,
         message,
@@ -17,24 +20,19 @@ export class SiteLogger {
         userAgent: navigator.userAgent,
       }
 
-      console.log("[v0] Sending site log:", level, category, message)
-
-      // Send to API
-      const response = await fetch("/api/monitoring/site", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(logData),
-      }).catch(() => null)
-
-      if (!response) {
-        console.error("[v0] Failed to send site log")
-      } else if (!response.ok) {
-        console.error("[v0] Failed to send site log, status:", response.status)
-      } else {
-        console.log("[v0] Site log sent successfully")
+      // Store in localStorage for download
+      const storedLogs = localStorage.getItem("site_logs")
+      const logs = storedLogs ? JSON.parse(storedLogs) : []
+      logs.push(logData)
+      
+      // Keep only last 1000 logs
+      if (logs.length > 1000) {
+        logs.shift()
       }
+      
+      localStorage.setItem("site_logs", JSON.stringify(logs))
 
-      // Also log to console in development
+      // Log to console
       if (process.env.NODE_ENV === "development") {
         console.log(`[Site ${level.toUpperCase()}]`, message, details)
       }

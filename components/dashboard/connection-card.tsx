@@ -625,13 +625,20 @@ export function ConnectionCard({
         body: JSON.stringify(activeIndications),
       })
 
-      if (!response.ok) throw new Error("Failed to save active indications")
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        if (data.needsInit) {
+          toast.error("Database not initialized. Please use the Quick Reinit button in the alert banner.")
+          return
+        }
+        throw new Error(data.error || "Failed to save active indications")
+      }
 
       toast.success("Active indications saved")
       setShowActivateTradeDialog(false)
     } catch (error) {
       console.error("[v0] Failed to save active indications:", error)
-      toast.error("Failed to save active indications")
+      toast.error(error instanceof Error ? error.message : "Failed to save active indications")
     }
   }
 
@@ -711,35 +718,165 @@ export function ConnectionCard({
           </div>
 
           <div className="flex gap-1 shrink-0">
-            <Dialog open={showLogs} onOpenChange={setShowLogs}>
-              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLogs(!showLogs)}
+              className="h-8 px-3 bg-transparent"
+            >
+              <Activity className="h-3.5 w-3.5 mr-1.5" />
+              Test Connection
+            </Button>
+
+            {showLogs && (
+              <Dialog open={showLogs} onOpenChange={setShowLogs}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Connection Logs - {connection.name}</DialogTitle>
+                    <DialogDescription>Real-time connection activity and system logs</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    {logs.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No logs available</p>
+                    ) : (
+                      logs.map((log, index) => (
+                        <div
+                          key={index}
+                          className={`text-xs font-mono p-2 rounded ${
+                            log.level === "error"
+                              ? "bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-100"
+                              : log.level === "warn"
+                                ? "bg-yellow-50 dark:bg-yellow-950 text-yellow-900 dark:text-yellow-100"
+                                : log.level === "success"
+                                  ? "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-100"
+                                  : "bg-gray-50 dark:bg-gray-900"
+                          }`}
+                        >
+                          <span className="text-muted-foreground">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{" "}
+                          <span className="font-semibold">[{log.level.toUpperCase()}]</span> {log.message}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            <Dialog open={showSettings} onOpenChange={setShowSettings}>
+              <DialogTrigger asChild>
+                <Button variant="default" size="sm" className="h-8 px-3">
+                  <Settings className="h-3.5 w-3.5 mr-1.5" />
+                  Edit Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Connection Logs - {connection.name}</DialogTitle>
-                  <DialogDescription>Real-time connection activity and system logs</DialogDescription>
+                  <DialogTitle>Connection Settings - {connection.name}</DialogTitle>
+                  <DialogDescription>Configure connection method, margin mode, and position settings</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-2">
-                  {logs.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No logs available</p>
-                  ) : (
-                    logs.map((log, index) => (
-                      <div
-                        key={index}
-                        className={`text-xs font-mono p-2 rounded ${
-                          log.level === "error"
-                            ? "bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-100"
-                            : log.level === "warn"
-                              ? "bg-yellow-50 dark:bg-yellow-950 text-yellow-900 dark:text-yellow-100"
-                              : log.level === "success"
-                                ? "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-100"
-                                : "bg-gray-50 dark:bg-gray-900"
-                        }`}
+                <div className="space-y-6 py-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="connection-method">Connection Method</Label>
+                      <Select
+                        value={connectionInfo.marginMode}
+                        onValueChange={(value) => setConnectionInfo({ ...connectionInfo, marginMode: value })}
                       >
-                        <span className="text-muted-foreground">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{" "}
-                        <span className="font-semibold">[{log.level.toUpperCase()}]</span> {log.message}
+                        <SelectTrigger id="connection-method">
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cross">Default Library (REST API)</SelectItem>
+                          <SelectItem value="isolated">WebSocket</SelectItem>
+                          <SelectItem value="ccxt">CCXT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Default Library uses the exchange's native REST API for maximum compatibility
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="margin-mode">Margin Mode</Label>
+                        <Select
+                          value={connectionInfo.marginMode}
+                          onValueChange={(value) => setConnectionInfo({ ...connectionInfo, marginMode: value })}
+                        >
+                          <SelectTrigger id="margin-mode">
+                            <SelectValue placeholder="Select margin mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cross">Cross Margin</SelectItem>
+                            <SelectItem value="isolated">Isolated Margin</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ))
-                  )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="position-mode">Position Mode</Label>
+                        <Select
+                          value={connectionInfo.positionType}
+                          onValueChange={(value) => setConnectionInfo({ ...connectionInfo, positionType: value })}
+                        >
+                          <SelectTrigger id="position-mode">
+                            <SelectValue placeholder="Select position mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="single">One-Way Mode</SelectItem>
+                            <SelectItem value="hedge">Hedge Mode</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Volume Factors</Label>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Base Volume Factor</span>
+                            <span className="text-sm font-semibold">{connectionInfo.baseVolumeFactor.toFixed(1)}</span>
+                          </div>
+                          <Slider
+                            value={[connectionInfo.baseVolumeFactor]}
+                            onValueChange={(value) =>
+                              setConnectionInfo({ ...connectionInfo, baseVolumeFactor: value[0] })
+                            }
+                            min={0.1}
+                            max={5.0}
+                            step={0.1}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Live Trade Factor</span>
+                            <span className="text-sm font-semibold">
+                              {connectionInfo.liveTradeVolumeFactor.toFixed(1)}
+                            </span>
+                          </div>
+                          <Slider
+                            value={[connectionInfo.liveTradeVolumeFactor]}
+                            onValueChange={(value) =>
+                              setConnectionInfo({ ...connectionInfo, liveTradeVolumeFactor: value[0] })
+                            }
+                            min={0.1}
+                            max={5.0}
+                            step={0.1}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowSettings(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => setShowSettings(false)}>Save Changes</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
 

@@ -27,54 +27,28 @@ export class ErrorLogger {
     })
 
     try {
-      const dbType = getDatabaseType()
-      const isPostgreSQL = dbType === "postgresql"
-
-      if (isPostgreSQL) {
-        await execute(
-          `INSERT INTO site_logs (
-            timestamp, level, category, message, context,
-            user_id, connection_id, error_message, error_stack, metadata
-          ) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [
-            "error",
-            category,
-            `${context}: ${errorMessage}`,
-            context,
-            userId || null,
-            connectionId || null,
-            errorMessage,
-            errorStack || null,
-            JSON.stringify({
-              ...metadata,
-              severity,
-              timestamp: new Date().toISOString(),
-            }),
-          ],
-        )
-      } else {
-        await execute(
-          `INSERT INTO site_logs (
-            timestamp, level, category, message, context,
-            user_id, connection_id, error_message, error_stack, metadata
-          ) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            "error",
-            category,
-            `${context}: ${errorMessage}`,
-            context,
-            userId || null,
-            connectionId || null,
-            errorMessage,
-            errorStack || null,
-            JSON.stringify({
-              ...metadata,
-              severity,
-              timestamp: new Date().toISOString(),
-            }),
-          ],
-        )
-      }
+      // Don't include timestamp - let database use DEFAULT value
+      await execute(
+        `INSERT INTO site_logs (
+          level, category, message, context,
+          user_id, connection_id, error_message, error_stack, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          "error",
+          category,
+          `${context}: ${errorMessage}`,
+          context,
+          userId || null,
+          connectionId || null,
+          errorMessage,
+          errorStack || null,
+          JSON.stringify({
+            ...metadata,
+            severity,
+            timestamp: new Date().toISOString(),
+          }),
+        ],
+      )
     } catch (logError) {
       console.error("[v0] Failed to log error to database:", logError)
     }
@@ -87,42 +61,27 @@ export class ErrorLogger {
     console.log(`[v0] Info in ${context}:`, message, metadata)
 
     try {
-      const dbType = getDatabaseType()
-      const isPostgreSQL = dbType === "postgresql"
-
-      if (isPostgreSQL) {
-        await execute(
-          `INSERT INTO site_logs (
-            timestamp, level, category, message, context, metadata
-          ) VALUES (NOW(), $1, $2, $3, $4, $5)`,
-          [
-            "info",
-            "system",
-            `${context}: ${message}`,
-            context,
-            JSON.stringify({
-              ...metadata,
-              timestamp: new Date().toISOString(),
-            }),
-          ],
-        )
-      } else {
-        await execute(
-          `INSERT INTO site_logs (
-            timestamp, level, category, message, context, metadata
-          ) VALUES (datetime('now'), ?, ?, ?, ?, ?)`,
-          [
-            "info",
-            "system",
-            `${context}: ${message}`,
-            context,
-            JSON.stringify({
-              ...metadata,
-              timestamp: new Date().toISOString(),
-            }),
-          ],
-        )
-      }
+      // Don't include timestamp - let database use DEFAULT value
+      await execute(
+        `INSERT INTO site_logs (
+          level, category, message, context, 
+          user_id, connection_id, error_message, error_stack, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          "info",
+          "system",
+          `${context}: ${message}`,
+          context,
+          null, // user_id
+          null, // connection_id
+          null, // error_message
+          null, // error_stack
+          JSON.stringify({
+            ...metadata,
+            timestamp: new Date().toISOString(),
+          }),
+        ],
+      )
     } catch (logError) {
       console.error("[v0] Failed to log info to database:", logError)
     }

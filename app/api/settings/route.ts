@@ -14,12 +14,12 @@ export async function GET() {
       const result = await query("SELECT key, value FROM system_settings")
       dbSettings = result as Array<{ key: string; value: string }>
       if (!Array.isArray(dbSettings)) {
-        console.log("[v0] Invalid settings data, returning empty object")
-        return NextResponse.json({}, { status: 200 })
+        console.log("[v0] Invalid settings data, returning empty settings object")
+        return NextResponse.json({ settings: {} }, { status: 200 })
       }
     } catch (error) {
-      console.log("[v0] Database not ready yet, returning default settings")
-      return NextResponse.json({}, { status: 200 })
+      console.log("[v0] Database not ready yet, returning empty settings object")
+      return NextResponse.json({ settings: {} }, { status: 200 })
     }
 
     const settings: Record<string, any> = {}
@@ -59,12 +59,12 @@ export async function GET() {
     console.log("[v0] Settings loaded successfully:", Object.keys(settings).length, "keys")
     await SystemLogger.logAPI(`Settings loaded: ${Object.keys(settings).length} keys`, "info", "GET /api/settings")
 
-    return NextResponse.json(settings)
+    return NextResponse.json({ settings })
   } catch (error) {
     console.error("[v0] Failed to get settings:", error)
     await SystemLogger.logError(error, "api", "GET /api/settings")
 
-    return NextResponse.json({}, { status: 200 })
+    return NextResponse.json({ settings: {} }, { status: 200 })
   }
 }
 

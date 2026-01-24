@@ -12,25 +12,28 @@ export interface LogEntry {
 }
 
 export class SystemLogger {
+  private static dbLoggingDisabled = false
+
   /**
    * Log to database with proper error handling
    */
   private static async logToDatabase(entry: LogEntry): Promise<void> {
+    // Skip if database logging was previously disabled
+    if (SystemLogger.dbLoggingDisabled) {
+      return
+    }
+
     try {
       const errorMessage = entry.error?.message || null
       const errorStack = entry.error?.stack || null
 
-      console.log("[v0] SystemLogger inserting log:", {
-        level: entry.level,
-        category: entry.category,
-        message: entry.message.substring(0, 50),
-      })
-
+      // Don't include timestamp - let database handle it with DEFAULT
+      // Use ? placeholders for SQLite (db.ts handles conversion for PostgreSQL)
       await execute(
         `INSERT INTO site_logs (
-          timestamp, level, category, message, context, 
+          level, category, message, context, 
           user_id, connection_id, error_message, error_stack, metadata
-        ) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           entry.level,
           entry.category,
@@ -43,12 +46,25 @@ export class SystemLogger {
           JSON.stringify(entry.metadata || {}),
         ],
       )
-
-      console.log("[v0] SystemLogger log inserted successfully")
     } catch (dbError) {
-      // Fallback to console if database logging fails
-      console.error("[SystemLogger] Failed to log to database:", dbError)
-      console.error("[SystemLogger] Original log entry:", entry)
+      // Disable database logging for critical errors to prevent spam
+      if (dbError instanceof Error) {
+        const errorMsg = dbError.message.toLowerCase()
+        
+        if (errorMsg.includes("no such table: site_logs")) {
+          console.warn(
+            "[SystemLogger] site_logs table not found - disabling database logging. Please run database initialization."
+          )
+          SystemLogger.dbLoggingDisabled = true
+        } else if (errorMsg.includes("readonly") || errorMsg.includes("disk i/o error")) {
+          console.warn(
+            "[SystemLogger] Database is read-only or has I/O errors - disabling database logging. This is normal in serverless environments."
+          )
+          SystemLogger.dbLoggingDisabled = true
+        } else {
+          console.error("[SystemLogger] Failed to log to database:", dbError)
+        }
+      }
     }
   }
 

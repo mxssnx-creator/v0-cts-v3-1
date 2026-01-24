@@ -1,20 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { DatabaseInitializer } from "@/lib/db-initializer"
 import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
 
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Initializing all predefined connections")
-
-    const dbReady = await DatabaseInitializer.initialize(5, 60000)
-    if (!dbReady) {
-      console.error("[v0] Database initialization failed after retries")
-      return NextResponse.json(
-        { error: "Database not ready", details: "Failed to initialize database" },
-        { status: 503 },
-      )
-    }
 
     const existing = await sql`
       SELECT id FROM exchange_connections 

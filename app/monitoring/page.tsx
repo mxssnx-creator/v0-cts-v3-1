@@ -289,6 +289,12 @@ export default function MonitoringPage() {
         content = JSON.stringify(siteLogs, null, 2)
         filename = `site-logs-${new Date().toISOString()}.json`
         break
+      case "site-local":
+        // Download logs from localStorage
+        const storedLogs = localStorage.getItem("site_logs")
+        content = storedLogs || "[]"
+        filename = `site-logs-local-${new Date().toISOString()}.json`
+        break
       case "site-errors":
         const siteErrors = siteLogs.filter((log) => log.level === "error")
         content = JSON.stringify(siteErrors, null, 2)
@@ -778,26 +784,22 @@ export default function MonitoringPage() {
               <Card className="border-primary/20">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    External API Access
+                    <Download className="h-4 w-4" />
+                    Local Site Logs
                   </CardTitle>
-                  <CardDescription>Use these endpoints for external monitoring tools</CardDescription>
+                  <CardDescription>Download logs stored locally in your browser</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Logs Export (JSON/CSV)</div>
-                    <code className="text-xs bg-muted p-2 rounded block">
-                      GET /api/monitoring/logs/export?format=json&level=error
-                    </code>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">System Statistics</div>
-                    <code className="text-xs bg-muted p-2 rounded block">GET /api/monitoring/stats</code>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">System States</div>
-                    <code className="text-xs bg-muted p-2 rounded block">GET /api/monitoring/system</code>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Site logs are now stored locally in your browser and can be downloaded anytime. This prevents network overhead and improves performance.
+                  </p>
+                  <Button onClick={() => downloadLogs("site-local")} className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Local Site Logs
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Stores up to 1000 most recent logs. Logs include navigation, errors, performance metrics, and user interactions.
+                  </p>
                 </CardContent>
               </Card>
             </CardContent>

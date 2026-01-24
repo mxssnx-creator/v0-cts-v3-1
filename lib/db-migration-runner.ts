@@ -61,15 +61,54 @@ export async function runAllMigrations(): Promise<MigrationResult> {
     }
 
     const sql = fs.readFileSync(scriptPath, "utf-8")
-    const statements = sql
+    
+    // Clean up SQL statements - remove comment markers and normalize
+    const allStatements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"))
+      .map((s) => {
+        // Remove leading > markers from multi-line comments
+        return s.replace(/^>\s*/gm, "").trim()
+      })
+      .filter((s) => {
+        if (s.length === 0) return false
+        if (s.startsWith("--")) return false
+        // Skip standalone comment markers
+        if (s === ">") return false
+        return true
+      })
+
+    // Separate statements by type for proper execution order
+    const createTableStatements: string[] = []
+    const createIndexStatements: string[] = []
+    const otherStatements: string[] = []
+
+    for (const stmt of allStatements) {
+      const upperStmt = stmt.toUpperCase()
+      if (upperStmt.startsWith("CREATE TABLE") || upperStmt.includes("CREATE TABLE IF NOT EXISTS")) {
+        createTableStatements.push(stmt)
+      } else if (upperStmt.startsWith("CREATE INDEX") || upperStmt.startsWith("CREATE UNIQUE INDEX")) {
+        createIndexStatements.push(stmt)
+      } else {
+        otherStatements.push(stmt)
+      }
+    }
+
+    // Execute in order: tables first, then other statements, then indexes
+    const orderedStatements = [
+      ...createTableStatements,
+      ...otherStatements,
+      ...createIndexStatements,
+    ]
 
     let applied = 0
     let skipped = 0
+    let failed = 0
 
-    for (const statement of statements) {
+    console.log(`[v0] Executing ${createTableStatements.length} CREATE TABLE statements...`)
+    console.log(`[v0] Executing ${otherStatements.length} other statements...`)
+    console.log(`[v0] Executing ${createIndexStatements.length} CREATE INDEX statements...`)
+
+    for (const statement of orderedStatements) {
       try {
         if (statement.trim()) {
           await execute(statement, [])
@@ -77,25 +116,41 @@ export async function runAllMigrations(): Promise<MigrationResult> {
         }
       } catch (error: any) {
         const errorMsg = error?.message || String(error)
+        const stmtPreview = statement.substring(0, 80).replace(/\s+/g, " ")
+        
+        // Only skip errors that indicate the object already exists
         if (
           errorMsg.includes("already exists") ||
-          errorMsg.includes("duplicate") ||
+          errorMsg.includes("duplicate column") ||
           errorMsg.includes("UNIQUE constraint")
         ) {
           skipped++
+        } else if (errorMsg.includes("no such table")) {
+          // Table doesn't exist - skip index creation
+          console.log(`[v0] Skipping index (table missing): ${stmtPreview}`)
+          skipped++
+        } else {
+          // Log real errors
+          console.error(`[v0] Migration error: ${errorMsg}`)
+          console.error(`[v0] Statement: ${stmtPreview}`)
+          failed++
+          // Continue with other migrations
         }
       }
     }
 
     const duration = Date.now() - startTime
-    console.log(`[v0] Migration complete: ${applied} applied, ${skipped} skipped in ${duration}ms`)
+    const success = failed === 0
+    console.log(`[v0] Migration complete: ${applied} applied, ${skipped} skipped, ${failed} failed in ${duration}ms`)
 
     return {
-      success: true,
+      success,
       applied,
       skipped,
-      failed: 0,
-      message: `Successfully executed ${applied} statements, ${skipped} skipped`,
+      failed,
+      message: success 
+        ? `Successfully executed ${applied} statements, ${skipped} skipped`
+        : `Executed ${applied} statements, ${skipped} skipped, ${failed} failed`,
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)

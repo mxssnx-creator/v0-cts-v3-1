@@ -8,7 +8,7 @@ import { StyleInitializer } from "@/components/style-initializer"
 import { AuthProvider } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
-import { initializeApplication } from "@/lib/init-app"
+import { DatabaseInitAlert } from "@/components/database-init-alert"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -21,10 +21,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  initializeApplication().catch((error) => {
-    console.error("[v0] Failed to initialize application:", error)
-  })
-
+  // Database initialization is now handled via web-based install at /settings
+  // This allows the app to start even if database is not ready
+  
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans">
@@ -37,6 +36,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             <SiteLoggerProvider>
+              <DatabaseInitAlert />
               <SidebarProvider defaultOpen={true}>
                 <AppSidebar />
                 <main className="flex-1 w-full">{children}</main>

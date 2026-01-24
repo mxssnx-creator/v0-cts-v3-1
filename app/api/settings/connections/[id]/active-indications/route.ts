@@ -37,15 +37,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const connectionId = id
     const body = await request.json()
 
+    console.log("[v0] Saving active indications for connection:", connectionId, body)
+
     await sql`
       INSERT INTO system_settings (key, value)
       VALUES (${`connection_${connectionId}_active_indications`}, ${JSON.stringify(body)})
       ON CONFLICT (key) DO UPDATE SET value = ${JSON.stringify(body)}
     `
 
+    console.log("[v0] Active indications saved successfully")
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("[v0] Error saving active indications:", error)
-    return NextResponse.json({ error: "Failed to save active indications" }, { status: 500 })
+    
+    // Check if it's a database table missing error
+    if (error instanceof Error && error.message.includes("no such table")) {
+      return NextResponse.json({ 
+        error: "Database not initialized. Please run database initialization from Settings.",
+        needsInit: true 
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Failed to save active indications" 
+    }, { status: 500 })
   }
 }

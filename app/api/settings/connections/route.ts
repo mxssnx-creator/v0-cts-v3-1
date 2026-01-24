@@ -132,9 +132,9 @@ export async function POST(request: NextRequest) {
       margin_type: body.margin_type || "cross",
       position_mode: body.position_mode || "hedge",
       is_testnet: body.is_testnet || false,
-      is_enabled: false,
-      is_live_trade: false,
-      is_preset_trade: false,
+      is_enabled: true, // Base connection enabled by default
+      is_live_trade: false, // Active trading disabled by default
+      is_preset_trade: false, // Active trading disabled by default
       is_active: true,
       is_predefined: false,
       volume_factor: 1.0,

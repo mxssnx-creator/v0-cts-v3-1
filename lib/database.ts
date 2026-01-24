@@ -71,6 +71,12 @@ class DatabaseManager {
   private async initializeTables() {
     if (isBuildPhase || this.initialized) return
 
+    // Tables are now created by the migration runner in instrumentation.ts
+    // This method is disabled to avoid schema conflicts
+    console.log("[v0] Skipping legacy table initialization - using migration runner instead")
+    this.initialized = true
+    return
+
     try {
       await retryWithBackoff(async () => {
         const client = getClient()
