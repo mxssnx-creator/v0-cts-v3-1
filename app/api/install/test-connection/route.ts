@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server"
-import { Pool } from "pg"
+
+// Dynamic import for optional pg dependency
+let Pool: any = null
+try {
+  const pg = require("pg")
+  Pool = pg.Pool
+} catch (error) {
+  console.warn("[v0] pg module not available - PostgreSQL features disabled")
+}
 
 export async function POST(request: Request) {
-  let testClient: Pool | null = null
+  let testClient: any = null
   
   try {
     const body = await request.json()
@@ -19,6 +27,16 @@ export async function POST(request: Request) {
     }
 
     if (databaseType === "postgresql") {
+      if (!Pool) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "PostgreSQL support is not available in this deployment. Please use SQLite instead.",
+          },
+          { status: 500 }
+        )
+      }
+
       if (!databaseUrl) {
         throw new Error("Database URL is required for PostgreSQL")
       }
