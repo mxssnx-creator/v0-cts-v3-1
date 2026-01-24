@@ -9,6 +9,21 @@ interface StatisticsOverviewProps {
 }
 
 export function StatisticsOverview({ settings }: StatisticsOverviewProps) {
+  // Safety check for undefined settings
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Statistics Overview</CardTitle>
+          <CardDescription>Loading statistics...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Waiting for settings to load...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Calculate comprehensive statistics from settings
   const calculateRatios = () => {
     const directionRanges = settings.direction?.range
