@@ -68,31 +68,20 @@ export async function initializeApplication() {
               const sql = fs.readFileSync(sqlPath, "utf-8")
               console.log("[v0] Executing unified_complete_setup.sql...")
               
-              // Execute the SQL with proper error handling
+              // Execute the SQL - better-sqlite3's exec() handles multiple statements
               try {
-                // Split into statements and execute one by one
-                const statements = sql
-                  .split(';')
-                  .map(s => s.trim())
-                  .filter(s => s.length > 0 && !s.startsWith('--'))
+                // Remove DROP VIEW statements that aren't compatible with SQLite
+                const cleanedSql = sql
+                  .split('\n')
+                  .filter(line => !line.trim().startsWith('DROP VIEW'))
+                  .join('\n')
                 
-                console.log(`[v0] Executing ${statements.length} SQL statements...`)
-                
-                for (let i = 0; i < statements.length; i++) {
-                  const statement = statements[i]
-                  if (statement.length < 10) continue // Skip tiny statements
-                  
-                  try {
-                    client.exec(statement + ';')
-                  } catch (stmtError: any) {
-                    // Log but continue - some statements may fail if table already exists
-                    if (!stmtError.message.includes('already exists')) {
-                      console.warn(`[v0] Statement ${i + 1} failed:`, stmtError.message.substring(0, 100))
-                    }
-                  }
-                }
-              } catch (execError) {
-                console.error("[v0] SQL execution error:", execError)
+                // Execute all statements at once - this is how better-sqlite3 exec() works
+                client.exec(cleanedSql)
+                console.log("[v0] SQL execution completed")
+              } catch (execError: any) {
+                console.error("[v0] SQL execution error:", execError.message)
+                console.error("[v0] This likely means the SQL file has syntax incompatible with SQLite")
                 throw execError
               }
               
