@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PositionCard } from "@/components/live-trading/position-card"
 import { TradingOverview } from "@/components/live-trading/trading-overview"
-import { TradingEngine } from "@/lib/trading"
+import { TradeEngineProgression } from "@/components/live-trading/trade-engine-progression"
+import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
+import TradingEngine from "@/lib/trading-engine" // Declare the TradingEngine variable
 
 export default function LiveTradingPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -101,11 +102,19 @@ export default function LiveTradingPage() {
 
       return () => clearInterval(interval)
     } else {
+      console.log("[v0] Loading real trading data from connected exchanges")
       refreshData()
+      
+      // Poll real data every 5 seconds
+      const interval = setInterval(() => {
+        refreshData()
+      }, 5000)
+      
+      return () => clearInterval(interval)
     }
   }, [selectedConnection, hasRealConnections])
 
-  const refreshData = () => {
+  const refreshData = async () => {
     if (!hasRealConnections) {
       const openPos = tradingEngine.getOpenPositions(selectedConnection)
       const closedPos = tradingEngine.getClosedPositions(selectedConnection)
@@ -122,8 +131,31 @@ export default function LiveTradingPage() {
         "48h": tradingEngine.getTimeRangeStats(48, selectedConnection),
       })
     } else {
-      console.log("[v0] Loading real trading data from API")
-      // Fetch from /api/positions, /api/stats, etc.
+      try {
+        console.log("[v0] Fetching real trading data from API")
+        
+        // Fetch positions
+        const posResponse = await fetch("/api/positions")
+        if (posResponse.ok) {
+          const positions = await posResponse.json()
+          console.log(`[v0] Fetched ${positions.length} real positions`)
+          // Filter to connection-specific positions if needed
+          const connectionPositions = positions.filter((p: any) => 
+            !selectedConnection || p.connection_id === selectedConnection
+          )
+          setOpenPositions(connectionPositions)
+        }
+        
+        // Fetch stats
+        const statsResponse = await fetch("/api/trading/stats")
+        if (statsResponse.ok) {
+          const stats = await statsResponse.json()
+          console.log("[v0] Fetched real trading stats:", stats)
+          setTradingStats(stats)
+        }
+      } catch (error) {
+        console.error("[v0] Failed to fetch real trading data:", error)
+      }
     }
   }
 
@@ -191,7 +223,7 @@ export default function LiveTradingPage() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
@@ -203,6 +235,10 @@ export default function LiveTradingPage() {
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="h-4 w-4" />
             Position History
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -267,6 +303,10 @@ export default function LiveTradingPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          <TradeEngineProgression />
         </TabsContent>
       </Tabs>
     </div>
