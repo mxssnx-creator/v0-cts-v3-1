@@ -68,17 +68,35 @@ export async function initializeApplication() {
               const sql = fs.readFileSync(sqlPath, "utf-8")
               console.log("[v0] Executing unified_complete_setup.sql...")
               
-              // Execute the SQL
-              client.exec(sql)
+              // Execute the SQL - better-sqlite3's exec() handles multiple statements
+              try {
+                // Remove DROP VIEW statements that aren't compatible with SQLite
+                const cleanedSql = sql
+                  .split('\n')
+                  .filter(line => !line.trim().startsWith('DROP VIEW'))
+                  .join('\n')
+                
+                // Execute all statements at once - this is how better-sqlite3 exec() works
+                client.exec(cleanedSql)
+                console.log("[v0] SQL execution completed")
+              } catch (execError: any) {
+                console.error("[v0] SQL execution error:", execError.message)
+                console.error("[v0] This likely means the SQL file has syntax incompatible with SQLite")
+                throw execError
+              }
               
               // Verify tables were created
               const newTables = client
                 .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
                 .all()
               
-              console.log(`[v0] ✓ Database auto-initialized successfully - ${newTables.length} tables created`)
+              console.log(`[v0] ✓ Database auto-initialized - ${newTables.length} tables created`)
+              
+              if (newTables.length === 0) {
+                console.error("[v0] WARNING: No tables were created! Database initialization may have failed.")
+              }
             } else {
-              console.log("[v0] Database already initialized")
+              console.log("[v0] Database already initialized with", tables.length, "tables")
             }
           } catch (initError) {
             console.error("[v0] Database initialization error:", initError)

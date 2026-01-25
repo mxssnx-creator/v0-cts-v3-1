@@ -1,63 +1,20 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import { loadSettings } from "@/lib/file-storage"
 import { SystemLogger } from "@/lib/system-logger"
+import { query } from "@/lib/database" // Declared the query variable
 
 export const runtime = "nodejs"
 
 export async function GET() {
   try {
-    console.log("[v0] GET /api/settings - Loading settings...")
-    await SystemLogger.logAPI("Loading system settings", "info", "GET /api/settings")
+    console.log("[v0] GET /api/settings - Loading settings from file...")
+    await SystemLogger.logAPI("Loading system settings from file", "info", "GET /api/settings")
 
-    let dbSettings: Array<{ key: string; value: string }> = []
-    try {
-      const result = await query("SELECT key, value FROM system_settings")
-      dbSettings = result as Array<{ key: string; value: string }>
-      if (!Array.isArray(dbSettings)) {
-        console.log("[v0] Invalid settings data, returning empty settings object")
-        return NextResponse.json({ settings: {} }, { status: 200 })
-      }
-    } catch (error) {
-      console.log("[v0] Database not ready yet, returning empty settings object")
-      return NextResponse.json({ settings: {} }, { status: 200 })
-    }
+    // Load settings from file instead of database
+    const settings = loadSettings()
 
-    const settings: Record<string, any> = {}
-
-    for (const { key, value } of dbSettings) {
-      // Skip volume factor settings - they're per-connection only
-      if (key.includes("volume_factor")) {
-        continue
-      }
-
-      // Try to parse JSON arrays/objects
-      if (value && (value.startsWith("[") || value.startsWith("{"))) {
-        try {
-          settings[key] = JSON.parse(value)
-          continue
-        } catch (e) {
-          console.warn("[v0] Failed to parse JSON for key:", key, "- treating as string")
-        }
-      }
-
-      // Parse booleans
-      if (value === "true" || value === "false") {
-        settings[key] = value === "true"
-        continue
-      }
-
-      // Parse numbers
-      if (value && !isNaN(Number(value)) && value !== "") {
-        settings[key] = Number(value)
-        continue
-      }
-
-      // Keep as string
-      settings[key] = value || ""
-    }
-
-    console.log("[v0] Settings loaded successfully:", Object.keys(settings).length, "keys")
-    await SystemLogger.logAPI(`Settings loaded: ${Object.keys(settings).length} keys`, "info", "GET /api/settings")
+    console.log("[v0] Settings loaded successfully from file:", Object.keys(settings).length, "keys")
+    await SystemLogger.logAPI(`Settings loaded from file: ${Object.keys(settings).length} keys`, "info", "GET /api/settings")
 
     return NextResponse.json({ settings })
   } catch (error) {
@@ -72,41 +29,21 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    console.log("[v0] Saving settings to database:", Object.keys(body).length, "keys")
-    await SystemLogger.logAPI(`Saving ${Object.keys(body).length} settings`, "info", "POST /api/settings")
+    console.log("[v0] Saving settings to file:", Object.keys(body).length, "keys")
+    await SystemLogger.logAPI(`Saving ${Object.keys(body).length} settings to file`, "info", "POST /api/settings")
 
-    for (const [key, value] of Object.entries(body)) {
-      // Skip volume factor settings - they're per-connection only
-      if (key.includes("volume_factor")) {
-        continue
-      }
+    // Load existing settings
+    const existingSettings = loadSettings()
 
-      let stringValue: string
+    // Merge with new settings
+    const updatedSettings = { ...existingSettings, ...body }
 
-      if (value === null || value === undefined) {
-        stringValue = ""
-      } else if (Array.isArray(value) || typeof value === "object") {
-        stringValue = JSON.stringify(value)
-      } else if (typeof value === "boolean") {
-        stringValue = value.toString()
-      } else if (typeof value === "number") {
-        stringValue = value.toString()
-      } else {
-        stringValue = String(value)
-      }
+    // Save to file
+    const { saveSettings } = await import("@/lib/file-storage")
+    saveSettings(updatedSettings)
 
-      await query(
-        `INSERT INTO system_settings (key, value, updated_at)
-         VALUES ($1, $2, NOW())
-         ON CONFLICT(key) DO UPDATE SET
-           value = EXCLUDED.value,
-           updated_at = NOW()`,
-        [key, stringValue],
-      )
-    }
-
-    console.log("[v0] Settings saved successfully")
-    await SystemLogger.logAPI("Settings saved successfully", "info", "POST /api/settings")
+    console.log("[v0] Settings saved successfully to file")
+    await SystemLogger.logAPI("Settings saved successfully to file", "info", "POST /api/settings")
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -66,30 +66,75 @@ export function ConnectionList({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Manage your exchange API connections. Enable/disable connections or delete them.
+          Manage your exchange API connections. Enable/disable connections or delete them. Enabled connections are available for trading strategies.
         </p>
       </div>
 
-      <div className="grid gap-4">
-        {connections.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">No connections configured</p>
-            <Button className="mt-4 bg-transparent" variant="outline" onClick={onImportUserConnections}>
-              Import User Connections
-            </Button>
-          </Card>
-        ) : (
-          connections.map((conn) => (
-            <ConnectionCard
-              key={conn.id}
-              connection={conn}
-              onToggle={() => onConnectionToggle(conn.id)}
-              onActivate={() => onConnectionSelect(conn.is_active ? null : conn.id)}
-              onDelete={() => handleDeleteClick(conn.id)}
-            />
-          ))
-        )}
-      </div>
+      {/* Enabled Connections Section */}
+      {connections.filter((c) => c.is_enabled).length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-green-700">Active Connections ({connections.filter((c) => c.is_enabled).length})</h4>
+          <div className="grid gap-3">
+            {connections
+              .filter((c) => c.is_enabled)
+              .map((connection) => (
+                <ConnectionCard
+                  key={connection.id}
+                  connection={connection}
+                  onToggle={() => onConnectionToggle(connection.id)}
+                  onActivate={() => {}}
+                  onDelete={() => handleDeleteClick(connection.id)}
+                  onEdit={() => onConnectionSelect(connection.id)}
+                  onShowDetails={() => onConnectionSelect(connection.id)}
+                  onShowLogs={() => onConnectionSelect(connection.id)}
+                />
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Disabled Connections Section */}
+      {connections.filter((c) => !c.is_enabled).length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-muted-foreground">Disabled Connections ({connections.filter((c) => !c.is_enabled).length})</h4>
+          <div className="grid gap-3">
+            {connections
+              .filter((c) => !c.is_enabled)
+              .map((connection) => (
+                <ConnectionCard
+                  key={connection.id}
+                  connection={connection}
+                  onToggle={() => onConnectionToggle(connection.id)}
+                  onActivate={() => {}}
+                  onDelete={() => handleDeleteClick(connection.id)}
+                  onEdit={() => onConnectionSelect(connection.id)}
+                  onShowDetails={() => onConnectionSelect(connection.id)}
+                  onShowLogs={() => onConnectionSelect(connection.id)}
+                />
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {connections.length === 0 && (
+        <Card>
+          <p className="text-sm text-center text-muted-foreground">No connections available.</p>
+        </Card>
+      )}
+
+      {connections.map((connection) => (
+        <ConnectionCard
+          key={connection.id}
+          connection={connection}
+          onToggle={() => onConnectionToggle(connection.id)}
+          onActivate={() => onConnectionSelect(connection.is_active ? null : connection.id)}
+          onDelete={() => handleDeleteClick(connection.id)}
+          onEdit={() => onConnectionSelect(connection.id)}
+          onShowDetails={() => onConnectionSelect(connection.id)}
+          onShowLogs={() => onConnectionSelect(connection.id)}
+        />
+      ))}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

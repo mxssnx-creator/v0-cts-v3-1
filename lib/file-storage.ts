@@ -12,6 +12,7 @@ const MAIN_INDICATIONS_FILE = path.join(DATA_DIR, "main-indications.json")
 const COMMON_INDICATIONS_FILE = path.join(DATA_DIR, "common-indications.json")
 
 const connectionCache = new Map<string, { data: Connection[]; timestamp: number }>()
+const settingsCache = new Map<string, { data: any; timestamp: number }>()
 const CACHE_TTL = 5000 // 5 seconds
 
 function ensureDataDir() {
