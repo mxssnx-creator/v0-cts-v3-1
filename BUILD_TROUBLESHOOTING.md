@@ -5,35 +5,35 @@
 ### Error: Module has no exported member
 
 **Symptom:**
-```
+\`\`\`
 error TS2724: '"@/lib/trade-engine/trade-engine"' has no exported member named 'getTradeEngine'
-```
+\`\`\`
 
 **Cause:** Stale TypeScript/Turbopack cache referencing old module paths.
 
 **Solution:**
-```bash
+\`\`\`bash
 # Clear all caches and rebuild
 npm run clean
 npm run build
 
 # Or complete clean with node_modules
 npm run clean:all
-```
+\`\`\`
 
 ---
 
 ### Error: Configuration file not found
 
 **Symptom:**
-```
+\`\`\`
 Module '"./types"' has no exported member 'ConfigurationSet'
-```
+\`\`\`
 
 **Cause:** Ghost files in build cache that don't exist in source.
 
 **Solution:**
-```bash
+\`\`\`bash
 # Remove TypeScript incremental cache
 rm -f tsconfig.tsbuildinfo
 
@@ -42,44 +42,44 @@ rm -rf .next
 
 # Rebuild
 npm run build
-```
+\`\`\`
 
 ---
 
 ### Error: Cannot find module
 
 **Symptom:**
-```
+\`\`\`
 Cannot find module '@/lib/configuration-set-manager'
-```
+\`\`\`
 
 **Cause:** File was moved or deleted but cache still references it.
 
 **Solution:**
-```bash
+\`\`\`bash
 # Use the prebuild script (runs automatically)
 node scripts/prebuild.js
 
 # Or manually clear specific caches
 rm -rf .next .turbo node_modules/.cache
-```
+\`\`\`
 
 ---
 
 ## Cache Management
 
 ### Quick Cache Clear
-```bash
+\`\`\`bash
 npm run clean
-```
+\`\`\`
 
 ### Deep Cache Clear
-```bash
+\`\`\`bash
 npm run clean:all
-```
+\`\`\`
 
 ### Manual Cache Clear
-```bash
+\`\`\`bash
 # Remove Next.js cache
 rm -rf .next
 
@@ -91,30 +91,30 @@ rm -f tsconfig.tsbuildinfo
 
 # Remove node modules cache
 rm -rf node_modules/.cache
-```
+\`\`\`
 
 ---
 
 ## Build Process
 
 ### Development Build
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 ### Production Build
-```bash
+\`\`\`bash
 # Standard build
 npm run build
 
 # Clean build (recommended after major changes)
 npm run rebuild
-```
+\`\`\`
 
 ### Type Checking Only
-```bash
+\`\`\`bash
 npm run type-check
-```
+\`\`\`
 
 ---
 
@@ -125,39 +125,39 @@ npm run type-check
 **Problem:** Build fails with "module not found" but file exists.
 
 **Fix:**
-```bash
+\`\`\`bash
 npm run clean
 npm run build
-```
+\`\`\`
 
 ### 2. TypeScript Incremental Cache Issues
 
 **Problem:** TypeScript errors persist after fixing code.
 
 **Fix:**
-```bash
+\`\`\`bash
 rm -f tsconfig.tsbuildinfo
 npm run type-check
-```
+\`\`\`
 
 ### 3. Turbopack Cache Corruption
 
 **Problem:** Random build failures or incorrect module resolution.
 
 **Fix:**
-```bash
+\`\`\`bash
 rm -rf .next .turbo
 npm run dev
-```
+\`\`\`
 
 ### 4. Node Modules Cache Issues
 
 **Problem:** Dependencies not resolving correctly.
 
 **Fix:**
-```bash
+\`\`\`bash
 npm run clean:all
-```
+\`\`\`
 
 ---
 
@@ -196,25 +196,25 @@ If build issues persist:
 ## Environment Issues
 
 ### Missing Environment Variables
-```bash
+\`\`\`bash
 # Check if .env.local exists
 ls -la .env.local
 
 # Run setup to configure
 npm run setup
-```
+\`\`\`
 
 ### Database Connection Issues
-```bash
+\`\`\`bash
 # Check database status
 npm run db:status
 
 # Run migrations
 npm run db:migrate
-```
+\`\`\`
 
 ### Port Conflicts
-```bash
+\`\`\`bash
 # Use custom port
 PORT=3001 npm run dev
 

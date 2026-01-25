@@ -23,14 +23,14 @@
 
 **Predefined Database Credentials:**
 
-```
+\`\`\`
 Database Server: 83.229.86.105
 Database Port: 5432
 Database Name: cts-v3
 Database User: cts
 Database Password: 00998877
 Connection String: postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-```
+\`\`\`
 
 **Setup Steps:**
 1. In Settings > System, select "Remote PostgreSQL" as database type
@@ -41,9 +41,9 @@ Connection String: postgresql://cts:00998877@83.229.86.105:5432/cts-v3
 ### Option 3: Use Local PostgreSQL (Advanced)
 
 1. Install PostgreSQL on your server:
-   ```bash
+   \`\`\`bash
    sudo bash scripts/install-postgres-remote.sh
-   ```
+   \`\`\`
    
 2. The script will use the predefined credentials automatically:
    - DB Name: cts-v3
@@ -51,14 +51,14 @@ Connection String: postgresql://cts:00998877@83.229.86.105:5432/cts-v3
    - DB Password: 00998877
 
 3. Update your connection string in Vercel environment variables:
-   ```
+   \`\`\`
    DATABASE_URL=postgresql://cts:00998877@YOUR_SERVER_IP:5432/cts-v3
-   ```
+   \`\`\`
 
 ## Vercel Environment Variables
 
 **For SQLite (Default):**
-```
+\`\`\`
 # SQLite requires no DATABASE_URL - just omit it or leave empty
 SESSION_SECRET=00998877009988770099887700998877
 JWT_SECRET=00998877009988770099887700998877
@@ -66,12 +66,12 @@ ENCRYPTION_KEY=00998877009988770099887700998877
 API_SIGNING_SECRET=00998877009988770099887700998877
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 NODE_ENV=production
-```
+\`\`\`
 
 **For PostgreSQL (Optional):**
 Add these to your Vercel project settings:
 
-```
+\`\`\`
 DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
 REMOTE_POSTGRES_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
 SESSION_SECRET=00998877009988770099887700998877
@@ -80,7 +80,7 @@ ENCRYPTION_KEY=00998877009988770099887700998877
 API_SIGNING_SECRET=00998877009988770099887700998877
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 NODE_ENV=production
-```
+\`\`\`
 
 ## Database Type Detection
 

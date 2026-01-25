@@ -59,10 +59,10 @@
 **Location:** `lib/trade-engine.ts`
 
 **Exported Functions:**
-```typescript
+\`\`\`typescript
 export function getGlobalTradeEngineCoordinator(): GlobalTradeEngineCoordinator
 export async function getTradeEngineStatus(connectionId: string): Promise<TradeEngineStatus>
-```
+\`\`\`
 
 **Real Coordination:**
 - ✅ Trade engine instance management per connection
@@ -94,7 +94,7 @@ export async function getTradeEngineStatus(connectionId: string): Promise<TradeE
 
 ### Data Flow Architecture
 
-```
+\`\`\`
 User Action (Connection Card)
     ↓
 API Route (/api/settings/connections/[id]/...)
@@ -108,7 +108,7 @@ Individual Trade Engine Instance
 Real-time Status Updates
     ↓
 Connection Card UI Update
-```
+\`\`\`
 
 ### Progress Tracking Stages
 

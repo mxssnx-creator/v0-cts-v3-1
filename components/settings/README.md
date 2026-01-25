@@ -18,7 +18,7 @@ The settings page has been partially refactored to split the massive monolithic 
 
 ## File Structure
 
-```
+\`\`\`
 /components/settings/
 ├── tabs/
 │   ├── overall-tab.tsx              ✅ Complete
@@ -31,13 +31,13 @@ The settings page has been partially refactored to split the massive monolithic 
 ├── REFACTORING_GUIDE.md             ✅ Detailed guide
 ├── REFACTORING_STATUS.md            ✅ Progress tracker
 └── README.md                        ✅ This file
-```
+\`\`\`
 
 ## How to Use Extracted Components
 
 ### OverallTab
 
-```tsx
+\`\`\`tsx
 import { OverallTab } from "@/components/settings/tabs/overall-tab"
 
 <OverallTab
@@ -56,18 +56,18 @@ import { OverallTab } from "@/components/settings/tabs/overall-tab"
   setDatabaseType={setDatabaseType}
   databaseChanged={databaseChanged}
 />
-```
+\`\`\`
 
 ###  StrategyTab
 
-```tsx
+\`\`\`tsx
 import { StrategyTab } from "@/components/settings/tabs/strategy-tab"
 
 <StrategyTab 
   settings={settings} 
   handleSettingChange={handleSettingChange} 
 />
-```
+\`\`\`
 
 ## Refactoring Pattern
 
@@ -80,7 +80,7 @@ Each tab component follows this architecture:
 
 ### Example Structure
 
-```tsx
+\`\`\`tsx
 "use client"
 
 import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -104,7 +104,7 @@ export function TabName({ settings, handleSettingChange }: TabProps) {
     </TabsContent>
   )
 }
-```
+\`\`\`
 
 ## Next Steps to Complete Refactoring
 

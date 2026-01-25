@@ -260,7 +260,7 @@ Instead of using a single table with a `type` column, each indication and strate
 
 The `lib/db-helpers.ts` module provides convenient functions:
 
-```typescript
+\`\`\`typescript
 import { 
   getActiveIndications,
   getBestPerformingIndications,
@@ -285,13 +285,13 @@ const performance = await getAllIndicationPerformance(connectionId)
 
 // Get daily summary
 const daily = await getDailyPerformanceSummary(connectionId, 7)
-```
+\`\`\`
 
 ### Direct Queries
 
 For custom queries, use the table names directly:
 
-```typescript
+\`\`\`typescript
 import { sql } from '@/lib/db'
 
 // Query specific indication type
@@ -311,7 +311,7 @@ const mainStrategies = await sql`
     AND status = 'active'
   ORDER BY win_rate DESC
 `
-```
+\`\`\`
 
 ## Index Optimization
 
@@ -328,9 +328,9 @@ All tables include high-frequency performance indexes:
 To apply the new structure:
 
 1. Run the migration script:
-```bash
+\`\`\`bash
 psql -h [host] -U Project-Name -d Project-Name -f scripts/100_comprehensive_database_restructure.sql
-```
+\`\`\`
 
 2. The script will:
    - Create all indication tables
@@ -340,7 +340,7 @@ psql -h [host] -U Project-Name -d Project-Name -f scripts/100_comprehensive_data
    - Create performance views
 
 3. Existing data migration (if needed) can be done with:
-```sql
+\`\`\`sql
 -- Example: Migrate from old indications table to new structure
 INSERT INTO indications_direction (...)
 SELECT ... FROM indications WHERE indication_type = 'direction';
@@ -348,13 +348,13 @@ SELECT ... FROM indications WHERE indication_type = 'direction';
 INSERT INTO indications_move (...)
 SELECT ... FROM indications WHERE indication_type = 'move';
 -- ... etc
-```
+\`\`\`
 
 ## Performance Monitoring
 
 Use the built-in monitoring functions:
 
-```typescript
+\`\`\`typescript
 import { getQueryPerformanceStats, getIndexUsageStats } from '@/lib/db-helpers'
 
 // Monitor table statistics
@@ -362,7 +362,7 @@ const stats = await getQueryPerformanceStats()
 
 // Monitor index usage
 const indexes = await getIndexUsageStats()
-```
+\`\`\`
 
 ## Best Practices
 

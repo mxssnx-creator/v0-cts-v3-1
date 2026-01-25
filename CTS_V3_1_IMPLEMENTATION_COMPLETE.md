@@ -118,7 +118,7 @@
 ## 📋 DEFAULT CONFIGURATION
 
 ### Connection Defaults (When Creating New Connection)
-```javascript
+\`\`\`javascript
 {
   is_enabled: true,        // ✅ Enabled by default
   is_live_trade: false,    // ❌ Active trading disabled by default
@@ -127,7 +127,7 @@
   is_predefined: false,    // User-created connection
   volume_factor: 1.0,      // Full trading volume
 }
-```
+\`\`\`
 
 ### Exchange Defaults
 - **API Type**: `perpetual_futures` (futures trading)
@@ -198,7 +198,7 @@
 - **Automatic Queuing**: Requests wait in queue automatically
 
 ### Example Usage in API Routes
-```typescript
+\`\`\`typescript
 import { getRateLimiter } from "@/lib/rate-limiter"
 
 const rateLimiter = getRateLimiter(connection.exchange)
@@ -206,7 +206,7 @@ const result = await rateLimiter.execute(async () => {
   // Your API call here
   return await connector.getBalance()
 })
-```
+\`\`\`
 
 ---
 

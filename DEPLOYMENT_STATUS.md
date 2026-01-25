@@ -19,27 +19,27 @@ All builds automatically clear:
 ### Build Process (Vercel)
 
 **Step 1: Install**
-```bash
+\`\`\`bash
 npm install --legacy-peer-deps
-```
+\`\`\`
 Automatically clears caches during `preinstall` hook.
 
 **Step 2: Pre-build**
-```bash
+\`\`\`bash
 npm run prebuild
-```
+\`\`\`
 Runs `scripts/prebuild.js` to clear all caches and validate environment.
 
 **Step 3: Type Check**
-```bash
+\`\`\`bash
 npm run type-check
-```
+\`\`\`
 Ensures all TypeScript files compile without errors using fresh cache.
 
 **Step 4: Build**
-```bash
+\`\`\`bash
 npm run build
-```
+\`\`\`
 Next.js production build with Turbopack.
 
 ## Known Issues & Fixes
@@ -62,17 +62,17 @@ Next.js production build with Turbopack.
 ## Environment Variables Required
 
 ### Production (Vercel)
-```env
+\`\`\`env
 REMOTE_POSTGRES_URL=postgresql://...
 SESSION_SECRET=<generated-secret>
 JWT_SECRET=<generated-secret>
 ENCRYPTION_KEY=<generated-secret>
 API_SIGNING_SECRET=<generated-secret>
 NEXT_PUBLIC_APP_URL=<auto-set-by-vercel>
-```
+\`\`\`
 
 ### Local Development
-```env
+\`\`\`env
 NODE_ENV=development
 DATABASE_URL=./cts.db
 SESSION_SECRET=<generated-by-setup>
@@ -81,11 +81,11 @@ ENCRYPTION_KEY=<generated-by-setup>
 API_SIGNING_SECRET=<generated-by-setup>
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 PORT=3000
-```
+\`\`\`
 
 ## Local Development Setup
 
-```bash
+\`\`\`bash
 # 1. Install dependencies
 npm install
 
@@ -94,13 +94,13 @@ npm run setup
 
 # 3. Start development server
 npm run dev
-```
+\`\`\`
 
 ## Manual Cache Clearing
 
 If you encounter build issues:
 
-```bash
+\`\`\`bash
 # Clear Next.js and TypeScript caches
 npm run clean
 
@@ -109,7 +109,7 @@ npm run clean:all
 
 # Then rebuild
 npm run rebuild
-```
+\`\`\`
 
 ## Deployment Checklist
 
@@ -126,13 +126,13 @@ npm run rebuild
 
 After deployment completes, verify:
 
-```bash
+\`\`\`bash
 # 1. Check deployment logs for errors
 # 2. Visit /api/health (should return 200 OK)
 # 3. Check database connectivity
 # 4. Verify TradeEngine status at /api/trade-engine/status
 # 5. Test authentication flow
-```
+\`\`\`
 
 ## Troubleshooting
 
@@ -158,12 +158,12 @@ After deployment completes, verify:
 
 When deployment is successful, you should see:
 
-```
+\`\`\`
 ✓ Type checking completed without errors
 ✓ Generating static pages (14/14)
 ✓ Collecting build traces
 ✓ Build completed successfully
-```
+\`\`\`
 
 ## Current Status: READY FOR DEPLOYMENT ✅
 

@@ -5,7 +5,7 @@ The settings page has been refactored to split the monolithic `page.tsx` file in
 
 ## File Structure
 
-```
+\`\`\`
 /components/settings/
 ├── types.ts                          # Shared TypeScript interfaces
 ├── utils.ts                          # Utility functions and initial settings
@@ -15,7 +15,7 @@ The settings page has been refactored to split the monolithic `page.tsx` file in
 │   ├── indication-tab-wrapper.tsx   # Indication tab wrapper (TODO: Extract content)
 │   ├── strategy-tab-wrapper.tsx     # Strategy tab wrapper (TODO: Extract content)
 │   └── system-tab-wrapper.tsx       # System tab wrapper (TODO: Extract content)
-```
+\`\`\`
 
 ## What's Been Done
 
@@ -50,7 +50,7 @@ The settings page has been refactored to split the monolithic `page.tsx` file in
 
 ### In the main `page.tsx`:
 
-```typescript
+\`\`\`typescript
 import { OverallTab } from "@/components/settings/tabs/overall-tab"
 import { ExchangeTabWrapper } from "@/components/settings/tabs/exchange-tab-wrapper"
 // ... other imports
@@ -100,7 +100,7 @@ export default function SettingsPage() {
     </AuthGuard>
   )
 }
-```
+\`\`\`
 
 ## Next Steps for Complete Refactoring
 
