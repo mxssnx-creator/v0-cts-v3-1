@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import { loadSettings } from "@/lib/file-storage"
 
 export async function GET() {
   try {
-    console.log("[v0] Exporting settings as text file...")
+    console.log("[v0] Exporting settings as text file from file storage...")
 
-    // Fetch all settings from database
-    const settings = await query("SELECT key, value, description, category FROM system_settings ORDER BY category, key", [])
+    // Load settings from file
+    const settings = loadSettings()
     
     // Format as readable text file
     const timestamp = new Date().toISOString()
@@ -19,25 +19,19 @@ export async function GET() {
       ""
     ]
     
-    let currentCategory = ""
-    
-    for (const setting of settings as any[]) {
-      // Add category header when it changes
-      if (setting.category !== currentCategory) {
-        currentCategory = setting.category
-        lines.push("")
-        lines.push(`# ========== ${currentCategory.toUpperCase()} ==========`)
-        lines.push("")
+    // Export all settings
+    for (const [key, value] of Object.entries(settings)) {
+      // Convert value to string representation
+      let valueStr: string
+      if (value === null || value === undefined) {
+        valueStr = ""
+      } else if (Array.isArray(value) || typeof value === "object") {
+        valueStr = JSON.stringify(value)
+      } else {
+        valueStr = String(value)
       }
       
-      // Add description as comment if available
-      if (setting.description) {
-        lines.push(`# ${setting.description}`)
-      }
-      
-      // Add the setting
-      lines.push(`${setting.key} = ${setting.value}`)
-      lines.push("")
+      lines.push(`${key} = ${valueStr}`)
     }
     
     const textContent = lines.join("\n")

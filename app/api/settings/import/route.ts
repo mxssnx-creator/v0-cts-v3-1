@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { execute } from "@/lib/db"
+import { loadSettings, saveSettings } from "@/lib/file-storage"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +12,10 @@ export async function POST(request: NextRequest) {
     
     const content = await file.text()
     const lines = content.split("\n")
+    
+    // Load existing settings
+    const existingSettings = loadSettings()
+    const updatedSettings = { ...existingSettings }
     
     let imported = 0
     let skipped = 0
@@ -35,22 +39,38 @@ export async function POST(request: NextRequest) {
       }
       
       const key = match[1].trim()
-      const value = match[2].trim()
+      const valueStr = match[2].trim()
       
       try {
-        // Update or insert setting
-        await execute(
-          `INSERT INTO system_settings (key, value, updated_at) 
-           VALUES (?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT (key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP`,
-          [key, value, value]
-        )
+        // Parse the value
+        let value: any = valueStr
+        
+        // Try to parse JSON arrays/objects
+        if (valueStr && (valueStr.startsWith("[") || valueStr.startsWith("{"))) {
+          try {
+            value = JSON.parse(valueStr)
+          } catch (e) {
+            // Keep as string if JSON parse fails
+          }
+        } else if (valueStr === "true" || valueStr === "false") {
+          // Parse booleans
+          value = valueStr === "true"
+        } else if (valueStr && !isNaN(Number(valueStr)) && valueStr !== "") {
+          // Parse numbers
+          value = Number(valueStr)
+        }
+        
+        // Update setting
+        updatedSettings[key] = value
         imported++
       } catch (error) {
         console.error(`[v0] Failed to import setting ${key}:`, error)
         errors++
       }
     }
+    
+    // Save all settings to file
+    saveSettings(updatedSettings)
     
     return NextResponse.json({
       success: true,

@@ -68,17 +68,46 @@ export async function initializeApplication() {
               const sql = fs.readFileSync(sqlPath, "utf-8")
               console.log("[v0] Executing unified_complete_setup.sql...")
               
-              // Execute the SQL
-              client.exec(sql)
+              // Execute the SQL with proper error handling
+              try {
+                // Split into statements and execute one by one
+                const statements = sql
+                  .split(';')
+                  .map(s => s.trim())
+                  .filter(s => s.length > 0 && !s.startsWith('--'))
+                
+                console.log(`[v0] Executing ${statements.length} SQL statements...`)
+                
+                for (let i = 0; i < statements.length; i++) {
+                  const statement = statements[i]
+                  if (statement.length < 10) continue // Skip tiny statements
+                  
+                  try {
+                    client.exec(statement + ';')
+                  } catch (stmtError: any) {
+                    // Log but continue - some statements may fail if table already exists
+                    if (!stmtError.message.includes('already exists')) {
+                      console.warn(`[v0] Statement ${i + 1} failed:`, stmtError.message.substring(0, 100))
+                    }
+                  }
+                }
+              } catch (execError) {
+                console.error("[v0] SQL execution error:", execError)
+                throw execError
+              }
               
               // Verify tables were created
               const newTables = client
                 .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
                 .all()
               
-              console.log(`[v0] ✓ Database auto-initialized successfully - ${newTables.length} tables created`)
+              console.log(`[v0] ✓ Database auto-initialized - ${newTables.length} tables created`)
+              
+              if (newTables.length === 0) {
+                console.error("[v0] WARNING: No tables were created! Database initialization may have failed.")
+              }
             } else {
-              console.log("[v0] Database already initialized")
+              console.log("[v0] Database already initialized with", tables.length, "tables")
             }
           } catch (initError) {
             console.error("[v0] Database initialization error:", initError)
