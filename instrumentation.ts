@@ -1,29 +1,26 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    console.log("\n" + "=".repeat(60))
+    console.log("[v0] CTS v3.1 - SYSTEM INITIALIZATION")
     console.log("=".repeat(60))
-    console.log("[v0] 🚀 CTS v3.1 - SYSTEM INITIALIZATION")
-    console.log("=".repeat(60))
-    console.log("[v0] Environment:")
-    console.log("  - Runtime:", process.env.NEXT_RUNTIME)
-    console.log("  - Vercel:", process.env.VERCEL_ENV || "local")
+    console.log("[v0] Runtime:", process.env.NEXT_RUNTIME)
     const dbUrl = process.env.DATABASE_URL
-    const dbType = dbUrl ? (dbUrl.startsWith("postgres") ? "PostgreSQL" : "Unknown") : "SQLite (default)"
-    console.log("  - Database:", dbType)
-    console.log("  - Deployment:", process.env.VERCEL_DEPLOYMENT_ID || "local")
+    const dbType = dbUrl ? (dbUrl.startsWith("postgres") ? "PostgreSQL" : "Unknown") : "SQLite"
+    console.log("[v0] Database:", dbType)
     console.log("=".repeat(60))
-    console.log()
 
-    // Step 1: Database initialization and migrations
+    // Step 1: Database initialization (non-blocking)
     try {
-      console.log("[v0] Step 1: Database Initialization")
-      console.log("-".repeat(60))
+      console.log("\n[v0] Initializing database...")
       
       const { getClient, getDatabaseType } = await import("./lib/db")
       const actualDbType = getDatabaseType()
+      console.log("[v0] Database type:", actualDbType)
       
-      console.log(`[v0] Database Type: ${actualDbType}`)
-      console.log("[v0] Initializing database client...")
       const startTime = Date.now()
+      
+      // Initialize database client (this is now fast and non-blocking)
+      const client = getClient()
       
       if (actualDbType === "sqlite") {
         // For SQLite, verify critical tables exist and create if missing
@@ -192,39 +189,27 @@ export async function register() {
       
       const duration = Date.now() - startTime
       
-      console.log()
+      console.log("[v0] Database ready in " + duration + "ms")
       console.log("=".repeat(60))
-      console.log("[v0] ✅ SYSTEM INITIALIZATION COMPLETED SUCCESSFULLY")
-      console.log("=".repeat(60))
-      console.log(`[v0] Database: ${actualDbType.toUpperCase()} - Ready`)
-      console.log(`[v0] Total initialization time: ${duration}ms`)
-      console.log("[v0] All systems operational")
-      console.log("[v0] Application ready to accept requests")
-      console.log("=".repeat(60))
-      console.log()
-
-      // Start automatic backup system (every 6 hours)
-      try {
-        const { getAutoBackupManager } = await import("./lib/auto-backup")
-        const backupManager = getAutoBackupManager()
-        backupManager.start(6) // Backup every 6 hours
-        console.log("[v0] ✅ Auto-backup system started (6 hour interval)")
-      } catch (error) {
-        console.warn("[v0] ⚠️  Failed to start auto-backup system:", error)
-      }
+      console.log("[v0] SYSTEM READY")
+      console.log("=".repeat(60) + "\n")
+      
+      // Start auto-backup (non-blocking)
+      setTimeout(async () => {
+        try {
+          const { getAutoBackupManager } = await import("./lib/auto-backup")
+          const backupManager = getAutoBackupManager()
+          backupManager.start(6)
+          console.log("[v0] Auto-backup started (6h interval)")
+        } catch (err) {
+          console.warn("[v0] Auto-backup unavailable")
+        }
+      }, 1000)
+      
     } catch (error) {
-      console.log()
-      console.log("=".repeat(60))
-      console.log("[v0] ⚠️  INITIALIZATION COMPLETED WITH WARNINGS")
-      console.log("=".repeat(60))
       console.error("[v0] Initialization error:", error instanceof Error ? error.message : String(error))
-      if (error instanceof Error && error.stack) {
-        console.error("[v0] Stack trace:", error.stack.substring(0, 500))
-      }
-      console.log("[v0] System may use file-based storage fallback")
-      console.log("[v0] Some features may be limited")
-      console.log("=".repeat(60))
-      console.log()
+      console.log("[v0] System will use fallback mode")
+      console.log("=".repeat(60) + "\n")
     }
   } else {
     console.log("[v0] Skipping initialization (Edge Runtime)")
