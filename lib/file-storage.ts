@@ -54,6 +54,7 @@ export interface Connection {
   last_test_balance?: number
   last_test_error?: string
   last_test_log?: string[]
+  last_test_timestamp?: string
   api_capabilities?: string
   created_at: string
   updated_at: string
@@ -523,20 +524,6 @@ function getDefaultConnections(): Connection[] {
       is_live_trade: false,
       is_preset_trade: false,
       is_active: false,
-      is_predefined: true,
-      volume_factor: 1.0,
-      connection_settings: {},
-      last_test_at: "",
-      last_test_status: "",
-      last_test_balance: 0,
-      last_test_error: "",
-      last_test_log: [],
-      api_capabilities: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ]
-}
       is_predefined: true,
       volume_factor: 1.0,
       connection_settings: {},

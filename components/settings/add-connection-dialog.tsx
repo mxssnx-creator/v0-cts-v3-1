@@ -28,10 +28,10 @@ const EXCHANGES = {
 interface AddConnectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (connection: any) => Promise<void>
+  onConnectionAdded: () => Promise<void>
 }
 
-export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnectionDialogProps) {
+export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: AddConnectionDialogProps) {
   const [loading, setLoading] = useState(false)
   const [enabledExchanges, setEnabledExchanges] = useState<string[]>([])
   const [formData, setFormData] = useState({
@@ -94,13 +94,24 @@ export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnection
 
     setLoading(true)
     try {
-      await onAdd(formData)
+      const response = await fetch("/api/settings/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add connection")
+      }
+
+      toast.success("Connection added successfully")
+      
       setFormData({
         name: "",
         exchange: "bybit",
         api_type: "perpetual_futures",
-        connection_method: "library",
-        connection_library: "native",
+        connection_method: "rest",
+        connection_library: "library",
         api_key: "",
         api_secret: "",
         api_passphrase: "",
@@ -108,7 +119,12 @@ export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnection
         position_mode: "hedge",
         is_testnet: false,
       })
+
+      await onConnectionAdded()
       onOpenChange(false)
+    } catch (error) {
+      console.error("[v0] Error adding connection:", error)
+      toast.error("Failed to add connection", { description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }
