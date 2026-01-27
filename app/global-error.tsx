@@ -14,22 +14,6 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("[v0] Global error:", error)
-
-    // Log to monitoring API
-    fetch("/api/monitoring/site", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        level: "error",
-        category: "nextjs",
-        message: error.message,
-        stack: error.stack,
-        metadata: {
-          digest: error.digest,
-          global: true,
-        },
-      }),
-    }).catch((err) => console.error("[v0] Failed to log global error:", err))
   }, [error])
 
   return (
@@ -71,10 +55,6 @@ export default function GlobalError({
                   Go Home
                 </Button>
               </div>
-
-              <p className="text-sm text-muted-foreground">
-                This error has been logged and will be reviewed by the development team.
-              </p>
             </CardContent>
           </Card>
         </div>

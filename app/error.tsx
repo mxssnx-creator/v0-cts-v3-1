@@ -14,22 +14,6 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("[v0] Page error:", error)
-
-    // Log to monitoring API
-    fetch("/api/monitoring/site", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        level: "error",
-        category: "nextjs",
-        message: error.message,
-        stack: error.stack,
-        metadata: {
-          digest: error.digest,
-          page: window.location.pathname,
-        },
-      }),
-    }).catch((err) => console.error("[v0] Failed to log page error:", err))
   }, [error])
 
   return (
