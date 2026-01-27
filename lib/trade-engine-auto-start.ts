@@ -49,14 +49,21 @@ export async function initializeTradeEngineAutoStart(): Promise<void> {
           realtimeInterval,
         })
         successCount++
+
+        await SystemLogger.logTradeEngine(
+          `Auto-started engine for ${connection.name}`,
+          "info",
+          { connectionId: connection.id }
+        )
       } catch (error) {
-        // Continue with next connection
+        await SystemLogger.logError(error, "trade-engine", `Failed to start ${connection.name}`)
       }
     }
 
     autoStartInitialized = true
     startConnectionMonitoring()
   } catch (error) {
+    await SystemLogger.logError(error, "trade-engine", "Auto-start failed")
     autoStartInitialized = true
   }
 }
@@ -93,7 +100,7 @@ function startConnectionMonitoring(): void {
               realtimeInterval,
             })
           } catch (error) {
-            // Ignore
+            // Ignore new connection startup errors
           }
         }
       }
