@@ -146,9 +146,13 @@ function getClient(): Database.Database | Pool {
   throw new Error(`[v0] Unknown database type: ${DATABASE_TYPE}`)
 }
 
-const getDatabaseType = getDatabaseTypeFromSettings
+export function getDatabaseType(): string {
+  // Ensure client is initialized first
+  getClient()
+  return DATABASE_TYPE || getDatabaseTypeFromSettings()
+}
 
-export { getDatabaseType }
+export { getDatabaseTypeFromSettings }
 
 export async function query<T = any>(queryText: string, params: any[] = []): Promise<T[]> {
   try {
