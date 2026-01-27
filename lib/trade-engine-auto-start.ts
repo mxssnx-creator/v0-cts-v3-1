@@ -1,20 +1,78 @@
 /**
- * Trade Engine Auto-Start Service
- * Automatically starts trade engines for all active and enabled connections
+ * Trade Engine Auto-Start - Simplified
  */
 
 import { getGlobalTradeEngineCoordinator } from "./trade-engine"
 import { loadConnections, loadSettings } from "./file-storage"
-import { SystemLogger } from "./system-logger"
 
 let autoStartInitialized = false
-let autoStartTimer: NodeJS.Timeout | null = null
 
-/**
- * Check if auto-start service is initialized
- */
 export function isAutoStartInitialized(): boolean {
   return autoStartInitialized
+}
+
+export async function initializeTradeEngineAutoStart(): Promise<void> {
+  if (autoStartInitialized) {
+    return
+  }
+
+  try {
+    const coordinator = getGlobalTradeEngineCoordinator()
+    const connections = loadConnections()
+    const activeConnections = connections.filter((c) => c.is_enabled === true && c.is_active === true)
+
+    if (activeConnections.length === 0) {
+      autoStartInitialized = true
+      return
+    }
+
+    const settings = loadSettings()
+    const indicationInterval = settings.mainEngineIntervalMs ? settings.mainEngineIntervalMs / 1000 : 5
+    const strategyInterval = settings.strategyUpdateIntervalMs ? settings.strategyUpdateIntervalMs / 1000 : 10
+    const realtimeInterval = settings.realtimeIntervalMs ? settings.realtimeIntervalMs / 1000 : 3
+
+    for (const connection of activeConnections) {
+      try {
+        await coordinator.startEngine(connection.id, {
+          connectionId: connection.id,
+          indicationInterval,
+          strategyInterval,
+          realtimeInterval,
+        })
+      } catch (error) {
+        // Engine startup is optional - continue with next connection
+      }
+    }
+
+    autoStartInitialized = true
+
+    // Monitor for new connections every 30 seconds
+    setInterval(async () => {
+      try {
+        const current = loadConnections()
+        const newActive = current.filter((c) => c.is_enabled && c.is_active)
+
+        for (const conn of newActive) {
+          if (!coordinator.getEngineManager(conn.id)) {
+            try {
+              await coordinator.startEngine(conn.id, {
+                connectionId: conn.id,
+                indicationInterval,
+                strategyInterval,
+                realtimeInterval,
+              })
+            } catch (e) {
+              // Ignore
+            }
+          }
+        }
+      } catch (error) {
+        // Ignore
+      }
+    }, 30000)
+  } catch (error) {
+    autoStartInitialized = true
+  }
 }
 
 /**

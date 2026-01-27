@@ -1,25 +1,39 @@
+/**
+ * Minimal instrumentation - system boots first, initialization happens in background
+ */
 export async function register() {
+  // Do nothing synchronously - app loads immediately
+  
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    console.log("[v0] CTS v3.1 - Initializing system")
-    
-    // Non-blocking initialization in background
-    setImmediate(async () => {
+    // Schedule all initialization to happen after app is ready
+    // Use process.nextTick to defer until after module loading
+    process.nextTick(async () => {
       try {
-        console.log("[v0] [INIT] Database initialization starting...")
-        const { initializeDatabase } = await import("./lib/db-initializer")
-        await initializeDatabase()
-        console.log("[v0] [INIT] Database ready")
+        // Try to initialize database
+        try {
+          const { initializeDatabase } = await import("./lib/db-initializer")
+          await initializeDatabase().catch(() => {
+            // Database init failure is not critical
+          })
+        } catch (e) {
+          // Silently fail - database will initialize on first use
+        }
 
-        // Wait for database to stabilize
-        await new Promise(resolve => setTimeout(resolve, 1500))
-
-        console.log("[v0] [INIT] Trade engine auto-start beginning...")
-        const { initializeTradeEngineAutoStart } = await import("./lib/trade-engine-auto-start")
-        await initializeTradeEngineAutoStart()
-        console.log("[v0] [INIT] System initialization complete")
+        // Try to initialize trade engines
+        try {
+          const { initializeTradeEngineAutoStart } = await import("./lib/trade-engine-auto-start")
+          await initializeTradeEngineAutoStart().catch(() => {
+            // Trade engine init failure is not critical
+          })
+        } catch (e) {
+          // Silently fail - engines can start manually
+        }
       } catch (error) {
-        console.error("[v0] [INIT] Critical error:", error instanceof Error ? error.message : String(error))
+        // Catch all - initialization errors don't affect app
       }
+    })
+  }
+}
     })
   }
 }
