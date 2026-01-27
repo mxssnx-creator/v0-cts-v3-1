@@ -35,7 +35,7 @@ The Comprehensive Trading System v3.1 is now **production-ready** with complete 
 
 ## Quick Start (Zero Config)
 
-```bash
+\`\`\`bash
 # 1. Clone and install
 git clone <repository>
 cd cts-v3.1
@@ -46,7 +46,7 @@ npm run dev
 
 # 3. Open browser
 # http://localhost:3000
-```
+\`\`\`
 
 **That's it!** The system:
 - Creates `data/` directory
@@ -114,7 +114,7 @@ Each table has optimized indexes for:
 ### Endpoints
 
 **Database Health**
-```bash
+\`\`\`bash
 GET /api/health/database
 
 Response:
@@ -125,10 +125,10 @@ Response:
   "uptime": 12345,
   "tables": 25
 }
-```
+\`\`\`
 
 **Migration Status**
-```bash
+\`\`\`bash
 GET /api/admin/migrations/status
 
 Response:
@@ -141,10 +141,10 @@ Response:
     ...
   }
 }
-```
+\`\`\`
 
 ### Console Output
-```
+\`\`\`
 [v0] ================================================
 [v0] CTS v3.1 - Production Database Initialization
 [v0] ================================================
@@ -158,14 +158,14 @@ Response:
 [v0] ================================================
 [v0] ✓ Application Ready for Production
 [v0] ================================================
-```
+\`\`\`
 
 ## Testing & Verification
 
 ### Run Complete System Test
-```bash
+\`\`\`bash
 npm run test:system
-```
+\`\`\`
 
 Tests:
 - File system integrity
@@ -177,11 +177,11 @@ Tests:
 - Integration points
 
 ### Verify Startup
-```bash
+\`\`\`bash
 npm run verify
 # Or manually:
 node scripts/verify-startup.js
-```
+\`\`\`
 
 Checks:
 - Critical directories exist
@@ -193,7 +193,7 @@ Checks:
 ## Production Deployment
 
 ### Quick Deploy
-```bash
+\`\`\`bash
 # 1. Test system
 npm run test:system
 
@@ -202,10 +202,10 @@ npm run build
 
 # 3. Start
 npm start
-```
+\`\`\`
 
 ### With PostgreSQL
-```bash
+\`\`\`bash
 # 1. Set environment
 export DATABASE_URL="postgresql://user:pass@host:5432/db"
 
@@ -214,7 +214,7 @@ npm run build
 npm start
 
 # Database migrates automatically on first connection
-```
+\`\`\`
 
 ## Scripts Available
 
@@ -247,7 +247,7 @@ npm start
 
 ## File Structure
 
-```
+\`\`\`
 cts-v3.1/
 ├── app/                      # Next.js pages and API routes
 │   ├── api/
@@ -272,7 +272,7 @@ cts-v3.1/
 │   ├── .gitkeep            # Directory placeholder
 │   └── cts.db              # SQLite database (auto-created)
 └── package.json            # Dependencies and scripts
-```
+\`\`\`
 
 ## Configuration
 
@@ -281,12 +281,12 @@ No configuration needed. Database creates at `data/cts.db`.
 
 ### PostgreSQL
 Create `.env.local`:
-```env
+\`\`\`env
 DATABASE_URL=postgresql://username:password@host:5432/database
-```
+\`\`\`
 
 ### Optional Settings
-```env
+\`\`\`env
 # Session & Security
 SESSION_SECRET=generate-random-string
 JWT_SECRET=generate-random-string
@@ -297,12 +297,12 @@ API_SIGNING_SECRET=generate-random-string
 NODE_ENV=production
 PORT=3000
 NEXT_PUBLIC_APP_URL=https://your-domain.com
-```
+\`\`\`
 
 ## Troubleshooting
 
 ### Database Not Creating
-```bash
+\`\`\`bash
 # Ensure data directory exists
 mkdir -p data
 
@@ -311,10 +311,10 @@ chmod 755 data
 
 # Restart application
 npm run dev
-```
+\`\`\`
 
 ### Migration Errors
-```bash
+\`\`\`bash
 # Check migration status
 npm run db:status
 
@@ -323,10 +323,10 @@ npm run db:migrate
 
 # Reset if needed (CAUTION: deletes data)
 npm run db:reset
-```
+\`\`\`
 
 ### Build Errors
-```bash
+\`\`\`bash
 # Clean all
 npm run clean:all
 
@@ -335,7 +335,7 @@ npm run rebuild
 
 # Verify
 npm run test:system
-```
+\`\`\`
 
 ## Success Criteria
 

@@ -11,7 +11,7 @@
 ## Ubuntu Server Setup
 
 ### 1. System Requirements
-```bash
+\`\`\`bash
 # Update system
 sudo apt-get update && sudo apt-get upgrade -y
 
@@ -24,10 +24,10 @@ sudo apt-get install -y postgresql postgresql-contrib
 
 # Install build tools
 sudo apt-get install -y build-essential
-```
+\`\`\`
 
 ### 2. Application Setup
-```bash
+\`\`\`bash
 # Clone or upload project
 cd /opt
 git clone <your-repo> cts-v3
@@ -41,10 +41,10 @@ npm install
 
 # Build application
 npm run build
-```
+\`\`\`
 
 ### 3. Environment Variables
-```bash
+\`\`\`bash
 # Create .env.local file
 cat > .env.local << EOF
 NODE_ENV=production
@@ -58,10 +58,10 @@ EOF
 
 # Secure the file
 chmod 600 .env.local
-```
+\`\`\`
 
 ### 4. Database Setup
-```bash
+\`\`\`bash
 # Create PostgreSQL database
 sudo -u postgres psql
 postgres=# CREATE DATABASE cts;
@@ -70,20 +70,20 @@ postgres=# GRANT ALL PRIVILEGES ON DATABASE cts TO ctsuser;
 postgres=# \q
 
 # Migrations run automatically on first start
-```
+\`\`\`
 
 ### 5. Install Nginx
-```bash
+\`\`\`bash
 # Run setup script
 cd /opt/cts-v3
 sudo bash scripts/setup-nginx.sh
 
 # Install SSL certificate
 sudo bash scripts/install-certbot.sh yourdomain.com admin@yourdomain.com
-```
+\`\`\`
 
 ### 6. Process Manager (PM2)
-```bash
+\`\`\`bash
 # Install PM2
 sudo npm install -g pm2
 
@@ -100,16 +100,16 @@ pm2 startup
 
 # Monitor logs
 pm2 logs cts-v3
-```
+\`\`\`
 
 ### 7. Firewall Configuration
-```bash
+\`\`\`bash
 # Allow SSH, HTTP, HTTPS
 sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
-```
+\`\`\`
 
 ## Post-Deployment Verification
 
@@ -123,7 +123,7 @@ sudo ufw enable
 
 ## Monitoring Commands
 
-```bash
+\`\`\`bash
 # Check application status
 pm2 status
 
@@ -141,11 +141,11 @@ sudo -u postgres psql -c "SELECT count(*) FROM pg_stat_activity WHERE datname='c
 
 # Monitor system resources
 htop
-```
+\`\`\`
 
 ## Backup Commands
 
-```bash
+\`\`\`bash
 # Backup database
 sudo -u postgres pg_dump cts > /backups/cts-$(date +%Y%m%d).sql
 
@@ -155,12 +155,12 @@ tar -czf /backups/cts-app-$(date +%Y%m%d).tar.gz /opt/cts-v3
 # Setup automated backups (cron)
 sudo crontab -e
 # Add: 0 2 * * * sudo -u postgres pg_dump cts > /backups/cts-$(date +\%Y\%m\%d).sql
-```
+\`\`\`
 
 ## Troubleshooting
 
 ### Application won't start
-```bash
+\`\`\`bash
 # Check logs
 pm2 logs cts-v3 --lines 100
 
@@ -170,10 +170,10 @@ npm run build
 
 # Check environment
 cat .env.local
-```
+\`\`\`
 
 ### Database connection issues
-```bash
+\`\`\`bash
 # Test connection
 psql postgresql://user:password@localhost:5432/cts
 
@@ -182,10 +182,10 @@ sudo systemctl status postgresql
 
 # View PostgreSQL logs
 sudo tail -f /var/log/postgresql/postgresql-*-main.log
-```
+\`\`\`
 
 ### Nginx issues
-```bash
+\`\`\`bash
 # Test configuration
 sudo nginx -t
 
@@ -194,31 +194,31 @@ sudo systemctl reload nginx
 
 # View error log
 sudo tail -f /var/log/nginx/error.log
-```
+\`\`\`
 
 ## Maintenance
 
 ### Update Application
-```bash
+\`\`\`bash
 cd /opt/cts-v3
 git pull  # or upload new version
 npm install
 npm run build
 pm2 restart cts-v3
-```
+\`\`\`
 
 ### Renew SSL Certificate
-```bash
+\`\`\`bash
 # Test renewal
 sudo certbot renew --dry-run
 
 # Force renewal
 sudo certbot renew --force-renewal
 sudo systemctl reload nginx
-```
+\`\`\`
 
 ### Clean Old Logs
-```bash
+\`\`\`bash
 # PM2 logs
 pm2 flush
 

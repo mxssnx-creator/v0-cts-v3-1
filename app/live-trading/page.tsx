@@ -10,7 +10,6 @@ import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-import TradingEngine from "@/lib/trading-engine" // Declare the TradingEngine variable
 
 export default function LiveTradingPage() {
   // ... existing state ...

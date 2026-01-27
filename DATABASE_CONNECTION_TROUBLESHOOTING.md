@@ -3,10 +3,10 @@
 ## Quick Fix for "password authentication failed"
 
 Your error shows:
-```
+\`\`\`
 PostgreSQL connection string: file:./data/db.sqlite
 password authentication failed for user "root"
-```
+\`\`\`
 
 This means your DATABASE_URL is incorrectly formatted.
 
@@ -16,7 +16,7 @@ This means your DATABASE_URL is incorrectly formatted.
 
 Create a file named `.env.local` in your project root with:
 
-```bash
+\`\`\`bash
 DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
 SESSION_SECRET=00998877009988770099887700998877
 JWT_SECRET=00998877009988770099887700998877
@@ -24,20 +24,20 @@ ENCRYPTION_KEY=00998877009988770099887700998877
 API_SIGNING_SECRET=00998877009988770099887700998877
 NODE_ENV=development
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+\`\`\`
 
 ### Step 2: Restart Your Application
 
-```bash
+\`\`\`bash
 # Stop the current process (Ctrl+C)
 # Then restart:
 npm run dev
-```
+\`\`\`
 
 ### Step 3: Verify Connection
 
 Check the console output. You should see:
-```
+\`\`\`
 [v0] Valid PostgreSQL DATABASE_URL detected, using PostgreSQL
 [v0] PostgreSQL connection details:
   - Host: 83.229.86.105
@@ -45,31 +45,31 @@ Check the console output. You should see:
   - Database: cts-v3
   - User: cts
 [v0] PostgreSQL database connection established successfully
-```
+\`\`\`
 
 ## Alternative Database Options
 
 ### Option 1: Predefined Remote (Recommended)
-```bash
+\`\`\`bash
 DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-```
+\`\`\`
 - Pre-configured and ready to use
 - No setup required
 - Production-ready
 
 ### Option 2: Local PostgreSQL
-```bash
+\`\`\`bash
 DATABASE_URL=postgresql://your_username:your_password@localhost:5432/cts-v3
-```
+\`\`\`
 1. Install PostgreSQL locally
 2. Create database: `createdb cts-v3`
 3. Update credentials in .env.local
 
 ### Option 3: SQLite (Development Only)
-```bash
+\`\`\`bash
 DATABASE_TYPE=sqlite
 SQLITE_DB_PATH=./data/cts.db
-```
+\`\`\`
 - No external server needed
 - Not recommended for production
 
@@ -77,7 +77,7 @@ SQLITE_DB_PATH=./data/cts.db
 
 Add these environment variables in Vercel Dashboard:
 
-```
+\`\`\`
 DATABASE_URL=postgresql://cts:00998877@83.229.86.105:5432/cts-v3
 DATABASE_TYPE=postgresql
 SESSION_SECRET=00998877009988770099887700998877
@@ -86,7 +86,7 @@ ENCRYPTION_KEY=00998877009988770099887700998877
 API_SIGNING_SECRET=00998877009988770099887700998877
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 NODE_ENV=production
-```
+\`\`\`
 
 ## Common Errors and Fixes
 
@@ -109,12 +109,12 @@ NODE_ENV=production
 ## Testing Database Connection
 
 ### Using psql Command Line:
-```bash
+\`\`\`bash
 psql postgresql://cts:00998877@83.229.86.105:5432/cts-v3
-```
+\`\`\`
 
 ### Using Node.js Script:
-```javascript
+\`\`\`javascript
 const { Pool } = require('pg');
 const pool = new Pool({
   connectionString: 'postgresql://cts:00998877@83.229.86.105:5432/cts-v3'
@@ -124,7 +124,7 @@ pool.query('SELECT NOW()', (err, res) => {
   console.log(err ? 'Error:' : 'Connected:', err || res.rows[0]);
   pool.end();
 });
-```
+\`\`\`
 
 ## Still Having Issues?
 

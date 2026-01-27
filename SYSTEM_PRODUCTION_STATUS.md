@@ -55,23 +55,23 @@
 ## System Architecture
 
 ### Data Flow
-```
+\`\`\`
 Database → API Routes → React Components → User Interface
    ↑                                          ↓
    └──────── User Actions (via API) ─────────┘
-```
+\`\`\`
 
 ### Real-Time Updates
-```
+\`\`\`
 Exchange APIs → Market Prices API → RealTimeTicker Component
 Database → Connections API → Dashboard → ConnectionCard Components
 Trade Engine → Metrics API → SystemOverview Component
-```
+\`\`\`
 
 ### Active Connection Management
-```
+\`\`\`
 User Action → API Route → Database Update → Reload Data → UI Update
-```
+\`\`\`
 
 ## Next Steps for Full Production
 

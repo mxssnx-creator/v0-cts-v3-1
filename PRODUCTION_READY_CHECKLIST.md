@@ -36,36 +36,36 @@ The system has been fully configured for production deployment with:
 ## Quick Start
 
 ### Initial Setup
-```bash
+\`\`\`bash
 npm install
 npm run setup
-```
+\`\`\`
 
 ### Database Management
-```bash
+\`\`\`bash
 npm run db:migrate    # Run all migrations
 npm run db:status     # Check database status
 npm run db:backup     # Backup database
-```
+\`\`\`
 
 ### Development
-```bash
+\`\`\`bash
 npm run dev          # Start development server
 npm run type-check   # Check TypeScript types
 npm run lint         # Run ESLint
-```
+\`\`\`
 
 ### Production
-```bash
+\`\`\`bash
 npm run build        # Build for production
 npm start            # Start production server
-```
+\`\`\`
 
 ### System Health
-```bash
+\`\`\`bash
 npm run system:check   # System diagnostics
 npm run system:health  # Health check
-```
+\`\`\`
 
 ## Environment Variables
 

@@ -25,7 +25,7 @@
 
 CTS v3.1 uses a dual-architecture trading system:
 
-```
+\`\`\`
 ┌─────────────────────────────────────────────────────────────┐
 │                    CTS v3.1 Trading System                   │
 ├─────────────────────────────────────────────────────────────┤
@@ -46,7 +46,7 @@ CTS v3.1 uses a dual-architecture trading system:
 │     └──────────────────┘  └──────────────────┘            │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
-```
+\`\`\`
 
 ### Key Architectural Changes (v3.0 → v3.1)
 
@@ -76,7 +76,7 @@ CTS v3.1 uses a dual-architecture trading system:
 4. **Resuming**: Returning to running state (NEW)
 
 **Implementation**:
-```typescript
+\`\`\`typescript
 // Global Coordinator State
 {
   running: boolean      // Is engine started?
@@ -84,7 +84,7 @@ CTS v3.1 uses a dual-architecture trading system:
   pauseTime?: Date     // When was it paused?
   startTime?: Date     // When was it started?
 }
-```
+\`\`\`
 
 **Methods**:
 - `pause()`: Pauses without stopping loops
@@ -98,7 +98,7 @@ CTS v3.1 uses a dual-architecture trading system:
 
 ### File Structure
 
-```
+\`\`\`
 lib/
 ├── trade-engine.ts                          # Main coordinator file
 │   │
@@ -128,13 +128,13 @@ lib/
     └── trade-engine.tsx                     # Per-connection engine
         ├── export interface TradeEngineConfig
         └── export class TradeEngine
-```
+\`\`\`
 
 ### Import Patterns
 
 **Recommended Imports**:
 
-```typescript
+\`\`\`typescript
 // Global Coordinator
 import { getTradeEngine, GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 
@@ -151,16 +151,16 @@ import {
   TradeEngine,
   TradeEngineConfig 
 } from "@/lib/trade-engine"
-```
+\`\`\`
 
 **DO NOT USE** (deprecated):
-```typescript
+\`\`\`typescript
 // ❌ Old naming - no longer exists
 import { ContinuousTradeEngine } from "@/lib/trade-engine"
 
 // ❌ Direct subdirectory imports - use barrel exports
 import { TradeEngine } from "@/lib/trade-engine/trade-engine"
-```
+\`\`\`
 
 ### Lifecycle Methods
 
@@ -195,7 +195,7 @@ import { TradeEngine } from "@/lib/trade-engine/trade-engine"
 
 ### UI → API → Engine Flow
 
-```
+\`\`\`
 User Interface
     ↓
 GlobalTradeEngineControls Component
@@ -209,11 +209,11 @@ GlobalTradeEngineCoordinator
 TradeEngine instances (per-connection)
     ↓ (Executes on)
 Exchange Connections
-```
+\`\`\`
 
 ### Component Dependency Map
 
-```
+\`\`\`
 app/page.tsx (Dashboard)
 ├─> GlobalTradeEngineControls
 │   ├─> /api/trade-engine/start
@@ -236,7 +236,7 @@ All API Routes
 │
 └─> lib/system-logger.ts
     └─> Database logging
-```
+\`\`\`
 
 ---
 
@@ -263,22 +263,22 @@ All API Routes
 ### API Response Patterns
 
 **Success Response**:
-```typescript
+\`\`\`typescript
 {
   success: true,
   message: "Operation completed",
   data?: any
 }
-```
+\`\`\`
 
 **Error Response**:
-```typescript
+\`\`\`typescript
 {
   success: false,
   error: "Error message",
   details?: string
 }
-```
+\`\`\`
 
 ---
 
@@ -304,7 +304,7 @@ All API Routes
 
 ### Database Access Patterns
 
-```typescript
+\`\`\`typescript
 // In API routes
 import { db } from "@/lib/db"
 
@@ -314,7 +314,7 @@ const connections = await db.query("SELECT * FROM connections WHERE enabled = ?"
 // Log to database
 import { SystemLogger } from "@/lib/system-logger"
 await SystemLogger.logTradeEngine("Message", "info")
-```
+\`\`\`
 
 ---
 
@@ -325,27 +325,27 @@ await SystemLogger.logTradeEngine("Message", "info")
 **Location**: `lib/trade-engine.ts`
 
 **Singleton Pattern**:
-```typescript
+\`\`\`typescript
 let globalCoordinator: GlobalTradeEngineCoordinator | null = null
 
 export function getTradeEngine(): GlobalTradeEngineCoordinator | null {
   return globalCoordinator
 }
-```
+\`\`\`
 
 ### Per-Connection State
 
 **Location**: `lib/trade-engine/trade-engine.tsx`
 
 **Instance Pattern**:
-```typescript
+\`\`\`typescript
 // Each connection gets its own TradeEngine instance
 const engine = new TradeEngine(config)
-```
+\`\`\`
 
 ### State Transitions
 
-```
+\`\`\`
 ┌──────────┐
 │ Stopped  │
 └────┬─────┘
@@ -364,7 +364,7 @@ const engine = new TradeEngine(config)
 ┌──────────┐
 │ Stopped  │
 └──────────┘
-```
+\`\`\`
 
 ---
 
@@ -413,9 +413,9 @@ const engine = new TradeEngine(config)
 
 #### Step 5: Add Logging
 
-```typescript
+\`\`\`typescript
 await SystemLogger.logTradeEngine("Action performed", "info")
-```
+\`\`\`
 
 #### Step 6: Update Documentation
 
@@ -462,7 +462,7 @@ await SystemLogger.logTradeEngine("Action performed", "info")
 
 ### Starting the Global Coordinator
 
-```typescript
+\`\`\`typescript
 // From API route
 const engine = getTradeEngine()
 if (engine) {
@@ -471,11 +471,11 @@ if (engine) {
 
 // From UI (via API call)
 await fetch('/api/trade-engine/start', { method: 'POST' })
-```
+\`\`\`
 
 ### Pausing the Global Coordinator
 
-```typescript
+\`\`\`typescript
 // From API route
 const engine = getTradeEngine()
 if (engine) {
@@ -484,11 +484,11 @@ if (engine) {
 
 // From UI (via API call)
 await fetch('/api/trade-engine/pause', { method: 'POST' })
-```
+\`\`\`
 
 ### Resuming the Global Coordinator
 
-```typescript
+\`\`\`typescript
 // From API route
 const engine = getTradeEngine()
 if (engine) {
@@ -497,11 +497,11 @@ if (engine) {
 
 // From UI (via API call)
 await fetch('/api/trade-engine/resume', { method: 'POST' })
-```
+\`\`\`
 
 ### Checking Engine Status
 
-```typescript
+\`\`\`typescript
 // From API route
 const engine = getTradeEngine()
 if (engine) {
@@ -513,22 +513,22 @@ if (engine) {
 // From UI (via API call)
 const response = await fetch('/api/trade-engine/status')
 const { status, isRunning, isPaused } = await response.json()
-```
+\`\`\`
 
 ### Starting a Per-Connection Engine
 
-```typescript
+\`\`\`typescript
 // From API route
 const engine = new TradeEngine(config)
 await engine.start()
 
 // From UI (via API call)
 await fetch(`/api/trade-engine/${connectionId}/start`, { method: 'POST' })
-```
+\`\`\`
 
 ### Logging Operations
 
-```typescript
+\`\`\`typescript
 import { SystemLogger } from "@/lib/system-logger"
 
 // Trade engine logs
@@ -539,7 +539,7 @@ await SystemLogger.logError(error, "trade-engine", "start")
 
 // Custom context logs
 await SystemLogger.log("Custom message", "info", { context: "custom" })
-```
+\`\`\`
 
 ---
 
@@ -609,22 +609,22 @@ await SystemLogger.log("Custom message", "info", { context: "custom" })
 **Problem**: Importing from subdirectories directly
 
 **Solution**: Always use barrel exports
-```typescript
+\`\`\`typescript
 // ❌ Wrong
 import { TradeEngine } from "@/lib/trade-engine/trade-engine"
 
 // ✅ Correct
 import { TradeEngine } from "@/lib/trade-engine"
-```
+\`\`\`
 
 ### Pitfall 3: Missing SystemLogger Calls
 
 **Problem**: State changes not logged, hard to debug
 
 **Solution**: Log all significant operations
-```typescript
+\`\`\`typescript
 await SystemLogger.logTradeEngine("Engine paused", "info")
-```
+\`\`\`
 
 ### Pitfall 4: Forgetting Barrel Exports
 
@@ -637,7 +637,7 @@ await SystemLogger.logTradeEngine("Engine paused", "info")
 **Problem**: Calling global methods on per-connection engines
 
 **Solution**: Use correct import and instance
-```typescript
+\`\`\`typescript
 // Global
 const engine = getTradeEngine()
 await engine.pause()
@@ -645,7 +645,7 @@ await engine.pause()
 // Per-connection
 const connectionEngine = new TradeEngine(config)
 await connectionEngine.start()
-```
+\`\`\`
 
 ---
 

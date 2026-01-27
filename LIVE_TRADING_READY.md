@@ -20,19 +20,19 @@
 - **Logs expansion**: Click to view detailed test logs and API responses
 
 ### 2. Enable Live Trading
-```
+\`\`\`
 Settings → Exchange Connections → [Select Connection] → Toggle "Live Trading"
-```
+\`\`\`
 - Connection must be tested and verified first
 - Real API credentials used immediately
 - Trade engine can be started once enabled
 
 ### 3. Start Trade Engine
-```
+\`\`\`
 Dashboard → [Active Connection] → Start Engine
 OR
 Live Trading → Activity Tab → Start Engine
-```
+\`\`\`
 
 **What happens:**
 1. Load connection from file storage
@@ -54,40 +54,40 @@ Live Trading → Activity Tab → Start Engine
 ## API Endpoints for Live Trading
 
 ### Connection Status
-```
+\`\`\`
 GET /api/connections/status
 Returns: [{id, name, exchange, status, progress, balance, activePositions, ...}]
-```
+\`\`\`
 
 ### Trading Positions
-```
+\`\`\`
 GET /api/positions
 Returns: [{id, symbol, entryPrice, currentPrice, quantity, pnl, pnlPercent, ...}]
 Real: From pseudo_positions table
 Mock: Generated positions when no real connections
-```
+\`\`\`
 
 ### Trading Statistics
-```
+\`\`\`
 GET /api/trading/stats
 Returns: {totalPositions, openPositions, closedPositions, totalPnL, winRate, ...}
 Real: Calculated from trade history
 Mock: Simulated statistics
-```
+\`\`\`
 
 ### Trade Engine Progression
-```
+\`\`\`
 GET /api/trade-engine/progression
 Returns: [{connectionId, engineState, tradeCount, lastUpdate, ...}]
 States: idle, running, initializing, stopped, error
-```
+\`\`\`
 
 ### Start Trade Engine
-```
+\`\`\`
 POST /api/trade-engine/start
 Body: {connectionId}
 Returns: {success, message, connectionId}
-```
+\`\`\`
 
 ---
 
@@ -115,7 +115,7 @@ When no real connections are enabled:
 ## Configuration
 
 ### Default Settings (from file-storage)
-```
+\`\`\`
 {
   "tradeInterval": 1.0,        # Seconds between trade checks
   "realInterval": 0.3,         # Seconds between real data updates
@@ -123,10 +123,10 @@ When no real connections are enabled:
   "batchSize": 20,            # Requests per batch
   "rateLimitPerSecond": 10    # Per-exchange limit
 }
-```
+\`\`\`
 
 ### Connection Configuration
-```
+\`\`\`
 Exchange: (binance, bybit, bingx, pionex, orangex, etc.)
 API Type: REST or WebSocket
 Margin Type: Spot, Margin, Futures
@@ -135,7 +135,7 @@ Is Testnet: true/false
 Is Enabled: true/false
 Is Active: true/false (dashboard only)
 Is Live Trading: true/false (real orders)
-```
+\`\`\`
 
 ---
 
