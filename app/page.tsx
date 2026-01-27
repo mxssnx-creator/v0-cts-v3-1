@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Dashboard } from '@/components/dashboard'
+import { AppStartup } from '@/components/app-startup'
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false)
@@ -22,8 +23,11 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <Dashboard />
-    </main>
+    <>
+      <AppStartup />
+      <main className="min-h-screen bg-background">
+        <Dashboard />
+      </main>
+    </>
   )
 }

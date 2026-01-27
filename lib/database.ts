@@ -1518,3 +1518,9 @@ class DatabaseManager {
 export default DatabaseManager
 
 export const db = DatabaseManager.getInstance()
+
+// Export query function for backward compatibility
+export const query = async (sql: string, params?: any[]) => {
+  const dbManager = DatabaseManager.getInstance()
+  return dbManager.query(sql, params)
+}
