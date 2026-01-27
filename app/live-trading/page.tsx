@@ -8,6 +8,7 @@ import { TradingOverview } from "@/components/live-trading/trading-overview"
 import { TradeEngineProgression } from "@/components/live-trading/trade-engine-progression"
 import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
+import { TradingEngine } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 
@@ -93,7 +94,7 @@ export default function LiveTradingPage() {
         const mappedConnections = enabledConnections.map((c: any) => ({
           id: c.id,
           name: `${c.name} (${c.exchange.toUpperCase()})`,
-          is_enabled: true,
+          is_enabled: true as boolean,
         }))
         setConnections(mappedConnections)
         // Set first enabled connection as default
@@ -185,7 +186,7 @@ export default function LiveTradingPage() {
           // Filter to connection-specific positions if needed
           const connectionPositions = positions.filter((p: any) => 
             !selectedConnection || p.connection_id === selectedConnection
-          )
+          ) as TradingPosition[]
           setOpenPositions(connectionPositions)
         }
         

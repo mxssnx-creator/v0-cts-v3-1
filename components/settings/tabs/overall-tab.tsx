@@ -448,7 +448,7 @@ export function OverallTab({
         </TabsContent>
 
         <TabsContent value="monitoring" className="space-y-4">
-          <StatisticsOverview />
+          <StatisticsOverview settings={settings} />
         </TabsContent>
 
         <TabsContent value="install" className="space-y-4">

@@ -1976,8 +1976,6 @@ export default function SettingsPage() {
             <SystemTab
               settings={settings}
               handleSettingChange={handleSettingChange}
-              databaseType={databaseType}
-              setDatabaseType={setDatabaseType}
               databaseChanged={databaseChanged}
             />
           </TabsContent>

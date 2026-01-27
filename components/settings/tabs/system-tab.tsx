@@ -147,7 +147,7 @@ export function SystemTab({ settings, handleSettingChange, databaseChanged }: Sy
 
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold">Database Statistics</h3>
-              <StatisticsOverview />
+              <StatisticsOverview settings={settings} />
             </div>
           </CardContent>
         </Card>

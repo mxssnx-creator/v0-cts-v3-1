@@ -32,8 +32,8 @@ export async function GET() {
     const runningEngines = engineStates.filter((s: any) => s.state === 'running')
 
     // 3. Get position data
-    let pseudoPositions = []
-    let realPositions = []
+    let pseudoPositions: any[] = []
+    let realPositions: any[] = []
     
     try {
       const db = DatabaseManager.getInstance()
@@ -57,7 +57,7 @@ export async function GET() {
     `
 
     // 5. Get error/log data
-    let recentErrors = []
+    let recentErrors: any[] = []
     try {
       const db = DatabaseManager.getInstance()
       recentErrors = await db.getErrors(10, false)
@@ -178,7 +178,7 @@ export async function GET() {
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
     console.error("[v0] [Monitoring] Failed to fetch comprehensive metrics:", errorMessage)
     
-    await SystemLogger.logError(error, "monitoring", "GET /api/monitoring/comprehensive")
+    await SystemLogger.logError(error, "system", "GET /api/monitoring/comprehensive")
 
     return NextResponse.json(
       {
