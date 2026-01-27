@@ -126,43 +126,13 @@ function startConnectionMonitoring(): void {
     }
   }, 30000)
 }
-  }, 30000)
-}
-
-      const coordinator = getGlobalTradeEngineCoordinator()
-      const settings = loadSettings()
-      const indicationInterval = settings.mainEngineIntervalMs ? settings.mainEngineIntervalMs / 1000 : 5
-      const strategyInterval = settings.strategyUpdateIntervalMs ? settings.strategyUpdateIntervalMs / 1000 : 10
-      const realtimeInterval = settings.realtimeIntervalMs ? settings.realtimeIntervalMs / 1000 : 3
-
-      for (const connection of activeConnections) {
-        const manager = coordinator.getEngineManager(connection.id)
-        if (!manager) {
-          try {
-            await coordinator.startEngine(connection.id, {
-              connectionId: connection.id,
-              indicationInterval,
-              strategyInterval,
-              realtimeInterval,
-            })
-          } catch (error) {
-            // Ignore new connection startup errors
-          }
-        }
-      }
-    } catch (error) {
-      // Ignore monitoring errors
-    }
-  }, 30000)
-}
 
 /**
- * Stop the auto-start service
+ * Stop the connection monitoring timer
  */
-export function stopTradeEngineAutoStart(): void {
+export function stopConnectionMonitoring(): void {
   if (autoStartTimer) {
     clearInterval(autoStartTimer)
     autoStartTimer = null
   }
-  autoStartInitialized = false
 }
