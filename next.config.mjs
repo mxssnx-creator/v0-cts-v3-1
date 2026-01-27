@@ -10,7 +10,6 @@ const nextConfig = {
   transpilePackages: ['lucide-react'],
   experimental: {
     optimizePackageImports: ['lucide-react'],
-    instrumentationHook: true,
   },
   logging: {
     fetches: {
