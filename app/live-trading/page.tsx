@@ -10,7 +10,7 @@ import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-import { GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
+import { getGlobalCoordinator, type GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 
 export default function LiveTradingPage() {
   // ... existing state ...
@@ -42,7 +42,7 @@ export default function LiveTradingPage() {
   }
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedConnection, setSelectedConnection] = useState<string>("")
-  const [tradingEngine] = useState(() => new GlobalTradeEngineCoordinator())
+  const [tradingEngine] = useState<GlobalTradeEngineCoordinator | null>(() => getGlobalCoordinator())
   const [openPositions, setOpenPositions] = useState<TradingPosition[]>([])
   const [closedPositions, setClosedPositions] = useState<TradingPosition[]>([])
   const [tradingStats, setTradingStats] = useState<TradingStats>({
@@ -129,7 +129,7 @@ export default function LiveTradingPage() {
   }, [])
 
   useEffect(() => {
-    if (!hasRealConnections) {
+    if (!hasRealConnections && tradingEngine) {
       tradingEngine.generateMockPositions(selectedConnection, 25)
       refreshData()
 
@@ -145,7 +145,7 @@ export default function LiveTradingPage() {
       }, 3000)
 
       return () => clearInterval(interval)
-    } else {
+    } else if (hasRealConnections) {
       console.log("[v0] Loading real trading data from connected exchanges")
       refreshData()
       
@@ -159,7 +159,7 @@ export default function LiveTradingPage() {
   }, [selectedConnection, hasRealConnections])
 
   const refreshData = async () => {
-    if (!hasRealConnections) {
+    if (!hasRealConnections && tradingEngine) {
       const openPos = tradingEngine.getOpenPositions(selectedConnection)
       const closedPos = tradingEngine.getClosedPositions(selectedConnection)
       const stats = tradingEngine.getTradingStats(selectedConnection)
@@ -174,7 +174,7 @@ export default function LiveTradingPage() {
         "24h": tradingEngine.getTimeRangeStats(24, selectedConnection),
         "48h": tradingEngine.getTimeRangeStats(48, selectedConnection),
       })
-    } else {
+    } else if (hasRealConnections) {
       try {
         console.log("[v0] Fetching real trading data from API")
         
@@ -204,6 +204,7 @@ export default function LiveTradingPage() {
   }
 
   const handleClosePosition = async (positionId: string) => {
+    if (!tradingEngine) return
     const closed = await tradingEngine.closePosition(positionId)
     if (closed) {
       toast.success(`Position ${closed.symbol} closed with P&L: $${closed.profit_loss.toFixed(2)}`)
@@ -212,12 +213,14 @@ export default function LiveTradingPage() {
   }
 
   const handleCloseProfitablePositions = async () => {
+    if (!tradingEngine) return
     const closed = await tradingEngine.closeProfitablePositions(selectedConnection)
     toast.success(`Closed ${closed.length} profitable positions`)
     refreshData()
   }
 
   const handleCloseAllPositions = async () => {
+    if (!tradingEngine) return
     const closed = await tradingEngine.closeAllPositions(selectedConnection)
     toast.success(`Closed ${closed.length} positions`)
     refreshData()
