@@ -12,28 +12,25 @@ export function DatabaseInitAlert() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if critical tables exist
+    // Delayed check to not block initial render
     const checkTables = async () => {
       try {
+        const isDismissed = localStorage.getItem("db-init-alert-dismissed")
+        if (isDismissed) return
+
         // Try to access a critical API that requires tables
         const response = await fetch("/api/preset-types")
         if (!response.ok && response.status === 500) {
-          // Likely missing tables
-          const isDismissed = localStorage.getItem("db-init-alert-dismissed")
-          if (!isDismissed) {
-            setShowAlert(true)
-          }
-        }
-      } catch (error) {
-        // Error likely means tables are missing
-        const isDismissed = localStorage.getItem("db-init-alert-dismissed")
-        if (!isDismissed) {
           setShowAlert(true)
         }
+      } catch (error) {
+        // Silently fail - not critical for preview
       }
     }
 
-    checkTables()
+    // Wait 2 seconds before checking
+    const timer = setTimeout(checkTables, 2000)
+    return () => clearTimeout(timer)
   }, [])
 
   const handleDismiss = () => {
