@@ -1,36 +1,43 @@
 /**
- * Minimal instrumentation - system boots first, initialization happens in background
+ * Application instrumentation - runs on app startup
  */
 export async function register() {
-  // Do nothing synchronously - app loads immediately
-  
+  console.log("[v0] Initializing application...")
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Schedule all initialization to happen after app is ready
-    // Use process.nextTick to defer until after module loading
+    // Run migrations immediately on startup
     process.nextTick(async () => {
       try {
-        // Try to initialize database
-        try {
-          const { initializeDatabase } = await import("./lib/db-initializer")
-          await initializeDatabase().catch(() => {
-            // Database init failure is not critical
-          })
-        } catch (e) {
-          // Silently fail - database will initialize on first use
-        }
-
-        // Try to initialize trade engines
-        try {
-          const { initializeTradeEngineAutoStart } = await import("./lib/trade-engine-auto-start")
-          await initializeTradeEngineAutoStart().catch(() => {
-            // Trade engine init failure is not critical
-          })
-        } catch (e) {
-          // Silently fail - engines can start manually
-        }
+        console.log("[v0] Starting database migrations...")
+        const { runMigrations } = await import("./lib/migration-runner")
+        await runMigrations()
+        console.log("[v0] Database migrations completed successfully")
       } catch (error) {
-        // Catch all - initialization errors don't affect app
+        console.error("[v0] Migration initialization failed:", error)
+        console.log("[v0] System will continue - some features may not be available")
+      }
+
+      try {
+        // Initialize database after migrations
+        const { initializeDatabase } = await import("./lib/db-initializer")
+        await initializeDatabase().catch(() => {
+          // Database init failure is not critical
+        })
+      } catch (e) {
+        // Silently fail - database will initialize on first use
+      }
+
+      try {
+        // Initialize trade engines after migrations
+        const { initializeTradeEngineAutoStart } = await import("./lib/trade-engine-auto-start")
+        await initializeTradeEngineAutoStart().catch(() => {
+          // Trade engine init failure is not critical
+        })
+      } catch (e) {
+        // Silently fail - engines can start manually
       }
     })
   }
+
+  console.log("[v0] Application initialization started")
 }
