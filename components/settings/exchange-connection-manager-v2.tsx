@@ -3,16 +3,13 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Loader2, Trash2, Rocket, Info, ExternalLink, User, CheckCircle2 } from 'lucide-react'
 import { toast } from "@/lib/simple-toast"
 import { CONNECTION_PREDEFINITIONS } from "@/lib/connection-predefinitions"
 import { USER_CONNECTIONS } from "@/lib/user-connections-config"
 import type { ExchangeConnection } from "@/lib/types"
+import { AddConnectionDialog } from "@/components/settings/add-connection-dialog"
 import {
   Dialog,
   DialogContent,
@@ -40,7 +37,7 @@ export default function ExchangeConnectionManagerV2() {
   const [connections, setConnections] = useState<ExchangeConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
+  const [showAddDialog, setShowAddDialog] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [showPredefined, setShowPredefined] = useState(false)
   const [initializingPredefined, setInitializingPredefined] = useState(false)
@@ -48,19 +45,6 @@ export default function ExchangeConnectionManagerV2() {
   const [showUserConnections, setShowUserConnections] = useState(false)
   const [importingUser, setImportingUser] = useState(false)
   const [userConnectionsStatus, setUserConnectionsStatus] = useState<any[]>([])
-
-  const [formData, setFormData] = useState({
-    name: "",
-    exchange: "bybit",
-    api_type: "perpetual_futures",
-    connection_method: "library",
-    connection_library: "native",
-    api_key: "",
-    api_secret: "",
-    margin_type: "cross",
-    position_mode: "hedge",
-    is_testnet: false,
-  })
 
   useEffect(() => {
     loadConnections()
@@ -171,21 +155,12 @@ export default function ExchangeConnectionManagerV2() {
     }
   }
 
-  const addConnection = async () => {
-    if (!formData.name.trim()) {
-      toast.error("Please enter a connection name")
-      return
-    }
-    if (!formData.api_key.trim() || !formData.api_secret.trim()) {
-      toast.error("Please enter API credentials")
-      return
-    }
-
+  const addConnection = async (connectionData: any) => {
     try {
       const response = await fetch("/api/settings/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(connectionData),
       })
 
       if (!response.ok) {
@@ -194,23 +169,10 @@ export default function ExchangeConnectionManagerV2() {
       }
 
       toast.success("Connection added successfully")
-      setShowAddForm(false)
-      setFormData({
-        name: "",
-        exchange: "bybit",
-        api_type: "perpetual_futures",
-        connection_method: "library",
-        connection_library: "native",
-        api_key: "",
-        api_secret: "",
-        margin_type: "cross",
-        position_mode: "hedge",
-        is_testnet: false,
-      })
       await loadConnections()
     } catch (error) {
       console.error("Add connection error:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to add connection")
+      throw error
     }
   }
 
@@ -601,7 +563,7 @@ export default function ExchangeConnectionManagerV2() {
                 </DialogContent>
               </Dialog>
 
-              <Button onClick={() => setShowAddForm(!showAddForm)}>
+              <Button onClick={() => setShowAddDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Custom
               </Button>
@@ -609,168 +571,11 @@ export default function ExchangeConnectionManagerV2() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {showAddForm && (
-            <Card className="border-2 border-primary">
-              <CardHeader>
-                <CardTitle className="text-lg">New Connection</CardTitle>
-                <CardDescription>
-                  Configure connection settings (API credentials only - no trade settings)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Connection Name</Label>
-                    <Input
-                      placeholder="My Exchange Account"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Exchange</Label>
-                    <Select
-                      value={formData.exchange}
-                      onValueChange={(value) => setFormData({ ...formData, exchange: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(EXCHANGES).map(([key, config]) => (
-                          <SelectItem key={key} value={key}>
-                            {config.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="Enter API key"
-                      value={formData.api_key}
-                      onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>API Secret</Label>
-                    <Input
-                      type="password"
-                      placeholder="Enter API secret"
-                      value={formData.api_secret}
-                      onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>API Type</Label>
-                    <Select
-                      value={formData.api_type}
-                      onValueChange={(value) => setFormData({ ...formData, api_type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXCHANGES[formData.exchange as keyof typeof EXCHANGES]?.apiTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type.replace(/_/g, " ").toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Margin Type</Label>
-                    <Select
-                      value={formData.margin_type}
-                      onValueChange={(value) => setFormData({ ...formData, margin_type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cross">Cross Margin</SelectItem>
-                        <SelectItem value="isolated">Isolated Margin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Position Mode</Label>
-                    <Select
-                      value={formData.position_mode}
-                      onValueChange={(value) => setFormData({ ...formData, position_mode: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hedge">Hedge Mode</SelectItem>
-                        <SelectItem value="one-way">One-Way Mode</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Connection Method</Label>
-                    <Select
-                      value={formData.connection_method}
-                      onValueChange={(value) => setFormData({ ...formData, connection_method: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="library">Library (Default)</SelectItem>
-                        <SelectItem value="rest">REST API</SelectItem>
-                        <SelectItem value="websocket">WebSocket</SelectItem>
-                        <SelectItem value="typescript">TypeScript SDK</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Connection Library</Label>
-                    <Select
-                      value={formData.connection_library}
-                      onValueChange={(value) => setFormData({ ...formData, connection_library: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="native">Native</SelectItem>
-                        <SelectItem value="ccxt">CCXT</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={formData.is_testnet}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })}
-                  />
-                  <Label>Use Testnet</Label>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={addConnection}>Add Connection</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <AddConnectionDialog
+            open={showAddDialog}
+            onOpenChange={setShowAddDialog}
+            onAdd={addConnection}
+          />
 
           {connections.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
