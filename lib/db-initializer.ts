@@ -8,7 +8,7 @@ export async function initializeDatabase(): Promise<void> {
     const dbType = getDatabaseType()
 
     if (dbType !== "sqlite") {
-      return // PostgreSQL handles migrations separately
+      return
     }
 
     const client = getClient() as any
@@ -16,10 +16,9 @@ export async function initializeDatabase(): Promise<void> {
     const tableCount = result?.count || 0
 
     if (tableCount >= 10) {
-      return // Database already initialized
+      return
     }
 
-    // Try to initialize from SQL script
     try {
       const fs = await import("fs")
       const path = await import("path")
@@ -35,19 +34,17 @@ export async function initializeDatabase(): Promise<void> {
         .map(s => s.trim())
         .filter(s => s.length > 10)
 
-      let count = 0
       for (const stmt of statements) {
         try {
           client.prepare(stmt).run()
-          count++
         } catch (e) {
-          // Ignore "already exists" errors
+          // Ignore errors
         }
       }
     } catch (e) {
-      // Database initialization is optional
+      // Optional initialization
     }
   } catch (error) {
-    // Silently fail - not critical
+    // Silently fail
   }
 }
