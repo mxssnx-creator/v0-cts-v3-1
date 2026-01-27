@@ -111,14 +111,17 @@ export default function ExchangeConnectionManagerV2() {
 
       const data = await response.json()
 
-      if (!Array.isArray(data)) {
-        console.warn("Invalid data format:", typeof data)
+      // Handle both array and object response formats
+      let connectionsArray = Array.isArray(data) ? data : (data?.connections || [])
+
+      if (!Array.isArray(connectionsArray)) {
+        console.warn("Invalid data format:", typeof connectionsArray)
         setConnections([])
         setError("Invalid data format received")
         return
       }
 
-      const validConnections = data
+      const validConnections = connectionsArray
         .filter((c: any) => {
           if (!c || typeof c !== "object") return false
           if (typeof c.id !== "string" || !c.id) return false
