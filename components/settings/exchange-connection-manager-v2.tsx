@@ -191,7 +191,7 @@ export default function ExchangeConnectionManagerV2() {
       if (!response.ok) throw new Error("Failed to delete")
 
       toast.success("Connection deleted")
-      await loadConnections()
+      setConnections((prev) => prev.filter((c) => c.id !== id))
     } catch (error) {
       console.error("Delete error:", error)
       toast.error("Failed to delete connection")
@@ -211,10 +211,23 @@ export default function ExchangeConnectionManagerV2() {
         throw new Error(data.error || "Test failed")
       }
 
+      // Update connection with test results
+      setConnections((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                last_test_status: data.success ? "success" : "failed",
+                last_test_balance: data.balance,
+                last_test_log: data.logs || [],
+              }
+            : c
+        )
+      )
+
       toast.success(`Connection successful! Balance: $${data.balance?.toFixed(2) || "0.00"}`)
-      await loadConnections()
     } catch (error) {
-      console.error("Test error:", error)
+      console.error("[v0] Test error:", error)
       toast.error(error instanceof Error ? error.message : "Test failed")
     } finally {
       setTestingId(null)
@@ -231,10 +244,14 @@ export default function ExchangeConnectionManagerV2() {
 
       if (!response.ok) throw new Error("Failed to toggle")
 
+      // Update local state immediately
+      setConnections((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, is_enabled: enabled } : c))
+      )
+
       toast.success(`Connection ${enabled ? "enabled" : "disabled"}`)
-      await loadConnections()
     } catch (error) {
-      console.error("Toggle error:", error)
+      console.error("[v0] Toggle error:", error)
       toast.error("Failed to toggle connection")
     }
   }
@@ -596,43 +613,41 @@ export default function ExchangeConnectionManagerV2() {
                 const positionMode = conn.position_mode || "hedge"
 
                 return (
-                  <Card key={conn.id} className={conn.is_enabled ? "border-primary" : ""}>
+                  <Card key={conn.id} className={conn.is_enabled ? "border-blue-500 border-2" : ""}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                           <div className="flex items-center gap-2">
                             <CardTitle className="text-lg">{conn.name}</CardTitle>
-                            {conn.is_enabled && <Badge>Active</Badge>}
+                            <Badge variant={conn.is_enabled ? "default" : "secondary"}>
+                              {conn.is_enabled ? "Enabled" : "Disabled"}
+                            </Badge>
                             {conn.is_testnet && <Badge variant="outline">Testnet</Badge>}
                             {conn.last_test_status === "success" && <Badge className="bg-green-500">✓ Tested</Badge>}
+                            {conn.last_test_status === "failed" && <Badge variant="destructive">✗ Failed</Badge>}
                           </div>
-                          <CardDescription>
-                            {exchangeName} • {apiType}
+                          <CardDescription className="flex gap-4">
+                            <span>API Type: <span className="font-medium">{apiType}</span></span>
+                            <span>Margin: <span className="font-medium capitalize">{marginType}</span></span>
+                            <span>Position: <span className="font-medium capitalize">{positionMode}</span></span>
                           </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Switch
                             checked={conn.is_enabled || false}
                             onCheckedChange={(checked: boolean) => toggleEnabled(conn.id, checked)}
                           />
-                          <Button variant="ghost" size="icon" onClick={() => deleteConnection(conn.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Margin</p>
-                          <p className="font-medium capitalize">{marginType}</p>
+                          <p className="text-muted-foreground">Exchange</p>
+                          <p className="font-medium">{exchangeName}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Position Mode</p>
-                          <p className="font-medium capitalize">{positionMode}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Connection Method</p>
+                          <p className="text-muted-foreground">Method</p>
                           <p className="font-medium capitalize">{conn.connection_method || "rest"}</p>
                         </div>
                         {typeof conn.last_test_balance === "number" && (
@@ -641,23 +656,59 @@ export default function ExchangeConnectionManagerV2() {
                             <p className="font-medium">${conn.last_test_balance.toFixed(2)}</p>
                           </div>
                         )}
+                        {conn.last_test_at && (
+                          <div>
+                            <p className="text-muted-foreground">Last Test</p>
+                            <p className="font-medium text-xs">
+                              {new Date(conn.last_test_at).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => testConnection(conn.id)}
-                        disabled={testingId === conn.id}
-                      >
-                        {testingId === conn.id ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Testing...
-                          </>
-                        ) : (
-                          "Test Connection"
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => testConnection(conn.id)}
+                          disabled={testingId === conn.id}
+                        >
+                          {testingId === conn.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Testing...
+                            </>
+                          ) : (
+                            "Test Connection"
+                          )}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => deleteConnection(conn.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                        {conn.last_test_log && conn.last_test_log.length > 0 && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Info className="h-4 w-4 mr-2" />
+                                View Logs
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>{conn.name} - Connection Logs</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-2 font-mono text-xs bg-muted p-4 rounded overflow-auto max-h-96">
+                                {conn.last_test_log.map((log, idx) => (
+                                  <div key={idx} className="text-muted-foreground">
+                                    {log}
+                                  </div>
+                                ))}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         )}
-                      </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )
