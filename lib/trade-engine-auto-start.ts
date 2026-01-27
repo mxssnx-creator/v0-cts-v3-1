@@ -126,6 +126,8 @@ function startConnectionMonitoring(): void {
     }
   }, 30000)
 }
+  }, 30000)
+}
 
       const coordinator = getGlobalTradeEngineCoordinator()
       const settings = loadSettings()
