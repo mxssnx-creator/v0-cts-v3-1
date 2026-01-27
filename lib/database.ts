@@ -1518,3 +1518,6 @@ class DatabaseManager {
 export default DatabaseManager
 
 export const db = DatabaseManager.getInstance()
+
+// Re-export query from db.ts for backwards compatibility
+export { query, queryOne, execute } from './db'

@@ -13,7 +13,7 @@ This guide covers deploying CTS v3.1 to Vercel with proper configuration.
 
 Configure these in your Vercel project settings:
 
-```bash
+\`\`\`bash
 # Database
 REMOTE_POSTGRES_URL=postgresql://user:password@host:5432/database
 
@@ -26,36 +26,36 @@ API_SIGNING_SECRET=your_api_signing_secret_here
 # App Configuration
 NODE_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
-```
+\`\`\`
 
 ## Deployment Steps
 
 ### 1. Connect Repository
 
-```bash
+\`\`\`bash
 # Install Vercel CLI
 npm i -g vercel
 
 # Link project
 vercel link
-```
+\`\`\`
 
 ### 2. Configure Build Settings
 
 The project uses a custom build command that clears caches:
 
-```json
+\`\`\`json
 {
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm install"
 }
-```
+\`\`\`
 
 This is already configured in `vercel.json`.
 
 ### 3. Set Environment Variables
 
-```bash
+\`\`\`bash
 # Via CLI
 vercel env add REMOTE_POSTGRES_URL
 vercel env add SESSION_SECRET
@@ -65,17 +65,17 @@ vercel env add API_SIGNING_SECRET
 
 # Or via Vercel Dashboard
 # Settings > Environment Variables
-```
+\`\`\`
 
 ### 4. Deploy
 
-```bash
+\`\`\`bash
 # Deploy to preview
 vercel
 
 # Deploy to production
 vercel --prod
-```
+\`\`\`
 
 ## Build Configuration
 
@@ -87,20 +87,20 @@ The `vercel-build` script:
 3. Checks module exports
 4. Runs standard Next.js build
 
-```json
+\`\`\`json
 {
   "scripts": {
     "vercel-build": "npm run clean:vercel && npm run build",
     "clean:vercel": "rm -rf .next .turbo node_modules/.cache"
   }
 }
-```
+\`\`\`
 
 ### Build Optimization
 
 Set in `vercel.json`:
 
-```json
+\`\`\`json
 {
   "env": {
     "NODE_ENV": "production",
@@ -109,7 +109,7 @@ Set in `vercel.json`:
     "SKIP_OPTIONAL_DEPS": "true"
   }
 }
-```
+\`\`\`
 
 ## Post-Deployment
 
@@ -117,11 +117,11 @@ Set in `vercel.json`:
 
 After first deployment, initialize the database:
 
-```bash
+\`\`\`bash
 # Via Vercel CLI
 vercel env pull .env.local
 npm run db:migrate
-```
+\`\`\`
 
 Or access the deployment URL and visit `/api/install/database/migrate`
 
@@ -140,13 +140,13 @@ Check these endpoints:
 
 **Solution**: The build system automatically clears caches, but you can manually trigger:
 
-```bash
+\`\`\`bash
 # Clear local caches
 npm run clean
 
 # Redeploy
 vercel --prod --force
-```
+\`\`\`
 
 ### TypeScript Errors
 
@@ -154,14 +154,14 @@ vercel --prod --force
 
 **Solution**: Already handled by prebuild script, but verify:
 
-```bash
+\`\`\`bash
 # Locally
 npm run type-check
 
 # If errors persist
 rm tsconfig.tsbuildinfo
 npm run type-check
-```
+\`\`\`
 
 ### Database Connection Issues
 
@@ -169,14 +169,14 @@ npm run type-check
 
 **Solution**: Verify environment variables:
 
-```bash
+\`\`\`bash
 # Check vars are set
 vercel env ls
 
 # Pull and test locally
 vercel env pull .env.local
 npm run dev
-```
+\`\`\`
 
 ### Build Timeout
 
@@ -193,45 +193,45 @@ npm run dev
 
 Already configured in `lib/db.ts`:
 
-```typescript
+\`\`\`typescript
 const sql = postgres(connectionString, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
 })
-```
+\`\`\`
 
 ### 2. API Route Optimization
 
 Set runtime appropriately:
 
-```typescript
+\`\`\`typescript
 export const runtime = "nodejs" // For database operations
 // or
 export const runtime = "edge" // For simple API routes
-```
+\`\`\`
 
 ### 3. Image Optimization
 
 Configured in `next.config.mjs`:
 
-```javascript
+\`\`\`javascript
 images: {
   unoptimized: true, // For external exchange images
 }
-```
+\`\`\`
 
 ## Monitoring
 
 ### View Logs
 
-```bash
+\`\`\`bash
 # Real-time logs
 vercel logs your-deployment-url --follow
 
 # Or via dashboard
 # Deployments > [Your Deployment] > Logs
-```
+\`\`\`
 
 ### Set Up Alerts
 
@@ -262,13 +262,13 @@ Disable auto-deployment:
 
 If deployment fails:
 
-```bash
+\`\`\`bash
 # Via CLI
 vercel rollback
 
 # Or via dashboard
 # Deployments > [Previous Working] > Promote to Production
-```
+\`\`\`
 
 ## Support
 

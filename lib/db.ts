@@ -151,11 +151,21 @@ const getDatabaseType = getDatabaseTypeFromSettings
 export { getDatabaseType }
 
 export async function query<T = any>(queryText: string, params: any[] = []): Promise<T[]> {
+  if (isBuildPhase) {
+    console.log("[v0] Skipping query during build phase")
+    return []
+  }
+  
   try {
     const queryPreview = queryText.substring(0, 80).replace(/\s+/g, " ")
     console.log("[v0] Query:", queryPreview, `(${params.length} params)`)
 
-    // Get client and ensure DATABASE_TYPE is initialized
+    // Initialize DATABASE_TYPE if not set
+    if (DATABASE_TYPE === null) {
+      DATABASE_TYPE = getDatabaseTypeFromSettings()
+    }
+
+    // Get client
     const client = getClient()
     
     if (DATABASE_TYPE === "sqlite") {
@@ -178,8 +188,18 @@ export async function query<T = any>(queryText: string, params: any[] = []): Pro
 }
 
 export async function queryOne<T = any>(queryText: string, params: any[] = []): Promise<T | null> {
+  if (isBuildPhase) {
+    console.log("[v0] Skipping queryOne during build phase")
+    return null
+  }
+  
   try {
-    // Get client and ensure DATABASE_TYPE is initialized
+    // Initialize DATABASE_TYPE if not set
+    if (DATABASE_TYPE === null) {
+      DATABASE_TYPE = getDatabaseTypeFromSettings()
+    }
+
+    // Get client
     const client = getClient()
     
     if (DATABASE_TYPE === "sqlite") {
@@ -201,11 +221,21 @@ export async function execute(
   queryText: string,
   params: any[] = [],
 ): Promise<{ rowCount: number; lastInsertRowid?: number }> {
+  if (isBuildPhase) {
+    console.log("[v0] Skipping execute during build phase")
+    return { rowCount: 0 }
+  }
+  
   try {
     const queryPreview = queryText.substring(0, 80).replace(/\s+/g, " ")
     console.log("[v0] Execute:", queryPreview, `(${params.length} params)`)
 
-    // Get client first to ensure DATABASE_TYPE is initialized
+    // Initialize DATABASE_TYPE if not set
+    if (DATABASE_TYPE === null) {
+      DATABASE_TYPE = getDatabaseTypeFromSettings()
+    }
+
+    // Get client
     const client = getClient()
     
     if (DATABASE_TYPE === "sqlite") {
@@ -256,7 +286,17 @@ export async function insertReturning<T = any>(queryText: string, params: any[] 
 }
 
 export const sql = async <T = any>(strings: TemplateStringsArray, ...values: any[]): Promise<T[]> => {
-  // Get client and ensure DATABASE_TYPE is initialized
+  if (isBuildPhase) {
+    console.log("[v0] Skipping sql during build phase")
+    return []
+  }
+  
+  // Initialize DATABASE_TYPE if not set
+  if (DATABASE_TYPE === null) {
+    DATABASE_TYPE = getDatabaseTypeFromSettings()
+  }
+
+  // Get client
   const client = getClient()
   
   if (DATABASE_TYPE === "sqlite") {

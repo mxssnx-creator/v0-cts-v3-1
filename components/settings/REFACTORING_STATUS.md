@@ -42,7 +42,7 @@ The massive settings page (`/app/settings/page.tsx`) has been split into smaller
 
 ## File Structure
 
-```
+\`\`\`
 /components/settings/
 ├── tabs/
 │   ├── overall-tab.tsx         ✅ Created
@@ -54,13 +54,13 @@ The massive settings page (`/app/settings/page.tsx`) has been split into smaller
 ├── utils.ts                    ✅ Helper functions
 ├── REFACTORING_GUIDE.md        ✅ Documentation
 └── REFACTORING_STATUS.md       ✅ This file
-```
+\`\`\`
 
 ## Integration Pattern
 
 Each tab component follows this pattern:
 
-```tsx
+\`\`\`tsx
 import { Tabs, TabsContent } from "@/components/ui/tabs" // Import Tabs and TabsContent
 
 interface TabProps {
@@ -78,15 +78,15 @@ export function TabName({ settings, handleSettingChange, ...props }: TabProps) {
     </Tabs>
   )
 }
-```
+\`\`\`
 
 In `/app/settings/page.tsx`:
-```tsx
+\`\`\`tsx
 import { TabName } from "@/components/settings/tabs/tab-name"
 
 // In the return statement:
 <TabName settings={settings} handleSettingChange={handleSettingChange} {...otherProps} />
-```
+\`\`\`
 
 ## Benefits of Refactoring
 

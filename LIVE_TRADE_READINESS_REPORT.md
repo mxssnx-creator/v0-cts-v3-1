@@ -67,7 +67,7 @@ The CTS v3.1 system has been comprehensively reviewed and is **functionally comp
 - **Status tracking**: ✅ Real-time
 
 #### Processing Pipeline
-```
+\`\`\`
 Base Pseudo Positions (Unlimited configs, 250/set)
     ↓
 Main Pseudo Positions (Filtered, validated)
@@ -75,7 +75,7 @@ Main Pseudo Positions (Filtered, validated)
 Real Pseudo Positions (Production-ready)
     ↓
 Exchange Positions (Live trading)
-```
+\`\`\`
 
 **Production Readiness**: ✅ READY
 

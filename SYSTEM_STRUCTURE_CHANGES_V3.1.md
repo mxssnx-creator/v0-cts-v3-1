@@ -73,7 +73,7 @@ The trade engine system was refactored from a monolithic `ContinuousTradeEngine`
 
 ### File Structure Changes
 
-```
+\`\`\`
 lib/
 ├── trade-engine.ts                          # GlobalTradeEngineCoordinator
 │   ├── export class GlobalTradeEngineCoordinator
@@ -104,12 +104,12 @@ app/api/trade-engine/
 
 components/dashboard/
 └── global-trade-engine-controls.tsx         # NEW: UI controls component
-```
+\`\`\`
 
 ### State Management
 
 **GlobalTradeEngineCoordinator State**:
-```typescript
+\`\`\`typescript
 {
   running: boolean           // Is the engine started?
   paused: boolean           // Is it paused? (only valid when running=true)
@@ -122,7 +122,7 @@ components/dashboard/
   activeOrderCycleCount: number
   // ... cycle timing stats
 }
-```
+\`\`\`
 
 **Status Flow**:
 1. **Stopped**: `running=false, paused=false`
@@ -133,7 +133,7 @@ components/dashboard/
 ### Import Patterns
 
 **Recommended Imports**:
-```typescript
+\`\`\`typescript
 // For global coordinator
 import { getTradeEngine, GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 
@@ -142,13 +142,13 @@ import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine"
 
 // Alternative (explicit)
 import { getGlobalCoordinator } from "@/lib/trade-engine"
-```
+\`\`\`
 
 **Deprecated Imports** (but still work for backward compatibility):
-```typescript
+\`\`\`typescript
 // Old naming - getTradeEngine still returns GlobalTradeEngineCoordinator
 import { ContinuousTradeEngine } from "@/lib/trade-engine" // ❌ No longer exists
-```
+\`\`\`
 
 ### Migration Guide for Future Changes
 
