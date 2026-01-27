@@ -65,6 +65,13 @@ export default function ExchangeConnectionManagerV2() {
   useEffect(() => {
     loadConnections()
     loadUserConnectionsStatus()
+    
+    // Auto-refresh every 10 seconds to show status updates
+    const interval = setInterval(() => {
+      loadConnections()
+    }, 10000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   const loadUserConnectionsStatus = async () => {
@@ -146,6 +153,14 @@ export default function ExchangeConnectionManagerV2() {
           last_test_balance: typeof c.last_test_balance === "number" ? c.last_test_balance : undefined,
         }))
 
+      const enabledCount = validConnections.filter((c: any) => c.is_enabled).length
+      const activeCount = validConnections.filter((c: any) => c.is_enabled && c.is_active).length
+      
+      console.log(`[v0] Loaded ${validConnections.length} connections (${enabledCount} enabled, ${activeCount} active)`)
+      if (enabledCount > 0) {
+        console.log("[v0] Enabled connections:", validConnections.filter((c: any) => c.is_enabled).map((c: any) => c.name).join(", "))
+      }
+      
       setConnections(validConnections)
     } catch (error) {
       console.error("Load connections error:", error)
