@@ -1518,3 +1518,25 @@ class DatabaseManager {
 export default DatabaseManager
 
 export const db = DatabaseManager.getInstance()
+
+// Export query function for backward compatibility
+export const query = async (sql: string, params?: any[]) => {
+  const client = getClient()
+  const dbType = getDatabaseType()
+  const isPostgres = dbType === "postgresql" || dbType === "remote"
+
+  if (isPostgres) {
+    const pgSql = sql.replace(/\?/g, (_, offset) => {
+      const paramIndex = (sql.substring(0, offset).match(/\?/g) || []).length
+      return `$${paramIndex + 1}`
+    })
+    const result = await (client as any).query(pgSql, params || [])
+    return result.rows
+  } else {
+    const stmt = (client as any).prepare(sql)
+    if (params && params.length > 0) {
+      return stmt.all(...params)
+    }
+    return stmt.all()
+  }
+}

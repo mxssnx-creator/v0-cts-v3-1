@@ -1,68 +1,49 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { SystemLogger } from "@/lib/system-logger"
 import { loadConnections, saveConnections } from "@/lib/file-storage"
+import { SystemLogger } from "@/lib/system-logger"
 
-// POST toggle connection enabled status
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { id } = await params
-    const connectionId = id
-    const { is_enabled, is_live_trade, is_preset_trade } = await request.json()
+    const body = await request.json()
+    const { is_enabled } = body
 
-    console.log("[v0] Toggling connection:", connectionId, {
-      is_enabled,
-      is_live_trade,
-      is_preset_trade,
-    })
+    if (typeof is_enabled !== "boolean") {
+      return NextResponse.json({ error: "is_enabled must be a boolean" }, { status: 400 })
+    }
 
     const connections = loadConnections()
-    const connectionIndex = connections.findIndex((c) => c.id === connectionId)
+    const connIndex = connections.findIndex((c) => c.id === id)
 
-    if (connectionIndex === -1) {
-      console.error("[v0] Connection not found:", connectionId)
+    if (connIndex === -1) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
-    const connection = connections[connectionIndex]
-
-    if (is_live_trade && !is_enabled) {
-      console.warn("[v0] Cannot enable live trade without enabling connection first")
-      return NextResponse.json(
-        { error: "Invalid state", details: "Cannot enable live trade without enabling connection first" },
-        { status: 400 },
-      )
+    const connection = connections[connIndex]
+    
+    // If disabling, also disable live trading
+    if (!is_enabled) {
+      connection.is_live_trade = false
+      connection.is_preset_trade = false
     }
+    
+    connection.is_enabled = is_enabled
+    connection.updated_at = new Date().toISOString()
 
-    // Update connection in file storage
-    const updatedConnection = {
-      ...connection,
-      is_enabled,
-      is_live_trade: is_enabled ? is_live_trade : false, // Disable trading if connection disabled
-      is_preset_trade: is_enabled ? is_preset_trade : false,
-      updated_at: new Date().toISOString(),
-    }
-
-    connections[connectionIndex] = updatedConnection
     saveConnections(connections)
 
-    await SystemLogger.logConnection(
-      `Connection toggled: ${connection.name} - enabled: ${is_enabled}, live: ${is_live_trade}`,
-      connectionId,
-      "info",
-      { is_enabled, is_live_trade, is_preset_trade },
-    )
+    console.log(`[v0] Connection ${id} toggled to enabled=${is_enabled}`)
+    await SystemLogger.logConnection(`Connection toggled: ${is_enabled ? "enabled" : "disabled"}`, id, "info", {
+      was_enabled: !is_enabled,
+    })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: "Connection toggled" })
   } catch (error) {
-    console.error("[v0] Failed to toggle connection:", error)
+    console.error("[v0] Error toggling connection:", error)
     await SystemLogger.logError(error, "api", "POST /api/settings/connections/[id]/toggle")
-
-    return NextResponse.json(
-      {
-        error: "Failed to toggle connection",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Failed to toggle connection" }, { status: 500 })
   }
 }
