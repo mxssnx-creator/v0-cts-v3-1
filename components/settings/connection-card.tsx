@@ -169,146 +169,165 @@ export function ConnectionCard({
 
   return (
     <>
-      <Card className="border border-border p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h3 className="font-semibold text-sm">{connection.name}</h3>
-              <Badge variant="outline" className="text-xs">
-                {connection.exchange.toUpperCase()}
-              </Badge>
-              {connection.is_testnet && <Badge className="text-xs bg-blue-100 text-blue-900">Testnet</Badge>}
+      <Card className="border border-border p-6">
+        {/* Main Content - Horizontal Layout */}
+        <div className="space-y-4">
+          {/* Header Row */}
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="font-bold text-base">{connection.name}</h3>
+                <Badge variant="secondary" className="text-xs">
+                  {connection.exchange.toUpperCase()}
+                </Badge>
+                {connection.is_testnet && (
+                  <Badge className="text-xs bg-blue-100 text-blue-900">Testnet</Badge>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">
+                  API Type: <span className="text-foreground font-medium">{connection.api_type}</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Margin: <span className="text-foreground font-medium">{connection.margin_type}</span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">ID: {connection.id}</p>
+
+            <div className="space-y-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                <span>API Settings</span>
+              </Button>
+              <div className="flex items-center justify-end gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {connection.is_enabled ? "Enabled" : "Disabled"}
+                </span>
+                <Button
+                  size="sm"
+                  variant={connection.is_enabled ? "default" : "outline"}
+                  onClick={onToggle}
+                  className="w-14"
+                  title={connection.is_enabled ? "Disable" : "Enable"}
+                >
+                  <Power className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Info Row */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Method: </span>
+              <span className="font-medium">{connection.connection_method}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Position: </span>
+              <span className="font-medium">{connection.position_mode}</span>
+            </div>
+          </div>
+
+          {/* Credentials Warning */}
+          {!credentialsConfigured && (
+            <div className="text-xs p-3 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
+              API credentials not configured. Please add your API key and secret to test this connection.
+            </div>
+          )}
+
+          {/* Test Result */}
+          {connection.last_test_status && (
+            <div className={`p-3 rounded border flex items-start gap-3 ${getStatusColor(connection.last_test_status)}`}>
+              <div className="flex-shrink-0 mt-0.5">{getStatusIcon(connection.last_test_status)}</div>
+              <div className="flex-1">
+                <div className="font-medium text-sm">
+                  {connection.last_test_status === "success" ? "Connection Active" : "Connection Failed"}
+                </div>
+                {connection.last_test_balance !== undefined && (
+                  <div className="text-xs mt-1">Balance: ${connection.last_test_balance.toFixed(2)} USDT</div>
+                )}
+                {connection.last_test_at && (
+                  <div className="text-xs mt-1">
+                    Last tested: {new Date(connection.last_test_at).toLocaleDateString()} at{" "}
+                    {new Date(connection.last_test_at).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons Row */}
+          <div className="flex items-center justify-between pt-2 border-t">
             <Button
               size="sm"
-              variant={connection.is_enabled ? "default" : "outline"}
-              onClick={onToggle}
-              className="w-9 h-9 p-0"
-              title={connection.is_enabled ? "Disable" : "Enable"}
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={!credentialsConfigured || testingConnection}
+              className="flex items-center gap-2"
             >
-              <Power className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>
-            API Type: <span className="font-medium text-foreground">{connection.api_type}</span> • Method:{" "}
-            <span className="font-medium text-foreground">{connection.connection_method}</span>
-          </div>
-          <div>
-            Margin: <span className="font-medium text-foreground">{connection.margin_type}</span> • Position:{" "}
-            <span className="font-medium text-foreground">{connection.position_mode}</span>
-          </div>
-        </div>
-
-        {/* Credentials Warning */}
-        {!credentialsConfigured && (
-          <div className="text-xs p-2 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
-            ⚠️ API credentials not configured. Please add your API key and secret to test this connection.
-          </div>
-        )}
-
-        {/* Test Result */}
-        {connection.last_test_status && (
-          <div className={`p-3 rounded border flex items-start gap-2 ${getStatusColor(connection.last_test_status)}`}>
-            <div className="flex-shrink-0 mt-0.5">{getStatusIcon(connection.last_test_status)}</div>
-            <div className="flex-1">
-              <div className="font-medium text-sm">
-                {connection.last_test_status === "success" ? "Connection Active" : "Connection Failed"}
-              </div>
-              {connection.last_test_balance !== undefined && (
-                <div className="text-xs mt-1">Balance: ${connection.last_test_balance.toFixed(2)} USDT</div>
+              {testingConnection ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <span>Test Connection</span>
+                </>
               )}
-              {connection.last_test_at && (
-                <div className="text-xs mt-1">
-                  Last tested: {new Date(connection.last_test_at).toLocaleDateString()} at{" "}
-                  {new Date(connection.last_test_at).toLocaleTimeString()}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onShowLogs}
+                disabled={!connection.last_test_log || connection.last_test_log.length === 0}
+                className="text-muted-foreground"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onDelete}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </div>
+          </div>
+
+          {/* Logs Section */}
+          {connection.last_test_log && connection.last_test_log.length > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full text-xs justify-between text-left"
+                onClick={() => setLogsExpanded(!logsExpanded)}
+              >
+                <span>Test Logs</span>
+                <ChevronDown className={`h-3 w-3 transition-transform ${logsExpanded ? "rotate-180" : ""}`} />
+              </Button>
+              {logsExpanded && (
+                <div className="bg-muted p-3 rounded text-xs font-mono max-h-48 overflow-y-auto space-y-0.5 border">
+                  {(Array.isArray(connection.last_test_log) ? connection.last_test_log : []).map((line, i) => (
+                    <div key={i} className="text-muted-foreground">
+                      {line}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleTestConnection}
-            disabled={!credentialsConfigured || testingConnection}
-            className="flex-1"
-          >
-            {testingConnection ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              "Test Connection"
-            )}
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setEditDialogOpen(true)}
-            className="w-9 h-9 p-0"
-            title="Edit Settings"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onShowLogs}
-            className="w-9 h-9 p-0"
-            title="Show Logs"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onDelete}
-            className="w-9 h-9 p-0 text-red-600 hover:text-red-700"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          )}
         </div>
-
-        {/* Logs */}
-        {connection.last_test_log && connection.last_test_log.length > 0 && (
-          <div className="space-y-1 border-t pt-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full text-xs justify-between"
-              onClick={() => setLogsExpanded(!logsExpanded)}
-            >
-              <span>Test Logs</span>
-              <ChevronDown className={`h-3 w-3 transition-transform ${logsExpanded ? "rotate-180" : ""}`} />
-            </Button>
-            {logsExpanded && (
-              <div className="bg-muted p-2 rounded text-xs font-mono max-h-48 overflow-y-auto space-y-0.5">
-                {(Array.isArray(connection.last_test_log) ? connection.last_test_log : []).map((line, i) => (
-                  <div key={i} className="text-muted-foreground">
-                    {line}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </Card>
 
       {/* Edit Settings Dialog */}
