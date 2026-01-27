@@ -4,11 +4,8 @@ import "./globals.css"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
-import { StyleInitializer } from "@/components/style-initializer"
 import { AuthProvider } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
-import { SiteLoggerProvider } from "@/components/site-logger-provider"
-import { DatabaseInitAlert } from "@/components/database-init-alert"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -24,7 +21,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans">
-        <StyleInitializer />
         <ThemeProvider
           attribute="class"
           defaultTheme="white"
@@ -32,13 +28,10 @@ export default function RootLayout({
           themes={["dark", "white", "grey", "blackwhite"]}
         >
           <AuthProvider>
-            <SiteLoggerProvider>
-              <DatabaseInitAlert />
-              <SidebarProvider defaultOpen={true}>
-                <AppSidebar />
-                <main className="flex-1 w-full">{children}</main>
-              </SidebarProvider>
-            </SiteLoggerProvider>
+            <SidebarProvider defaultOpen={true}>
+              <AppSidebar />
+              <main className="flex-1 w-full">{children}</main>
+            </SidebarProvider>
           </AuthProvider>
           <Toaster position="top-right" expand={true} richColors closeButton />
         </ThemeProvider>
