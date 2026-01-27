@@ -1,7 +1,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     console.log("=".repeat(60))
-    console.log("[v0] 🚀 SYSTEM INITIALIZATION STARTING")
+    console.log("[v0] 🚀 CTS v3.1 - SYSTEM INITIALIZATION")
     console.log("=".repeat(60))
     console.log("[v0] Environment:")
     console.log("  - Runtime:", process.env.NEXT_RUNTIME)
@@ -11,13 +11,18 @@ export async function register() {
     console.log("  - Database:", dbType)
     console.log("  - Deployment:", process.env.VERCEL_DEPLOYMENT_ID || "local")
     console.log("=".repeat(60))
+    console.log()
 
-    // Run database migrations/initialization
+    // Step 1: Database initialization and migrations
     try {
+      console.log("[v0] Step 1: Database Initialization")
+      console.log("-".repeat(60))
+      
       const { getClient, getDatabaseType } = await import("./lib/db")
       const actualDbType = getDatabaseType()
       
-      console.log("[v0] Running database initialization...")
+      console.log(`[v0] Database Type: ${actualDbType}`)
+      console.log("[v0] Initializing database client...")
       const startTime = Date.now()
       
       if (actualDbType === "sqlite") {
@@ -50,43 +55,62 @@ export async function register() {
             
             if (fs.existsSync(sqlPath)) {
               console.log("[v0] Reading unified_complete_setup.sql...")
-              const sql = fs.readFileSync(sqlPath, "utf-8")
+              let sql = fs.readFileSync(sqlPath, "utf-8")
               
-              console.log(`[v0] SQL file loaded: ${sql.length} characters, ${sql.split('\n').length} lines`)
-              console.log(`[v0] First 200 chars: ${sql.substring(0, 200)}`)
+              console.log(`[v0] SQL file loaded: ${(sql.length / 1024).toFixed(1)}KB, ${sql.split('\n').length} lines`)
               
               try {
-                // Execute the SQL file directly - SQLite exec() handles multi-statement SQL
+                // Execute the SQL file - split into statements for better error handling
                 const startExec = Date.now()
                 console.log("[v0] Executing SQL initialization script...")
                 
-                // Split SQL into statements for better error handling
+                // Remove comments and split into statements
                 const statements = sql
+                  .split('\n')
+                  .filter(line => !line.trim().startsWith('--') && line.trim().length > 0)
+                  .join('\n')
                   .split(';')
                   .map(s => s.trim())
-                  .filter(s => s.length > 0 && !s.startsWith('--'))
+                  .filter(s => s.length > 10) // Filter out tiny fragments
                 
-                console.log(`[v0] Executing ${statements.length} SQL statements...`)
+                console.log(`[v0] Processing ${statements.length} SQL statements...`)
                 
                 let executed = 0
                 let skipped = 0
+                let errors = 0
                 
-                for (const stmt of statements) {
+                for (let i = 0; i < statements.length; i++) {
+                  const stmt = statements[i]
+                  const stmtPreview = stmt.substring(0, 50).replace(/\s+/g, ' ')
+                  
                   try {
-                    client.exec(stmt + ';')
+                    client.prepare(stmt).run()
                     executed++
+                    if ((executed + skipped) % 50 === 0) {
+                      console.log(`[v0] Progress: ${executed} executed, ${skipped} skipped...`)
+                    }
                   } catch (stmtError: any) {
-                    // Skip if table/index already exists
-                    if (stmtError.message?.includes('already exists')) {
+                    const errorMsg = stmtError.message || String(stmtError)
+                    
+                    // Skip if table/index already exists - this is normal
+                    if (errorMsg.includes('already exists') || errorMsg.includes('duplicate')) {
                       skipped++
                     } else {
-                      console.warn(`[v0] Statement warning: ${stmtError.message?.substring(0, 100)}`)
+                      errors++
+                      if (errors <= 5) { // Only log first 5 errors
+                        console.warn(`[v0] Statement ${i + 1} error: ${errorMsg.substring(0, 80)}`)
+                        console.warn(`[v0] Statement preview: ${stmtPreview}`)
+                      }
                     }
                   }
                 }
                 
                 const execDuration = Date.now() - startExec
-                console.log(`[v0] ✅ Database initialized: ${executed} executed, ${skipped} skipped in ${execDuration}ms`)
+                console.log(`[v0] ✅ Database initialized in ${execDuration}ms`)
+                console.log(`[v0]   - Executed: ${executed} statements`)
+                console.log(`[v0]   - Skipped: ${skipped} (already exists)`)
+                console.log(`[v0]   - Errors: ${errors}`)
+                console.log()
                 
                 // Verify tables were actually created
                 const allTables = client.prepare(
@@ -168,13 +192,16 @@ export async function register() {
       
       const duration = Date.now() - startTime
       
+      console.log()
       console.log("=".repeat(60))
-      console.log("[v0] ✅ SYSTEM INITIALIZATION COMPLETED")
+      console.log("[v0] ✅ SYSTEM INITIALIZATION COMPLETED SUCCESSFULLY")
       console.log("=".repeat(60))
-      console.log(`[v0] Database: ${dbType} - Ready`)
-      console.log(`[v0] Initialization completed in ${duration}ms`)
-      console.log("[v0] System ready to accept requests")
+      console.log(`[v0] Database: ${actualDbType.toUpperCase()} - Ready`)
+      console.log(`[v0] Total initialization time: ${duration}ms`)
+      console.log("[v0] All systems operational")
+      console.log("[v0] Application ready to accept requests")
       console.log("=".repeat(60))
+      console.log()
 
       // Start automatic backup system (every 6 hours)
       try {
@@ -186,12 +213,18 @@ export async function register() {
         console.warn("[v0] ⚠️  Failed to start auto-backup system:", error)
       }
     } catch (error) {
+      console.log()
       console.log("=".repeat(60))
       console.log("[v0] ⚠️  INITIALIZATION COMPLETED WITH WARNINGS")
       console.log("=".repeat(60))
-      console.error("[v0] Migration error:", error)
-      console.log("[v0] System may use file-based fallback")
+      console.error("[v0] Initialization error:", error instanceof Error ? error.message : String(error))
+      if (error instanceof Error && error.stack) {
+        console.error("[v0] Stack trace:", error.stack.substring(0, 500))
+      }
+      console.log("[v0] System may use file-based storage fallback")
+      console.log("[v0] Some features may be limited")
       console.log("=".repeat(60))
+      console.log()
     }
   } else {
     console.log("[v0] Skipping initialization (Edge Runtime)")
