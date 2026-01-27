@@ -25,7 +25,7 @@ export async function initializeTradeEngineAutoStart(): Promise<void> {
   try {
     const coordinator = getGlobalTradeEngineCoordinator()
     const connections = loadConnections()
-    
+
     // Ensure connections is an array
     if (!Array.isArray(connections)) {
       console.error("[v0] Auto-start: connections is not an array", typeof connections)
@@ -87,7 +87,7 @@ function startConnectionMonitoring(): void {
   autoStartTimer = setInterval(async () => {
     try {
       const connections = loadConnections()
-      
+
       // Ensure connections is an array before filtering
       if (!Array.isArray(connections)) {
         console.warn("[v0] Monitor: connections is not an array")
