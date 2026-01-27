@@ -6,6 +6,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
     const connection = connections.find((c) => c.id === id && c.is_active)
 
     if (!connection) {
@@ -31,6 +38,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await SystemLogger.logConnection(`Deleting connection`, id, "info")
 
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
     const updatedConnections = connections.map((conn) =>
       conn.id === id ? { ...conn, is_active: false, updated_at: new Date().toISOString() } : conn,
     )
@@ -58,6 +72,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await SystemLogger.logConnection(`Updating connection`, id, "info", body)
 
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
     const connectionIndex = connections.findIndex((c) => c.id === id)
 
     if (connectionIndex === -1) {

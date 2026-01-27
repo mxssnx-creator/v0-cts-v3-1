@@ -15,6 +15,12 @@ export async function GET() {
     // Check 1: Load connections
     try {
       const connections = loadConnections()
+      
+      // Ensure connections is an array before filtering
+      if (!Array.isArray(connections)) {
+        throw new Error(`Connections is not an array (type: ${typeof connections})`)
+      }
+
       const enabledCount = connections.filter((c) => c.is_enabled === true).length
       const activeCount = connections.filter((c) => c.is_active === true).length
 
@@ -46,6 +52,12 @@ export async function GET() {
     // Check 2: Get coordinator
     try {
       const coordinator = getGlobalTradeEngineCoordinator()
+      
+      // Check if coordinator is null
+      if (!coordinator) {
+        throw new Error("Coordinator is null - engines may not be initialized yet")
+      }
+
       verification.checks.push({
         name: "Get Coordinator",
         status: "pass",

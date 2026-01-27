@@ -16,6 +16,17 @@ export async function GET() {
 
     // 1. Get all connections
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] [Monitoring] Connections is not an array:", typeof connections)
+      return NextResponse.json({
+        success: false,
+        error: "Invalid connections data",
+        timestamp: new Date().toISOString(),
+      }, { status: 500 })
+    }
+
     const activeConnections = connections.filter((c) => c.is_enabled)
     const liveTradeConnections = connections.filter((c) => c.is_live_trade)
 

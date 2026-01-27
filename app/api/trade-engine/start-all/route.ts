@@ -6,7 +6,29 @@ import { SystemLogger } from "@/lib/system-logger"
 export async function GET() {
   try {
     const coordinator = getGlobalTradeEngineCoordinator()
+    
+    // Null check on coordinator
+    if (!coordinator) {
+      console.warn("[v0] [START-ALL] Coordinator is null - engines may not be initialized yet")
+      return NextResponse.json({
+        success: false,
+        error: "Trade engine coordinator not initialized",
+        results: [],
+      }, { status: 503 })
+    }
+
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] [START-ALL] Connections is not an array:", typeof connections)
+      return NextResponse.json({
+        success: false,
+        error: "Invalid connections data",
+        results: [],
+      }, { status: 500 })
+    }
+
     const enabledConnections = connections.filter((c) => c.is_enabled === true && c.is_active === true)
     const settings = loadSettings()
 

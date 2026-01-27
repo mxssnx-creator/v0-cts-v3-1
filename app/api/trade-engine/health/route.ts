@@ -8,7 +8,34 @@ export async function GET() {
     console.log("[v0] Fetching trade engine health status")
     
     const coordinator = getGlobalTradeEngineCoordinator()
+    
+    // Null check on coordinator
+    if (!coordinator) {
+      console.warn("[v0] Coordinator is null - engines may not be initialized yet")
+      return NextResponse.json({
+        success: false,
+        error: "Trade engine coordinator not initialized",
+        overall: "offline",
+        runningEngines: 0,
+        totalEngines: 0,
+        engines: [],
+        timestamp: new Date().toISOString(),
+      }, { status: 503 })
+    }
+
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({
+        success: false,
+        error: "Invalid connections data",
+        overall: "error",
+        engines: [],
+      }, { status: 500 })
+    }
+
     const enabledConnections = connections.filter((c) => c.is_enabled)
 
     // Get health for each engine
@@ -31,6 +58,7 @@ export async function GET() {
             errorMessage: engineStatus?.errorMessage || null,
           }
         } catch (err) {
+          console.error(`[v0] Failed to get health for ${conn.id}:`, err)
           return {
             connectionId: conn.id,
             connectionName: conn.name,
