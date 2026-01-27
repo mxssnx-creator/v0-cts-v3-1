@@ -1,15 +1,7 @@
-import type { Metadata, Viewport } from 'next'
-import './globals.css'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Automated Trading System',
-  description: 'Professional crypto trading system with real-time indicators and automated strategies',
+  description: 'Professional crypto trading system',
     generator: 'v0.app'
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -18,10 +10,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="bg-background text-foreground">
+    <html lang="en">
+      <body style={{ margin: 0 }}>
         {children}
       </body>
     </html>
   )
 }
+
+
+import './globals.css'
