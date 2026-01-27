@@ -173,20 +173,19 @@ export async function POST(request: NextRequest) {
       exchange_id: exchangeId,
       api_type: body.api_type || "perpetual_futures",
       connection_method: body.connection_method || "rest",
-      connection_library: body.connection_library || "rest",
+      connection_library: body.connection_library || "library",
       api_key: body.api_key,
       api_secret: body.api_secret,
-      api_passphrase: body.api_passphrase,
+      api_passphrase: body.api_passphrase || "",
       margin_type: body.margin_type || "cross",
       position_mode: body.position_mode || "hedge",
       is_testnet: body.is_testnet || false,
-      is_enabled: true, // Base connection enabled by default
-      is_live_trade: false, // Active trading disabled by default
-      is_preset_trade: false, // Active trading disabled by default
+      is_enabled: true,
+      is_live_trade: false,
+      is_preset_trade: false,
       is_active: true,
       is_predefined: false,
-      volume_factor: 1.0,
-      connection_settings: body.connection_settings ? JSON.stringify(body.connection_settings) : undefined,
+      volume_factor: body.volume_factor || 1.0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
