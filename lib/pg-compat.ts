@@ -1,9 +1,18 @@
-import postgres from "postgres"
+let postgres: any = null
+try {
+  postgres = require("postgres")
+} catch {
+  console.log("[v0] postgres package not available")
+}
 
 export class Pool {
-  private sql: ReturnType<typeof postgres>
+  private sql: any
 
   constructor(config: any) {
+    if (!postgres) {
+      throw new Error("[v0] PostgreSQL not available in this environment")
+    }
+    
     const connectionString = config.connectionString || process.env.DATABASE_URL
 
     if (!connectionString) {
@@ -15,7 +24,7 @@ export class Pool {
       idle_timeout: config.idleTimeoutMillis ? config.idleTimeoutMillis / 1000 : 30,
       connect_timeout: config.connectionTimeoutMillis ? config.connectionTimeoutMillis / 1000 : 2,
       ssl: config.ssl === false ? false : config.ssl || "prefer",
-      onnotice: () => {}, // Suppress notices
+      onnotice: () => {},
     })
   }
 

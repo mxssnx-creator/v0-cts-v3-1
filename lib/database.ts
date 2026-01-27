@@ -1,8 +1,19 @@
 import { getClient, getDatabaseType } from "./db"
 import type { Pool } from "./pg-compat"
-import type Database from "better-sqlite3"
-import { DynamicOperationHandler } from "./core/dynamic-operations"
-import { EntityTypes, ConfigSubTypes } from "./core/entity-types"
+
+// Optional imports for dynamic operations
+let DynamicOperationHandler: any = null
+let EntityTypes: any = null
+let ConfigSubTypes: any = null
+try {
+  const dynamicOps = require("./core/dynamic-operations")
+  DynamicOperationHandler = dynamicOps.DynamicOperationHandler
+  const entityTypes = require("./core/entity-types")
+  EntityTypes = entityTypes.EntityTypes
+  ConfigSubTypes = entityTypes.ConfigSubTypes
+} catch {
+  console.log("[v0] Dynamic operations not available")
+}
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
 
