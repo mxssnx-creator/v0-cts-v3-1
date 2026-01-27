@@ -1,10 +1,21 @@
 import { Pool } from "./pg-compat"
-import Database from "better-sqlite3"
-import path from "path"
-import fs from "fs"
 
-// Ensure pg uses pure JavaScript implementation
-process.env.NODE_PG_FORCE_NATIVE = "false"
+// better-sqlite3 is a native module that may not be available in all environments
+let Database: any = null
+try {
+  Database = require("better-sqlite3")
+} catch {
+  console.log("[v0] better-sqlite3 not available, SQLite disabled")
+}
+
+let path: any = null
+let fs: any = null
+try {
+  path = require("path")
+  fs = require("fs")
+} catch {
+  console.log("[v0] Node.js fs/path not available")
+}
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
 
@@ -15,7 +26,7 @@ function getDatabaseURL(): string | undefined {
 const DATABASE_URL = getDatabaseURL()
 
 let sqlClient: Pool | null = null
-let sqliteClient: Database.Database | null = null
+let sqliteClient: any = null
 
 function getDatabaseTypeFromSettings(): string {
   if (process.env.DATABASE_TYPE) {
@@ -33,17 +44,19 @@ function getDatabaseTypeFromSettings(): string {
   }
 
   // Try to load from settings file
-  try {
-    const settingsPath = path.join(process.cwd(), "data", "settings.json")
-    if (fs.existsSync(settingsPath)) {
-      const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-      if (settings.database_type) {
-        console.log("[v0] Using database_type from settings file:", settings.database_type)
-        return settings.database_type
+  if (path && fs) {
+    try {
+      const settingsPath = path.join(process.cwd(), "data", "settings.json")
+      if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
+        if (settings.database_type) {
+          console.log("[v0] Using database_type from settings file:", settings.database_type)
+          return settings.database_type
+        }
       }
+    } catch (error) {
+      console.log("[v0] Could not load database type from settings, using default")
     }
-  } catch (error) {
-    console.log("[v0] Could not load database type from settings, using default")
   }
 
   console.log("[v0] No DATABASE_URL set, using default: SQLite")
@@ -53,7 +66,7 @@ function getDatabaseTypeFromSettings(): string {
 
 let DATABASE_TYPE: string | null = null
 
-function getClient(): Database.Database | Pool {
+function getClient(): any {
   if (isBuildPhase) {
     throw new Error("[v0] Database not available during build phase")
   }
@@ -64,7 +77,13 @@ function getClient(): Database.Database | Pool {
   }
 
   if (DATABASE_TYPE === "sqlite") {
+    if (!Database) {
+      throw new Error("[v0] SQLite (better-sqlite3) is not available in this environment")
+    }
     if (!sqliteClient) {
+      if (!path || !fs) {
+        throw new Error("[v0] Node.js fs/path modules not available")
+      }
       const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
       const dbDir = path.dirname(dbPath)
 

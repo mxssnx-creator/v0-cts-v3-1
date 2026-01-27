@@ -43,7 +43,7 @@ The CTS v3.1 database system has been completely fixed and optimized for both lo
 - **Status**: Shows applied count correctly
 
 ## File Structure
-```
+\`\`\`
 data/
 ├── cts.db                    # SQLite database (if not using PostgreSQL)
 ├── connections/              # File-based connection storage
@@ -51,7 +51,7 @@ data/
 │   └── [connection-id].json
 ├── settings.json            # System settings
 └── logs/                    # System logs
-```
+\`\`\`
 
 ## Initialization Flow
 
@@ -114,20 +114,20 @@ All migrations are now properly tracked:
 
 ## Testing
 Run locally:
-```bash
+\`\`\`bash
 npm run dev
 # Check logs for successful initialization
 # Navigate to https://v0-cts-v3-1.vercel.app/
 # Verify connections load properly
-```
+\`\`\`
 
 Deploy to Vercel:
-```bash
+\`\`\`bash
 vercel deploy
 # Check deployment logs
 # Verify migrations run
 # Test connection management
-```
+\`\`\`
 
 ## Status: ✅ Production Ready
 - SQLite set as default ✓

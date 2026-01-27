@@ -1,8 +1,19 @@
 import { getClient, getDatabaseType } from "./db"
 import type { Pool } from "./pg-compat"
-import type Database from "better-sqlite3"
-import { DynamicOperationHandler } from "./core/dynamic-operations"
-import { EntityTypes, ConfigSubTypes } from "./core/entity-types"
+
+// Optional imports for dynamic operations
+let DynamicOperationHandler: any = null
+let EntityTypes: any = null
+let ConfigSubTypes: any = null
+try {
+  const dynamicOps = require("./core/dynamic-operations")
+  DynamicOperationHandler = dynamicOps.DynamicOperationHandler
+  const entityTypes = require("./core/entity-types")
+  EntityTypes = entityTypes.EntityTypes
+  ConfigSubTypes = entityTypes.ConfigSubTypes
+} catch {
+  console.log("[v0] Dynamic operations not available")
+}
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
 
@@ -40,8 +51,12 @@ class DatabaseManager {
   private dynamicOps: DynamicOperationHandler | null = null
 
   private constructor() {
-    if (isBuildPhase) {
-      console.log("[v0] Skipping database initialization during build phase")
+    // Don't initialize in constructor - do it lazily when methods are called
+    console.log("[v0] DatabaseManager instance created (lazy initialization)")
+  }
+  
+  private ensureInitialized() {
+    if (this.initialized || isBuildPhase) {
       return
     }
 
@@ -50,11 +65,11 @@ class DatabaseManager {
       const dbType = getDatabaseType()
       const isPostgres = dbType === "postgresql" || dbType === "remote"
 
-      this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
-      this.initializeTables().catch((error) => {
-        console.error("[v0] Failed to initialize DatabaseManager tables:", error)
-        console.log("[v0] System will use file-based storage as fallback")
-      })
+      if (DynamicOperationHandler) {
+        this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
+      }
+      this.initialized = true
+      console.log("[v0] DatabaseManager initialized")
     } catch (error) {
       console.error("[v0] Failed to initialize DatabaseManager:", error)
       console.log("[v0] System will use file-based storage as fallback")
@@ -69,7 +84,8 @@ class DatabaseManager {
   }
 
   private async initializeTables() {
-    if (isBuildPhase || this.initialized) return
+    this.ensureInitialized()
+    if (isBuildPhase) return
 
     // Tables are now created by the migration runner in instrumentation.ts
     // This method is disabled to avoid schema conflicts
@@ -728,6 +744,7 @@ class DatabaseManager {
     subType: (typeof ConfigSubTypes)[keyof typeof ConfigSubTypes] | null,
     data: Record<string, any>,
   ) {
+    this.ensureInitialized()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.insert(entityType, subType, data)
   }
@@ -795,9 +812,10 @@ class DatabaseManager {
   }
 
   public async getConnections() {
-    const client = getClient()
-    const dbType = getDatabaseType()
-    const isPostgres = dbType === "postgresql" || dbType === "remote"
+    this.ensureInitialized()
+    try {
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
       const result = await (client as Pool).query("SELECT * FROM exchange_connections ORDER BY created_at DESC")
@@ -1041,9 +1059,10 @@ class DatabaseManager {
   }
 
   public async getAllSettings(): Promise<Record<string, string>> {
-    const client = getClient()
-    const dbType = getDatabaseType()
-    const isPostgres = dbType === "postgresql" || dbType === "remote"
+    this.ensureInitialized()
+    try {
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
       const result = await (client as Pool).query("SELECT key, value FROM system_settings")
@@ -1518,3 +1537,9 @@ class DatabaseManager {
 export default DatabaseManager
 
 export const db = DatabaseManager.getInstance()
+
+// Export query function for backward compatibility
+export const query = async (sql: string, params?: any[]) => {
+  const dbManager = DatabaseManager.getInstance()
+  return dbManager.query(sql, params)
+}

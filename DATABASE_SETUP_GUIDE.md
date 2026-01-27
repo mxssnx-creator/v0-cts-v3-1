@@ -19,28 +19,28 @@ CTS v3.1 supports both **SQLite** (default) and **PostgreSQL** databases with au
 
 To use PostgreSQL, simply set the `DATABASE_URL` environment variable:
 
-```env
+\`\`\`env
 DATABASE_URL=postgresql://Project-Name:00998877@your-host:5432/Project-Name
-```
+\`\`\`
 
 ### PostgreSQL Credentials Template
-```
+\`\`\`
 Username: Project-Name
 Password: 00998877
 Database: Project-Name
-```
+\`\`\`
 
 ### Example PostgreSQL Connection Strings
 
 **Local PostgreSQL:**
-```
+\`\`\`
 DATABASE_URL=postgresql://Project-Name:00998877@localhost:5432/Project-Name
-```
+\`\`\`
 
 **Remote PostgreSQL:**
-```
+\`\`\`
 DATABASE_URL=postgresql://Project-Name:00998877@83.229.86.105:5432/Project-Name
-```
+\`\`\`
 
 ## Database Structure
 
@@ -95,10 +95,10 @@ The database is automatically initialized on first run. The system:
 You can manually initialize/migrate the database:
 
 **Using API:**
-```bash
+\`\`\`bash
 curl -X POST http://localhost:3000/api/install/database/init
 curl -X POST http://localhost:3000/api/install/database/migrate
-```
+\`\`\`
 
 **Using Browser:**
 Navigate to your application's settings page and use the database initialization interface.
@@ -108,21 +108,21 @@ Navigate to your application's settings page and use the database initialization
 The project includes a comprehensive migration system:
 
 ### Migration Scripts Location
-```
+\`\`\`
 /scripts/
   000_master_initialization.sql    # Complete database setup (PRIMARY)
   001-071_*.sql                     # Incremental migrations
   100_comprehensive_database_restructure.sql  # Full restructure
   sqlite_init.sql                   # SQLite-specific init (legacy)
-```
+\`\`\`
 
 ### Running Migrations
 
 Migrations run automatically during initialization. To manually run:
 
-```bash
+\`\`\`bash
 POST /api/install/database/migrate
-```
+\`\`\`
 
 ## High-Frequency Performance Indexes
 
@@ -148,20 +148,20 @@ All tables include optimized indexes for high-frequency trading:
 ## Database File Location
 
 ### SQLite (Default)
-```
+\`\`\`
 /data/cts.db           # Main database
 /data/cts.db-shm       # Shared memory (temp)
 /data/cts.db-wal       # Write-ahead log (temp)
-```
+\`\`\`
 
 ### Backup Location
-```
+\`\`\`
 /data/backups/         # Automatic backups
-```
+\`\`\`
 
 ## Environment Variables
 
-```env
+\`\`\`env
 # Database Type (optional - auto-detected)
 DATABASE_TYPE=sqlite
 
@@ -173,7 +173,7 @@ SQLITE_DB_PATH=/custom/path/cts.db
 
 # File Storage Mode (optional - fallback mode)
 USE_FILE_STORAGE=false
-```
+\`\`\`
 
 ## Switching Between Databases
 
@@ -191,27 +191,27 @@ USE_FILE_STORAGE=false
 ## Database Verification
 
 ### Check Database Type
-```typescript
+\`\`\`typescript
 import { getDatabaseType } from '@/lib/db'
 console.log(getDatabaseType()) // 'sqlite' or 'postgresql'
-```
+\`\`\`
 
 ### Check Tables (SQLite)
-```sql
+\`\`\`sql
 SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';
-```
+\`\`\`
 
 ### Check Tables (PostgreSQL)
-```sql
+\`\`\`sql
 SELECT tablename FROM pg_tables WHERE schemaname = 'public';
-```
+\`\`\`
 
 ### Check Initialization Status
-```typescript
+\`\`\`typescript
 import { DatabaseInitializer } from '@/lib/db-initializer'
 const initialized = await DatabaseInitializer.ensureInitialized()
 console.log('Database initialized:', initialized)
-```
+\`\`\`
 
 ## Troubleshooting
 
@@ -219,10 +219,10 @@ console.log('Database initialized:', initialized)
 **Cause:** File permissions on `/data` directory
 
 **Solution:** 
-```bash
+\`\`\`bash
 mkdir -p data
 chmod 755 data
-```
+\`\`\`
 
 ### Issue: PostgreSQL connection failed
 **Symptom:** "password authentication failed" or "ECONNREFUSED"
@@ -246,13 +246,13 @@ chmod 755 data
 
 **Solution:**
 1. Verify indexes exist:
-   ```sql
+   \`\`\`sql
    -- SQLite
    SELECT * FROM sqlite_master WHERE type='index';
    
    -- PostgreSQL  
    SELECT * FROM pg_indexes WHERE schemaname = 'public';
-   ```
+   \`\`\`
 2. Indexes are automatic in master init script
 3. Consider PostgreSQL for large datasets (better performance)
 
@@ -307,32 +307,32 @@ chmod 755 data
 The system creates backups before major database operations.
 
 ### Manual Backup (SQLite)
-```bash
+\`\`\`bash
 # Copy database file
 cp /data/cts.db /data/backups/cts_backup_$(date +%Y%m%d_%H%M%S).db
 
 # Or use SQLite backup command
 sqlite3 /data/cts.db ".backup /data/backups/cts_backup.db"
-```
+\`\`\`
 
 ### Manual Backup (PostgreSQL)
-```bash
+\`\`\`bash
 # Full backup
 pg_dump -U Project-Name -d Project-Name -F c -f backup.dump
 
 # SQL format
 pg_dump -U Project-Name -d Project-Name > backup.sql
-```
+\`\`\`
 
 ### Restore (SQLite)
-```bash
+\`\`\`bash
 # Stop the application first
 cp /data/backups/cts_backup_YYYYMMDD_HHMMSS.db /data/cts.db
 # Restart the application
-```
+\`\`\`
 
 ### Restore (PostgreSQL)
-```bash
+\`\`\`bash
 # Stop the application first
 # Custom format
 pg_restore -U Project-Name -d Project-Name -c backup.dump
@@ -340,7 +340,7 @@ pg_restore -U Project-Name -d Project-Name -c backup.dump
 # SQL format
 psql -U Project-Name -d Project-Name < backup.sql
 # Restart the application
-```
+\`\`\`
 
 ## Schema Documentation
 
@@ -370,7 +370,7 @@ psql -U Project-Name -d Project-Name < backup.sql
 
 Automatically inserted on initialization:
 
-```sql
+\`\`\`sql
 database_type = 'sqlite'
 preset_evaluation_interval = '10800'  -- 3 hours
 preset_position_threshold = '250'
@@ -380,7 +380,7 @@ position_timeout = '5'                -- seconds
 coordination_timeout = '10'           -- seconds
 high_frequency_mode = '1'
 max_concurrent_strategies = '50'
-```
+\`\`\`
 
 ## Production Deployment Checklist
 
@@ -401,7 +401,7 @@ Before deploying to production:
 ## Common Commands
 
 ### SQLite
-```bash
+\`\`\`bash
 # Open database
 sqlite3 /data/cts.db
 
@@ -416,10 +416,10 @@ SELECT * FROM sqlite_master WHERE type='index';
 
 # Vacuum database
 VACUUM;
-```
+\`\`\`
 
 ### PostgreSQL
-```bash
+\`\`\`bash
 # Connect
 psql -U Project-Name -d Project-Name
 
@@ -434,7 +434,7 @@ psql -U Project-Name -d Project-Name
 
 # Vacuum
 VACUUM ANALYZE;
-```
+\`\`\`
 
 ## Summary
 

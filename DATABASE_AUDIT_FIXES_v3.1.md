@@ -67,7 +67,7 @@ Comprehensive database audit revealed multiple critical issues:
 - Idempotent migrations with proper skip logic
 
 ### ✅ Standardized Exchange Connections Schema
-```sql
+\`\`\`sql
 CREATE TABLE IF NOT EXISTS exchange_connections (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), -- SQLite
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,       -- PostgreSQL
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS exchange_connections (
   -- Standard schema across all definitions
   ...
 )
-```
+\`\`\`
 
 ### ✅ Fixed Base Positions Script
 - Removed invalid triggers
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS exchange_connections (
 
 ## Database Coordination Architecture
 
-```
+\`\`\`
 ┌─────────────────────────────────────────────────────────┐
 │           Application Startup (instrumentation.ts)       │
 │                 DatabaseInitializer.initialize()         │
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS exchange_connections (
 │         055_create_preset_trade_engine_tables.sql        │
 │         056_add_parabolic_sar_and_common_indicators.sql  │
 └──────────────────────────────────────────────────────────┘
-```
+\`\`\`
 
 ## Migration Execution Flow
 
@@ -187,15 +187,15 @@ CREATE TABLE IF NOT EXISTS exchange_connections (
 ## Testing & Validation
 
 ### Migration System Test
-```bash
+\`\`\`bash
 # Test migration execution
 curl -X POST http://localhost:3000/api/install/database/migrate
 
 # Expected: All migrations run successfully, no duplicates
-```
+\`\`\`
 
 ### Schema Validation Test
-```sql
+\`\`\`sql
 -- PostgreSQL
 SELECT COUNT(*) FROM information_schema.tables 
 WHERE table_schema = 'public';
@@ -205,16 +205,16 @@ SELECT COUNT(*) FROM sqlite_master
 WHERE type = 'table' AND name NOT LIKE 'sqlite_%';
 
 -- Expected: ~30-40 tables
-```
+\`\`\`
 
 ### Foreign Key Validation
-```sql
+\`\`\`sql
 -- Check all foreign keys are valid
 SELECT * FROM exchange_connections LIMIT 1;
 SELECT * FROM preset_pseudo_positions 
 WHERE preset_id NOT IN (SELECT id FROM presets);
 -- Expected: No orphaned records
-```
+\`\`\`
 
 ## Performance Optimizations
 
@@ -235,23 +235,23 @@ WHERE preset_id NOT IN (SELECT id FROM presets);
 If issues occur after deployment:
 
 1. **Revert to Previous Migration**
-```sql
+\`\`\`sql
 DELETE FROM schema_migrations 
 WHERE migration_id >= 56;
-```
+\`\`\`
 
 2. **Restore from Backup**
-```bash
+\`\`\`bash
 # Use backup files in /backups folder
 psql -U user -d database < backups/pre_v3.1_dump.sql
-```
+\`\`\`
 
 3. **Manual Table Cleanup**
-```sql
+\`\`\`sql
 DROP TABLE IF EXISTS preset_pseudo_positions CASCADE;
 DROP TABLE IF EXISTS base_pseudo_positions CASCADE;
 -- Recreate from v3.0 scripts
-```
+\`\`\`
 
 ## Monitoring & Health Checks
 

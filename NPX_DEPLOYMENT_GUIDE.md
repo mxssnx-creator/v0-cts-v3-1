@@ -17,17 +17,17 @@ This guide covers deploying CTS v3.1 using npx commands for quick installation a
 
 ### Option 1: Direct NPX Installation
 
-```bash
+\`\`\`bash
 # Install CTS directly with npx
 npx create-cts-app my-trading-system
 
 # Or use the repository directly
 npx github:your-username/cts-v3.1 setup
-```
+\`\`\`
 
 ### Option 2: Clone and Use NPX Scripts
 
-```bash
+\`\`\`bash
 # Clone repository
 git clone https://github.com/your-repo/cts-v3.1.git
 cd cts-v3.1
@@ -38,7 +38,7 @@ npx . setup
 # Or use npm scripts
 npm install
 npm run setup
-```
+\`\`\`
 
 ---
 
@@ -46,7 +46,7 @@ npm run setup
 
 ### Setup Commands
 
-```bash
+\`\`\`bash
 # Interactive setup wizard
 npx . setup
 # Prompts for:
@@ -60,11 +60,11 @@ npx . setup --defaults
 
 # Custom setup
 npx . setup --name my-bot --port 8080 --db postgresql
-```
+\`\`\`
 
 ### Development Commands
 
-```bash
+\`\`\`bash
 # Start development server
 npm run dev
 
@@ -76,11 +76,11 @@ npm run type-check
 
 # Linting
 npm run lint
-```
+\`\`\`
 
 ### Database Commands
 
-```bash
+\`\`\`bash
 # Run migrations
 npm run db:migrate
 
@@ -92,11 +92,11 @@ npm run db:reset
 
 # Backup database
 npm run db:backup
-```
+\`\`\`
 
 ### Build & Deploy
 
-```bash
+\`\`\`bash
 # Build for production
 npm run build
 
@@ -108,11 +108,11 @@ pm2 start npm --name "cts-v3" -- start
 
 # Deploy to Vercel
 vercel --prod
-```
+\`\`\`
 
 ### System Management
 
-```bash
+\`\`\`bash
 # System health check
 npm run system:check
 
@@ -124,11 +124,11 @@ npm run clean
 
 # Full clean reinstall
 npm run clean:all
-```
+\`\`\`
 
 ### Nginx & SSL (Ubuntu/Debian)
 
-```bash
+\`\`\`bash
 # Setup nginx reverse proxy
 npm run nginx:setup
 
@@ -143,7 +143,7 @@ npm run nginx:logs
 
 # Install SSL certificates
 npm run certbot:install
-```
+\`\`\`
 
 ---
 
@@ -151,7 +151,7 @@ npm run certbot:install
 
 CTS v3.1 uses shadcn/ui components. Add new components using:
 
-```bash
+\`\`\`bash
 # Add individual components
 npx shadcn@latest add button
 npx shadcn@latest add card
@@ -162,17 +162,17 @@ npx shadcn@latest add button card dialog input
 
 # List available components
 npx shadcn@latest diff
-```
+\`\`\`
 
 ### Custom Components
 
-```bash
+\`\`\`bash
 # Add from v0.dev
 npx shadcn@latest add "https://v0.dev/chat/..."
 
 # Add from local file
 npx shadcn@latest add ./components/custom-button.tsx
-```
+\`\`\`
 
 ---
 
@@ -189,17 +189,17 @@ The `npm run setup` command automatically:
 
 ### Manual Configuration
 
-```bash
+\`\`\`bash
 # Copy example environment
 cp .env.example .env.local
 
 # Edit configuration
 nano .env.local
-```
+\`\`\`
 
 **Required Variables:**
 
-```bash
+\`\`\`bash
 # Application
 PROJECT_NAME=CTS-v3
 PORT=3000
@@ -219,7 +219,7 @@ SESSION_SECRET=your-32-byte-secret
 JWT_SECRET=your-32-byte-secret
 ENCRYPTION_KEY=your-32-byte-secret
 API_SIGNING_SECRET=your-32-byte-secret
-```
+\`\`\`
 
 ---
 
@@ -227,7 +227,7 @@ API_SIGNING_SECRET=your-32-byte-secret
 
 Deploy multiple CTS instances on different ports:
 
-```bash
+\`\`\`bash
 # Instance 1: Production
 cd cts-prod
 PORT=3000 npm run setup
@@ -242,11 +242,11 @@ PORT=3001 npm start
 cd cts-dev
 PORT=3002 npm run setup
 PORT=3002 npm run dev
-```
+\`\`\`
 
 ### PM2 Multi-Instance
 
-```bash
+\`\`\`bash
 # Create PM2 ecosystem file
 cat > ecosystem.config.js << 'EOF'
 module.exports = {
@@ -271,7 +271,7 @@ EOF
 
 # Start all instances
 pm2 start ecosystem.config.js
-```
+\`\`\`
 
 ---
 
@@ -279,7 +279,7 @@ pm2 start ecosystem.config.js
 
 ### Via CLI
 
-```bash
+\`\`\`bash
 # Install Vercel CLI
 npm i -g vercel
 
@@ -288,16 +288,16 @@ vercel login
 
 # Deploy
 vercel --prod
-```
+\`\`\`
 
 ### Via GitHub Integration
 
 1. Push to GitHub:
-```bash
+\`\`\`bash
 git add .
 git commit -m "Deploy CTS v3.1"
 git push origin main
-```
+\`\`\`
 
 2. Connect repository in Vercel dashboard
 3. Configure environment variables
@@ -309,7 +309,7 @@ git push origin main
 
 ### NPX Issues
 
-```bash
+\`\`\`bash
 # Clear npm cache
 npm cache clean --force
 
@@ -318,11 +318,11 @@ npx --version
 
 # Use specific npm registry
 npm config set registry https://registry.npmjs.org/
-```
+\`\`\`
 
 ### Build Errors
 
-```bash
+\`\`\`bash
 # Clear all caches
 npm run clean:all
 
@@ -332,11 +332,11 @@ npm install
 
 # Check TypeScript
 npm run type-check
-```
+\`\`\`
 
 ### Database Issues
 
-```bash
+\`\`\`bash
 # Check database status
 npm run db:status
 
@@ -345,11 +345,11 @@ npm run db:reset
 
 # Check migrations
 node scripts/check-db-status.js
-```
+\`\`\`
 
 ### Port Conflicts
 
-```bash
+\`\`\`bash
 # Check what's using port
 lsof -i :3000
 
@@ -358,7 +358,7 @@ kill -9 $(lsof -t -i:3000)
 
 # Use different port
 PORT=8080 npm run dev
-```
+\`\`\`
 
 ---
 

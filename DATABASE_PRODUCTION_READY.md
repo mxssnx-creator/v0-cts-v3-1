@@ -28,22 +28,22 @@ The CTS v3.1 database system is now production-ready with comprehensive migratio
 ### SQLite (Default)
 
 No configuration needed! The database is automatically created at:
-```
+\`\`\`
 /data/cts.db
-```
+\`\`\`
 
 ### PostgreSQL
 
 Set the `DATABASE_URL` environment variable:
 
-```bash
+\`\`\`bash
 DATABASE_URL=postgresql://username:password@host:port/database
-```
+\`\`\`
 
 Example:
-```bash
+\`\`\`bash
 DATABASE_URL=postgresql://Project-Name:00998877@localhost:5432/Project-Name
-```
+\`\`\`
 
 ## Database Structure
 
@@ -115,20 +115,20 @@ All tables include optimized indexes for:
 
 All migrations are tracked in the `migrations` table:
 
-```sql
+\`\`\`sql
 SELECT * FROM migrations ORDER BY id;
-```
+\`\`\`
 
 ## Health Monitoring
 
 ### Database Health Check
 
-```bash
+\`\`\`bash
 curl http://localhost:3000/api/health/database
-```
+\`\`\`
 
 Response:
-```json
+\`\`\`json
 {
   "status": "healthy",
   "database": {
@@ -143,16 +143,16 @@ Response:
     }
   }
 }
-```
+\`\`\`
 
 ### Migration Status
 
-```bash
+\`\`\`bash
 curl http://localhost:3000/api/admin/migrations/status
-```
+\`\`\`
 
 Response:
-```json
+\`\`\`json
 {
   "success": true,
   "database": {
@@ -171,7 +171,7 @@ Response:
   },
   "status": "complete"
 }
-```
+\`\`\`
 
 ## Production Deployment
 
@@ -186,10 +186,10 @@ Response:
 ### Deployment Steps
 
 1. **Deploy Application**
-   ```bash
+   \`\`\`bash
    npm run build
    npm start
-   ```
+   \`\`\`
 
 2. **Automatic Migration**
    - Migrations run on first request
@@ -197,14 +197,14 @@ Response:
    - Application becomes available after completion
 
 3. **Verify Installation**
-   ```bash
+   \`\`\`bash
    curl http://localhost:3000/api/health/database
    curl http://localhost:3000/api/admin/migrations/status
-   ```
+   \`\`\`
 
 ### Environment Variables
 
-```bash
+\`\`\`bash
 # Optional: Specify database type
 DATABASE_TYPE=sqlite  # or "postgresql"
 
@@ -216,29 +216,29 @@ SQLITE_DB_PATH=/custom/path/to/cts.db
 
 # Application
 NODE_ENV=production
-```
+\`\`\`
 
 ## Backup and Recovery
 
 ### SQLite Backup
 
-```bash
+\`\`\`bash
 # Simple file copy (when application is stopped)
 cp data/cts.db data/cts.db.backup
 
 # Online backup (while running)
 sqlite3 data/cts.db ".backup 'data/cts.db.backup'"
-```
+\`\`\`
 
 ### PostgreSQL Backup
 
-```bash
+\`\`\`bash
 # Full database backup
 pg_dump -U Project-Name -h localhost Project-Name > backup.sql
 
 # Restore
 psql -U Project-Name -h localhost Project-Name < backup.sql
-```
+\`\`\`
 
 ### Restore After Failure
 
@@ -253,7 +253,7 @@ psql -U Project-Name -h localhost Project-Name < backup.sql
 
 All high-frequency queries use optimized indexes:
 
-```sql
+\`\`\`sql
 -- Connection + Symbol + Time (most common query pattern)
 CREATE INDEX idx_indications_direction_conn_symbol 
   ON indications_direction(connection_id, symbol, calculated_at DESC);
@@ -261,7 +261,7 @@ CREATE INDEX idx_indications_direction_conn_symbol
 -- Status filtering
 CREATE INDEX idx_indications_direction_status 
   ON indications_direction(connection_id, status, calculated_at DESC);
-```
+\`\`\`
 
 ### Query Optimization
 
@@ -273,11 +273,11 @@ CREATE INDEX idx_indications_direction_status
 ### Connection Pooling
 
 PostgreSQL uses connection pooling:
-```javascript
+\`\`\`javascript
 max: 20,  // Maximum connections
 idleTimeoutMillis: 30000,  // Close idle connections
 connectionTimeoutMillis: 10000  // Connection timeout
-```
+\`\`\`
 
 ## Troubleshooting
 
@@ -293,12 +293,12 @@ connectionTimeoutMillis: 10000  // Connection timeout
 ### Issue: Missing Tables
 
 **Solution:**
-```bash
+\`\`\`bash
 # Check which tables are missing
 curl http://localhost:3000/api/admin/migrations/status
 
 # The system will automatically create them on next restart
-```
+\`\`\`
 
 ### Issue: Performance Degradation
 
@@ -327,9 +327,9 @@ curl http://localhost:3000/api/admin/migrations/status
 
 ### File Permissions (SQLite)
 
-```bash
+\`\`\`bash
 chmod 600 data/cts.db  # Owner read/write only
-```
+\`\`\`
 
 ### Network Security (PostgreSQL)
 
@@ -343,24 +343,24 @@ chmod 600 data/cts.db  # Owner read/write only
 ### Application Logs
 
 All database operations are logged:
-```
+\`\`\`
 [v0] Database Type: SQLITE
 [v0] ✓ Unified setup complete: 150 applied, 12 skipped
 [v0] ✓ All 22 critical tables verified
 [v0] ✓ Application Ready for Production
-```
+\`\`\`
 
 ### Health Check Integration
 
 Integrate health checks with monitoring tools:
-```yaml
+\`\`\`yaml
 # Example: Docker Compose health check
 healthcheck:
   test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/database"]
   interval: 30s
   timeout: 10s
   retries: 3
-```
+\`\`\`
 
 ## Support
 

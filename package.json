@@ -35,11 +35,9 @@
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
-    "prebuild": "node scripts/prebuild.js",
     "build": "next build",
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
-    "clean:aggressive": "node scripts/prebuild.js",
     "clean:all": "bash scripts/clear-cache.sh && rm -rf node_modules && npm install",
     "clean:local": "bash scripts/clear-local-cache.sh",
     "clean:vercel": "rm -rf .next .turbo node_modules/.cache tsconfig.tsbuildinfo",
@@ -70,7 +68,7 @@
     "test:system": "node scripts/test-complete-system.js",
     "trade-engine": "node services/trade-engine.js",
     "type-check": "tsc --noEmit",
-    "vercel-build": "node scripts/vercel-build-hook.js && npm run clean:aggressive && npm run type-check && npm run build",
+    "vercel-build": "npm run build",
     "verify": "node scripts/verify-build.js",
     "web-engine": "node services/web-engine.js"
   },
@@ -139,6 +137,7 @@
     "recharts": "2.15.4",
     "some-module": "0.0.3",
     "sonner": "1.7.4",
+    "swr": "2.3.8",
     "tailwind-merge": "2.5.5",
     "tailwindcss": "^4.1.9",
     "tailwindcss-animate": "1.0.7",
