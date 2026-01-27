@@ -5,10 +5,10 @@
 ### Issue: Import Errors After Pulling Changes
 
 If you see errors like:
-```
+\`\`\`
 Export getTradeEngine doesn't exist in target module
 import { getTradeEngine } from "@/lib/trade-engine/trade-engine"
-```
+\`\`\`
 
 **This is a Turbopack cache issue.** The build system is reading stale cached versions of files.
 
@@ -16,46 +16,46 @@ import { getTradeEngine } from "@/lib/trade-engine/trade-engine"
 
 Run this command to clear all caches and restart:
 
-```bash
+\`\`\`bash
 npm run clean:local && npm run dev
-```
+\`\`\`
 
 Or manually:
 
-```bash
+\`\`\`bash
 # Clear all caches
 rm -rf .next .turbo tsconfig.tsbuildinfo node_modules/.cache
 
 # Restart dev server
 npm run dev
-```
+\`\`\`
 
 ### Alternative: Use dev:nocache
 
 If you want to skip automatic cache clearing:
 
-```bash
+\`\`\`bash
 npm run dev:nocache
-```
+\`\`\`
 
 ## NPX Installation Issues
 
 If you're using `npx` to run the project and getting import errors:
 
 1. **Clear your local cache first:**
-   ```bash
+   \`\`\`bash
    npm run clean:local
-   ```
+   \`\`\`
 
 2. **Then start the dev server:**
-   ```bash
+   \`\`\`bash
    npm run dev
-   ```
+   \`\`\`
 
 3. **If issues persist, do a full clean:**
-   ```bash
+   \`\`\`bash
    npm run clean:all
-   ```
+   \`\`\`
 
 ## Vercel vs Local Development
 
@@ -67,29 +67,29 @@ If you're using `npx` to run the project and getting import errors:
 
 ### Correct Imports:
 
-```typescript
+\`\`\`typescript
 // ✅ CORRECT - Import from main file
 import { getTradeEngine, GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 
 // ✅ CORRECT - Import from directory index
 import { TradeEngine, TradeEngineConfig } from "@/lib/trade-engine/"
-```
+\`\`\`
 
 ### Incorrect Imports (will cause errors):
 
-```typescript
+\`\`\`typescript
 // ❌ WRONG - Don't import from subdirectory file directly
 import { getTradeEngine } from "@/lib/trade-engine/trade-engine"
-```
+\`\`\`
 
 ## Database Issues
 
 If you see database connection errors:
 
 1. **Check your environment variables:**
-   ```bash
+   \`\`\`bash
    cat .env.local
-   ```
+   \`\`\`
 
 2. **For SQLite (default):**
    - Don't set `DATABASE_URL` or set it to `file:./data/db.sqlite`
@@ -101,9 +101,9 @@ If you see database connection errors:
    - Run: `npm run db:migrate`
 
 4. **Reset database if corrupted:**
-   ```bash
+   \`\`\`bash
    npm run db:reset
-   ```
+   \`\`\`
 
 ## Quick Commands Reference
 
@@ -122,9 +122,9 @@ If you see database connection errors:
 ## Best Practices
 
 1. **Always clear cache after pulling changes:**
-   ```bash
+   \`\`\`bash
    git pull && npm run clean:local && npm run dev
-   ```
+   \`\`\`
 
 2. **Before reporting build errors:**
    - Clear cache first

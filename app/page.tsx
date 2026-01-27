@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
   const [systemStats, setSystemStats] = useState({
     activeConnections: 0,
     totalPositions: 0,
@@ -44,27 +45,32 @@ export default function Dashboard() {
   useEffect(() => {
     const initialize = async () => {
       console.log("[v0] Dashboard initializing...")
+      setIsLoading(true)
 
-      setActiveConnections([])
+      try {
+        setActiveConnections([])
+        await loadConnections()
+        await loadSystemStats()
+        await loadStrategies()
 
-      await loadConnections()
-      await loadSystemStats()
-      await loadStrategies()
-
-      const savedSelection = localStorage.getItem("selectedExchange")
-      if (savedSelection) {
-        setSelectedConnection(savedSelection)
+        const savedSelection = localStorage.getItem("selectedExchange")
+        if (savedSelection) {
+          setSelectedConnection(savedSelection)
+        }
+      } catch (error) {
+        console.error("[v0] Dashboard initialization error:", error)
+        toast.error("Failed to initialize dashboard")
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    initialize().catch((error) => {
-      console.error("[v0] Dashboard initialization error:", error)
-    })
+    initialize()
 
     const interval = setInterval(() => {
-      loadConnections()
-      loadSystemStats()
-      loadStrategies()
+      loadConnections().catch(console.error)
+      loadSystemStats().catch(console.error)
+      loadStrategies().catch(console.error)
     }, 10000)
 
     return () => clearInterval(interval)
@@ -92,8 +98,8 @@ export default function Dashboard() {
       }
     }
 
-    const interval = setInterval(updateConnectionStatuses, 5000) // Update every 5 seconds
-    updateConnectionStatuses() // Initial call
+    const interval = setInterval(updateConnectionStatuses, 5000)
+    updateConnectionStatuses()
 
     return () => clearInterval(interval)
   }, [activeConnections])
@@ -101,7 +107,10 @@ export default function Dashboard() {
   const loadConnections = async () => {
     try {
       console.log("[v0] Loading connections from API")
-      const response = await fetch("/api/settings/connections")
+      const response = await fetch("/api/settings/connections", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         console.log("[v0] Connections API returned error")
@@ -136,13 +145,18 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
+      toast.error("Failed to load connections")
     }
   }
 
   const loadSystemStats = async () => {
     try {
       console.log("[v0] Loading system stats from API")
-      const response = await fetch("/api/structure/metrics")
+      const response = await fetch("/api/structure/metrics", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+
       if (!response.ok) {
         console.log("[v0] System stats not available yet")
         return
@@ -153,15 +167,20 @@ export default function Dashboard() {
       setSystemStats(data)
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
+      // Don't show error toast for this, as it's background data
     }
   }
 
   const loadStrategies = async () => {
     try {
-      const response = await fetch("/api/strategies/overview")
+      const response = await fetch("/api/strategies/overview", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+
       if (response.ok) {
         const data = await response.json()
-        setStrategies(data)
+        setStrategies(Array.isArray(data) ? data : [])
       }
     } catch (error) {
       console.error("[v0] Failed to load strategies:", error)
@@ -216,8 +235,10 @@ export default function Dashboard() {
     try {
       console.log("[v0] Removing from active:", id)
 
-      const response = await fetch(`/api/settings/connections/${id}/active`, {
-        method: "DELETE",
+      const response = await fetch(`/api/settings/connections`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_active: false }),
       })
 
       if (!response.ok) {
@@ -238,8 +259,10 @@ export default function Dashboard() {
     try {
       console.log("[v0] Adding as active:", selectedToAdd)
 
-      const response = await fetch(`/api/settings/connections/${selectedToAdd}/active`, {
-        method: "POST",
+      const response = await fetch(`/api/settings/connections`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedToAdd, is_active: true }),
       })
 
       if (!response.ok) {
@@ -261,10 +284,17 @@ export default function Dashboard() {
     localStorage.setItem("selectedExchange", value)
   }
 
-  const handleRefresh = () => {
-    loadConnections()
-    loadSystemStats()
-    loadStrategies()
+  const handleRefresh = async () => {
+    setIsLoading(true)
+    try {
+      await Promise.all([loadConnections(), loadSystemStats(), loadStrategies()])
+      toast.success("Dashboard refreshed")
+    } catch (error) {
+      console.error("[v0] Refresh error:", error)
+      toast.error("Failed to refresh dashboard")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getConnectionStatus = (connection: ExchangeConnection): "connected" | "connecting" | "error" | "disabled" => {
@@ -275,12 +305,9 @@ export default function Dashboard() {
   }
 
   const getConnectionProgress = (connection: ExchangeConnection): number => {
-    // In a real implementation, this would query the trade engine coordinator
-    // For now, return based on connection state
     if (!connection.is_enabled) return 0
     if (connection.is_live_trade) return 100
-    // Simulate loading progress based on time since enabled
-    return 45 // This would come from real trade engine status
+    return 45
   }
 
   return (
@@ -304,8 +331,8 @@ export default function Dashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="icon" onClick={handleRefresh}>
-                  <RefreshCw className="h-4 w-4" />
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isLoading}>
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
             </div>

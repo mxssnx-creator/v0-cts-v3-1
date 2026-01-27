@@ -13,7 +13,7 @@ Complete verification checklist for production deployment.
 - [x] Health check endpoints available
 
 **Verify:**
-```bash
+\`\`\`bash
 # Start application
 npm run dev
 
@@ -22,7 +22,7 @@ curl http://localhost:3000/api/health/database
 
 # Check migration status
 curl http://localhost:3000/api/admin/migrations/status
-```
+\`\`\`
 
 ### 2. Dependencies ✓
 - [x] All npm packages installed
@@ -31,10 +31,10 @@ curl http://localhost:3000/api/admin/migrations/status
 - [x] Deprecated packages removed
 
 **Verify:**
-```bash
+\`\`\`bash
 npm audit
 npm list --depth=0
-```
+\`\`\`
 
 ### 3. Build System ✓
 - [x] TypeScript compilation successful
@@ -43,10 +43,10 @@ npm list --depth=0
 - [x] Pre-build verification scripts
 
 **Verify:**
-```bash
+\`\`\`bash
 npm run type-check
 npm run build
-```
+\`\`\`
 
 ### 4. File Structure ✓
 - [x] Critical directories exist (data, scripts, lib, app, components)
@@ -55,9 +55,9 @@ npm run build
 - [x] No missing imports or broken references
 
 **Verify:**
-```bash
+\`\`\`bash
 node scripts/verify-startup.js
-```
+\`\`\`
 
 ### 5. Environment Configuration
 - [ ] Production environment variables set
@@ -66,7 +66,7 @@ node scripts/verify-startup.js
 - [ ] API keys configured (if needed)
 
 **Production .env:**
-```bash
+\`\`\`bash
 # Required
 NODE_ENV=production
 PORT=3000
@@ -80,7 +80,7 @@ API_SIGNING_SECRET=<generate-secure-random-string>
 
 # Option 2: PostgreSQL
 DATABASE_URL=postgresql://username:password@host:5432/database
-```
+\`\`\`
 
 ### 6. Security
 - [ ] All secrets properly configured
@@ -111,16 +111,16 @@ DATABASE_URL=postgresql://username:password@host:5432/database
 - [ ] Recovery procedure documented
 
 **Backup SQLite:**
-```bash
+\`\`\`bash
 npm run db:backup
 # Or manually:
 cp data/cts.db data/cts.db.backup.$(date +%Y%m%d_%H%M%S)
-```
+\`\`\`
 
 **Backup PostgreSQL:**
-```bash
+\`\`\`bash
 pg_dump -U username -d database -F c -f backup.dump
-```
+\`\`\`
 
 ### 10. Testing
 - [ ] Application starts successfully
@@ -132,7 +132,7 @@ pg_dump -U username -d database -F c -f backup.dump
 ## Deployment Steps
 
 ### Step 1: Pre-Deployment
-```bash
+\`\`\`bash
 # 1. Run verification
 node scripts/verify-startup.js
 
@@ -144,10 +144,10 @@ npm run build
 
 # 4. Test production build locally
 npm start
-```
+\`\`\`
 
 ### Step 2: Deploy
-```bash
+\`\`\`bash
 # For Vercel
 vercel --prod
 
@@ -155,10 +155,10 @@ vercel --prod
 npm install --production
 npm run build
 npm start
-```
+\`\`\`
 
 ### Step 3: Post-Deployment
-```bash
+\`\`\`bash
 # 1. Verify deployment health
 curl https://your-domain.com/api/health/database
 
@@ -167,13 +167,13 @@ curl https://your-domain.com/api/admin/migrations/status
 
 # 3. Monitor logs for errors
 # Check application logs for any startup errors
-```
+\`\`\`
 
 ## Quick Start (Zero Configuration)
 
 For fastest deployment with SQLite:
 
-```bash
+\`\`\`bash
 # 1. Clone and install
 git clone <repo>
 cd cts-v3.1
@@ -184,25 +184,25 @@ npm run dev
 
 # 3. Open browser
 # http://localhost:3000
-```
+\`\`\`
 
 That's it! SQLite database creates automatically with all tables and indexes.
 
 ## Production with PostgreSQL
 
-```bash
+\`\`\`bash
 # 1. Create .env.local
 echo "DATABASE_URL=postgresql://user:pass@host:5432/db" > .env.local
 
 # 2. Start application
 npm run dev
 # Database migrates automatically
-```
+\`\`\`
 
 ## Troubleshooting
 
 ### Database Issues
-```bash
+\`\`\`bash
 # Check database status
 npm run db:status
 
@@ -211,25 +211,25 @@ npm run db:reset
 
 # Re-run migrations
 npm run db:migrate
-```
+\`\`\`
 
 ### Build Issues
-```bash
+\`\`\`bash
 # Clean all caches
 npm run clean:all
 
 # Rebuild from scratch
 npm run rebuild
-```
+\`\`\`
 
 ### Performance Issues
-```bash
+\`\`\`bash
 # Check system health
 npm run system:health
 
 # Monitor database connections
 # Check /api/health/database endpoint
-```
+\`\`\`
 
 ## Production Monitoring
 

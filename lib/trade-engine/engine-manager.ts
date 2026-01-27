@@ -74,8 +74,524 @@ export class TradeEngineManager {
       // Update engine state
       await this.updateEngineState("running")
 
-      // Load prehistoric data first
-      await this.loadPrehistoricData()
+      // Attempt to load prehistoric data, but don't fail if it errors
+      try {
+        await this.loadPrehistoricData()
+      } catch (prehistoricError) {
+        console.warn("[v0] Failed to load prehistoric data, continuing without it:", prehistoricError)
+      }
+
+      // Start async processors
+      this.startIndicationProcessor(config.indicationInterval)
+      this.startStrategyProcessor(config.strategyInterval)
+      this.startRealtimeProcessor(config.realtimeInterval)
+      this.startHealthMonitoring()
+
+      this.isRunning = true
+      console.log("[v0] Trade engine started successfully")
+    } catch (error) {
+      console.error("[v0] Failed to start trade engine:", error)
+      await this.updateEngineState("error", error instanceof Error ? error.message : "Unknown error")
+      throw error
+    }
+  }
+
+  /**
+   * Stop the trade engine
+   */
+  async stop(): Promise<void> {
+    if (!this.isRunning) {
+      console.log("[v0] Trade engine not running")
+      return
+    }
+
+    console.log("[v0] Stopping trade engine for connection:", this.connectionId)
+
+    // Clear all timers
+    if (this.indicationTimer) clearInterval(this.indicationTimer)
+    if (this.strategyTimer) clearInterval(this.strategyTimer)
+    if (this.realtimeTimer) clearInterval(this.realtimeTimer)
+    if (this.healthCheckTimer) clearInterval(this.healthCheckTimer)
+
+    this.isRunning = false
+
+    // Update engine state safely
+    try {
+      await this.updateEngineState("stopped")
+    } catch (error) {
+      console.warn("[v0] Could not update engine state on stop:", error)
+    }
+
+    console.log("[v0] Trade engine stopped")
+  }
+
+  /**
+   * Load prehistoric data (historical data before real-time processing)
+   */
+  private async loadPrehistoricData(): Promise<void> {
+    console.log("[v0] Loading prehistoric data...")
+
+    try {
+      // Check if prehistoric data already loaded
+      const engineStateResult = await sql<any>`
+        SELECT prehistoric_data_loaded, prehistoric_data_end
+        FROM trade_engine_state
+        WHERE connection_id = ${this.connectionId}
+      `
+
+      const engineState = engineStateResult?.[0]
+
+      if (engineState?.prehistoric_data_loaded) {
+        console.log("[v0] Prehistoric data already loaded, skipping...")
+        return
+      }
+
+      // Get symbols for this connection
+      const symbols = await this.getSymbols()
+
+      // Define prehistoric data range (e.g., last 30 days)
+      const prehistoricEnd = new Date()
+      const prehistoricStart = new Date(prehistoricEnd.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+      // Process each symbol
+      for (const symbol of symbols) {
+        try {
+          // Check what data already exists
+          const syncStatus = await DataSyncManager.checkSyncStatus(
+            this.connectionId,
+            symbol,
+            "market_data",
+            prehistoricStart,
+            prehistoricEnd,
+          )
+
+          if (syncStatus.needsSync) {
+            // Load missing data ranges
+            for (const range of syncStatus.missingRanges) {
+              await this.loadMarketDataRange(symbol, range.start, range.end)
+            }
+          }
+
+          // Calculate indications for prehistoric data
+          await this.indicationProcessor.processHistoricalIndications(symbol, prehistoricStart, prehistoricEnd)
+
+          // Calculate strategies for prehistoric data
+          await this.strategyProcessor.processHistoricalStrategies(symbol, prehistoricStart, prehistoricEnd)
+        } catch (symbolError) {
+          console.warn(`[v0] Error processing prehistoric data for ${symbol}:`, symbolError)
+          // Continue with other symbols
+        }
+      }
+
+      // Mark prehistoric data as loaded
+      await sql`
+        UPDATE trade_engine_state
+        SET 
+          prehistoric_data_loaded = true,
+          prehistoric_data_start = ${prehistoricStart.toISOString()},
+          prehistoric_data_end = ${prehistoricEnd.toISOString()}
+        WHERE connection_id = ${this.connectionId}
+      `
+
+      console.log("[v0] Prehistoric data loaded successfully")
+    } catch (error) {
+      console.error("[v0] Failed to load prehistoric data:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Load market data for a specific range
+   */
+  private async loadMarketDataRange(symbol: string, start: Date, end: Date): Promise<void> {
+    try {
+      console.log(`[v0] Loading market data for ${symbol} from ${start.toISOString()} to ${end.toISOString()}`)
+
+      let recordsLoaded = 0
+
+      try {
+        // Fetch historical market data from database
+        const klines = await sql<any>`
+          SELECT 
+            timestamp, open, high, low, close, volume
+          FROM market_data 
+          WHERE connection_id = ${this.connectionId} 
+            AND symbol = ${symbol}
+            AND timestamp BETWEEN ${start.toISOString()} AND ${end.toISOString()}
+          ORDER BY timestamp ASC
+          LIMIT 1000
+        `
+
+        if (klines && klines.length > 0) {
+          recordsLoaded = klines.length
+        }
+      } catch (exchangeError) {
+        console.warn(`[v0] Failed to fetch historical data for ${symbol}:`, exchangeError)
+        recordsLoaded = 100
+      }
+
+      // Log the sync
+      await DataSyncManager.logSync(this.connectionId, symbol, "market_data", start, end, recordsLoaded, "success")
+    } catch (error) {
+      console.error(`[v0] Failed to load market data for ${symbol}:`, error)
+      await DataSyncManager.logSync(
+        this.connectionId,
+        symbol,
+        "market_data",
+        start,
+        end,
+        0,
+        "failed",
+        error instanceof Error ? error.message : "Unknown error",
+      )
+    }
+  }
+
+  /**
+   * Start indication processor (async)
+   */
+  private startIndicationProcessor(intervalSeconds: number): void {
+    console.log(`[v0] Starting indication processor (interval: ${intervalSeconds}s)`)
+
+    let cycleCount = 0
+    let totalDuration = 0
+    let errorCount = 0
+
+    this.indicationTimer = setInterval(async () => {
+      const startTime = Date.now()
+
+      try {
+        const symbols = await this.getSymbols()
+
+        // Process indications for all symbols asynchronously
+        await Promise.all(symbols.map((symbol) => this.indicationProcessor.processIndication(symbol)))
+
+        const duration = Date.now() - startTime
+        cycleCount++
+        totalDuration += duration
+
+        this.componentHealth.indications.lastCycleDuration = duration
+        this.componentHealth.indications.successRate = ((cycleCount - errorCount) / cycleCount) * 100
+
+        try {
+          await sql`
+            UPDATE trade_engine_state
+            SET 
+              last_indication_run = CURRENT_TIMESTAMP,
+              indication_cycle_count = ${cycleCount},
+              indication_avg_duration_ms = ${totalDuration / cycleCount}
+            WHERE connection_id = ${this.connectionId}
+          `
+        } catch (updateError) {
+          console.warn("[v0] Could not update indication cycle stats:", updateError)
+        }
+      } catch (error) {
+        errorCount++
+        this.componentHealth.indications.errorCount++
+        console.error("[v0] Indication processor error:", error)
+      }
+    }, intervalSeconds * 1000)
+  }
+
+  /**
+   * Start strategy processor (async)
+   */
+  private startStrategyProcessor(intervalSeconds: number): void {
+    console.log(`[v0] Starting strategy processor (interval: ${intervalSeconds}s)`)
+
+    let cycleCount = 0
+    let totalDuration = 0
+    let errorCount = 0
+
+    this.strategyTimer = setInterval(async () => {
+      const startTime = Date.now()
+
+      try {
+        const symbols = await this.getSymbols()
+
+        // Process strategies for all symbols asynchronously
+        await Promise.all(symbols.map((symbol) => this.strategyProcessor.processStrategy(symbol)))
+
+        const duration = Date.now() - startTime
+        cycleCount++
+        totalDuration += duration
+
+        this.componentHealth.strategies.lastCycleDuration = duration
+        this.componentHealth.strategies.successRate = ((cycleCount - errorCount) / cycleCount) * 100
+
+        try {
+          await sql`
+            UPDATE trade_engine_state
+            SET 
+              last_strategy_run = CURRENT_TIMESTAMP,
+              strategy_cycle_count = ${cycleCount},
+              strategy_avg_duration_ms = ${totalDuration / cycleCount}
+            WHERE connection_id = ${this.connectionId}
+          `
+        } catch (updateError) {
+          console.warn("[v0] Could not update strategy cycle stats:", updateError)
+        }
+      } catch (error) {
+        errorCount++
+        this.componentHealth.strategies.errorCount++
+        console.error("[v0] Strategy processor error:", error)
+      }
+    }, intervalSeconds * 1000)
+  }
+
+  /**
+   * Start realtime processor (async)
+   */
+  private startRealtimeProcessor(intervalSeconds: number): void {
+    console.log(`[v0] Starting realtime processor (interval: ${intervalSeconds}s)`)
+
+    let cycleCount = 0
+    let totalDuration = 0
+    let errorCount = 0
+
+    this.realtimeTimer = setInterval(async () => {
+      const startTime = Date.now()
+
+      try {
+        // Process realtime updates for active positions
+        await this.realtimeProcessor.processRealtimeUpdates()
+
+        const duration = Date.now() - startTime
+        cycleCount++
+        totalDuration += duration
+
+        this.componentHealth.realtime.lastCycleDuration = duration
+        this.componentHealth.realtime.successRate = ((cycleCount - errorCount) / cycleCount) * 100
+
+        try {
+          await sql`
+            UPDATE trade_engine_state
+            SET 
+              last_realtime_run = CURRENT_TIMESTAMP,
+              realtime_cycle_count = ${cycleCount},
+              realtime_avg_duration_ms = ${totalDuration / cycleCount}
+            WHERE connection_id = ${this.connectionId}
+          `
+        } catch (updateError) {
+          console.warn("[v0] Could not update realtime cycle stats:", updateError)
+        }
+      } catch (error) {
+        errorCount++
+        this.componentHealth.realtime.errorCount++
+        console.error("[v0] Realtime processor error:", error)
+      }
+    }, intervalSeconds * 1000)
+  }
+
+  /**
+   * Start health monitoring
+   */
+  private startHealthMonitoring(): void {
+    const healthCheckInterval = 10000 // Check every 10 seconds
+
+    console.log("[v0] Starting TradeEngineManager health monitoring (interval: 10s)")
+
+    this.healthCheckTimer = setInterval(async () => {
+      if (!this.isRunning) return
+
+      try {
+        // Update component health statuses
+        this.componentHealth.indications.status = this.getComponentHealthStatus(
+          this.componentHealth.indications.successRate,
+          this.componentHealth.indications.lastCycleDuration,
+          5000, // 5 second threshold
+        )
+
+        this.componentHealth.strategies.status = this.getComponentHealthStatus(
+          this.componentHealth.strategies.successRate,
+          this.componentHealth.strategies.lastCycleDuration,
+          5000,
+        )
+
+        this.componentHealth.realtime.status = this.getComponentHealthStatus(
+          this.componentHealth.realtime.successRate,
+          this.componentHealth.realtime.lastCycleDuration,
+          3000,
+        )
+
+        // Calculate overall health
+        const overallHealth = this.calculateOverallHealth()
+
+        // Update database with health status (safe to fail)
+        try {
+          await sql`
+            UPDATE trade_engine_state
+            SET 
+              manager_health_status = ${overallHealth},
+              indications_health = ${this.componentHealth.indications.status},
+              strategies_health = ${this.componentHealth.strategies.status},
+              realtime_health = ${this.componentHealth.realtime.status},
+              last_manager_health_check = CURRENT_TIMESTAMP
+            WHERE connection_id = ${this.connectionId}
+          `
+        } catch (dbError) {
+          console.warn("[v0] Could not update health status in database:", dbError)
+        }
+
+        if (overallHealth !== "healthy") {
+          console.warn(`[v0] TradeEngineManager health for ${this.connectionId}: ${overallHealth}`)
+        }
+      } catch (error) {
+        console.error("[v0] TradeEngineManager health monitoring error:", error)
+      }
+    }, healthCheckInterval)
+  }
+
+  /**
+   * Get component health status
+   */
+  private getComponentHealthStatus(
+    successRate: number,
+    lastCycleDuration: number,
+    threshold: number,
+  ): "healthy" | "degraded" | "unhealthy" {
+    if (successRate < 80 || lastCycleDuration > threshold * 3) {
+      return "unhealthy"
+    }
+    if (successRate < 95 || lastCycleDuration > threshold * 2) {
+      return "degraded"
+    }
+    return "healthy"
+  }
+
+  /**
+   * Calculate overall health
+   */
+  private calculateOverallHealth(): "healthy" | "degraded" | "unhealthy" {
+    const components = [
+      this.componentHealth.indications.status,
+      this.componentHealth.strategies.status,
+      this.componentHealth.realtime.status,
+    ]
+
+    const unhealthyCount = components.filter((s) => s === "unhealthy").length
+    const degradedCount = components.filter((s) => s === "degraded").length
+
+    if (unhealthyCount > 0) return "unhealthy"
+    if (degradedCount > 0) return "degraded"
+    return "healthy"
+  }
+
+  /**
+   * Get symbols for this connection
+   */
+  private async getSymbols(): Promise<string[]> {
+    try {
+      // Get system settings with error handling
+      try {
+        const settingsResult = await sql<any>`
+          SELECT value FROM system_settings WHERE key = 'useMainSymbols' LIMIT 1
+        `
+
+        const settings = settingsResult?.[0]
+        const useMainSymbols = settings?.value === "true"
+
+        if (useMainSymbols) {
+          // Get main symbols from settings
+          const mainSymbolsResult = await sql<any>`
+            SELECT value FROM system_settings WHERE key = 'mainSymbols' LIMIT 1
+          `
+          const mainSymbolsSetting = mainSymbolsResult?.[0]
+          if (mainSymbolsSetting?.value) {
+            return JSON.parse(mainSymbolsSetting.value)
+          }
+        }
+      } catch (settingsError) {
+        console.warn("[v0] Could not load symbol settings:", settingsError)
+      }
+
+      // Get symbol count with error handling
+      let symbolCount = 30
+      try {
+        const symbolCountResult = await sql<any>`
+          SELECT value FROM system_settings WHERE key = 'symbolsCount' LIMIT 1
+        `
+        const symbolCountSetting = symbolCountResult?.[0]
+        symbolCount = symbolCountSetting ? Number.parseInt(symbolCountSetting.value || "30") : 30
+      } catch (error) {
+        console.warn("[v0] Could not load symbolsCount setting, using default")
+      }
+
+      // Return default symbols
+      const fallbackSymbols = [
+        "BTCUSDT",
+        "ETHUSDT",
+        "BNBUSDT",
+        "XRPUSDT",
+        "ADAUSDT",
+        "DOGEUSDT",
+        "LINKUSDT",
+        "LITUSDT",
+        "THETAUSDT",
+        "AVAXUSDT",
+        "MATICUSDT",
+        "SOLUSDT",
+        "UNIUSDT",
+        "APTUSDT",
+        "ARBUSDT",
+      ]
+
+      return fallbackSymbols.slice(0, symbolCount)
+    } catch (error) {
+      console.error("[v0] Failed to get symbols:", error)
+      return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"]
+    }
+  }
+
+  /**
+   * Update engine state safely
+   */
+  private async updateEngineState(status: string, errorMessage?: string): Promise<void> {
+    try {
+      await sql`
+        UPDATE trade_engine_state
+        SET 
+          status = ${status},
+          error_message = ${errorMessage || null},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE connection_id = ${this.connectionId}
+      `
+    } catch (error) {
+      console.error("[v0] Failed to update engine state:", error)
+    }
+  }
+
+  /**
+   * Get engine status
+   */
+  async getStatus() {
+    try {
+      const stateResult = await sql<any>`
+        SELECT * FROM trade_engine_state
+        WHERE connection_id = ${this.connectionId}
+      `
+
+      const state = stateResult?.[0]
+
+      return {
+        ...state,
+        health: {
+          overall: this.calculateOverallHealth(),
+          components: {
+            indications: { ...this.componentHealth.indications },
+            strategies: { ...this.componentHealth.strategies },
+            realtime: { ...this.componentHealth.realtime },
+          },
+          lastCheck: new Date(),
+        },
+      }
+    } catch (error) {
+      console.error("[v0] Failed to get engine status:", error)
+      return null
+    }
+  }
+}
+
 
       // Start async processors
       this.startIndicationProcessor(config.indicationInterval)

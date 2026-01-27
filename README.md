@@ -25,14 +25,14 @@ CTS v3.1 is a professional-grade crypto trading system featuring:
 
 The interactive setup script guides you through the complete installation process with prompts for project name, port, and database configuration:
 
-```bash
+\`\`\`bash
 # Clone repository
 git clone https://github.com/your-repo/cts-v3.1.git
 cd cts-v3.1
 
 # Run interactive setup
 npm run setup
-```
+\`\`\`
 
 The setup script will:
 - Validate Node.js version (18.x - 26.x supported)
@@ -47,13 +47,13 @@ The setup script will:
 
 ### One-Line Installation
 
-```bash
+\`\`\`bash
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash
-```
+\`\`\`
 
 ### Custom Installation
 
-```bash
+\`\`\`bash
 # Custom port
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --port 8080
 
@@ -63,13 +63,13 @@ curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/sc
 # Multiple instances
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --port 3000 --name cts-prod
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --port 3001 --name cts-test
-```
+\`\`\`
 
 For detailed instructions, see [INSTALL.md](INSTALL.md).
 
 ## Manual Setup
 
-```bash
+\`\`\`bash
 # 1. Clone and install
 git clone https://github.com/your-repo/cts-v3.1.git
 cd cts-v3.1
@@ -88,7 +88,7 @@ npm run dev
 # Or start production server
 npm run build
 npm start
-```
+\`\`\`
 
 ## System Architecture
 
@@ -119,11 +119,11 @@ npm start
 
 ### Trade Engine Flow
 
-```
+\`\`\`
 Market Data → Indication Processing → Strategy Evaluation → Position Management → Exchange Execution
      ↓              ↓                       ↓                      ↓                    ↓
   WebSocket    Main/Common           Additional/Adjust       Pseudo Positions      Live Orders
-```
+\`\`\`
 
 ## Features
 
@@ -172,7 +172,7 @@ Market Data → Indication Processing → Strategy Evaluation → Position Manag
 
 The setup script automatically generates secure secrets, but you can also configure manually:
 
-```bash
+\`\`\`bash
 # Application
 PROJECT_NAME=CTS-v3                          # Project name
 PORT=3000                                     # Application port
@@ -188,11 +188,11 @@ SESSION_SECRET=your-session-secret-32-bytes
 JWT_SECRET=your-jwt-secret-32-bytes
 ENCRYPTION_KEY=your-encryption-key-32-bytes
 API_SIGNING_SECRET=your-api-signing-secret-32-bytes
-```
+\`\`\`
 
 ## Available Scripts
 
-```bash
+\`\`\`bash
 # Development
 npm run dev              # Start dev server (uses PORT env var)
 npm run build            # Build for production
@@ -221,7 +221,7 @@ npm run certbot:install  # Install SSL certificates
 # Utilities
 npm run type-check       # TypeScript type checking
 npm run lint             # ESLint checking
-```
+\`\`\`
 
 ## Support
 

@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       { exchange: body.exchange, api_type: body.api_type },
     )
 
+    // Validate required fields
     if (!body.name || !body.exchange) {
       await SystemLogger.logAPI("Missing required fields", "warn", "POST /api/settings/connections")
       return NextResponse.json(
@@ -172,5 +173,71 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 },
     )
+  }
+}
+
+// PUT - Update connection
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "Connection ID is required" }, { status: 400 })
+    }
+
+    const connections = loadConnections()
+    const connIndex = connections.findIndex((c) => c.id === id)
+
+    if (connIndex === -1) {
+      return NextResponse.json({ error: "Connection not found" }, { status: 404 })
+    }
+
+    // Update connection fields
+    const updated = { ...connections[connIndex], ...body, updated_at: new Date().toISOString() }
+    connections[connIndex] = updated
+
+    saveConnections(connections)
+
+    console.log("[v0] Connection updated:", id)
+    await SystemLogger.logConnection(`Connection updated: ${updated.name}`, id, "info", {
+      updated_fields: Object.keys(body).filter((k) => k !== "id"),
+    })
+
+    return NextResponse.json({ success: true, message: "Connection updated" })
+  } catch (error) {
+    console.error("[v0] Error updating connection:", error)
+    await SystemLogger.logError(error, "api", "PUT /api/settings/connections")
+    return NextResponse.json({ error: "Failed to update connection" }, { status: 500 })
+  }
+}
+
+// DELETE - Remove connection
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json({ error: "Connection ID is required" }, { status: 400 })
+    }
+
+    const connections = loadConnections()
+    const filtered = connections.filter((c) => c.id !== id)
+
+    if (filtered.length === connections.length) {
+      return NextResponse.json({ error: "Connection not found" }, { status: 404 })
+    }
+
+    saveConnections(filtered)
+
+    console.log("[v0] Connection deleted:", id)
+    await SystemLogger.logConnection(`Connection deleted`, id, "info", {})
+
+    return NextResponse.json({ success: true, message: "Connection deleted" })
+  } catch (error) {
+    console.error("[v0] Error deleting connection:", error)
+    await SystemLogger.logError(error, "api", "DELETE /api/settings/connections")
+    return NextResponse.json({ error: "Failed to delete connection" }, { status: 500 })
   }
 }

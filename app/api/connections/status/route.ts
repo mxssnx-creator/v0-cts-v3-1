@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { loadConnections } from "@/lib/file-storage"
 import { SystemLogger } from "@/lib/system-logger"
-import { getTradeEngineStatus } from "@/lib/trade-engine"
 
 // GET real-time status for all active connections
 export async function GET() {
@@ -15,21 +14,34 @@ export async function GET() {
     const statuses = await Promise.all(
       activeConnections.map(async (connection) => {
         try {
-          const engineStatus = await getTradeEngineStatus(connection.id)
+          // Safely access engine status with proper error handling
+          let engineStatus = null
+          try {
+            // Try to fetch engine status from database if available
+            const { sql } = await import("@/lib/db")
+            const engineState = await sql<any>`
+              SELECT * FROM trade_engine_state WHERE connection_id = ${connection.id} LIMIT 1
+            `
+            if (engineState && engineState.length > 0) {
+              engineStatus = engineState[0]
+            }
+          } catch (dbError) {
+            console.warn(`[v0] Could not fetch engine status from DB for ${connection.id}`)
+          }
 
           return {
             id: connection.id,
             name: connection.name,
             exchange: connection.exchange,
             status: connection.is_enabled ? (connection.is_live_trade ? "connected" : "connecting") : "disabled",
-            progress: engineStatus?.loadingProgress || 0,
+            progress: engineStatus?.loading_progress || 0,
             balance: engineStatus?.balance || 0,
-            activePositions: engineStatus?.activePositions || 0,
-            activeSymbols: engineStatus?.activeSymbols || 0,
-            indicationsActive: engineStatus?.indicationsActive || 0,
-            lastUpdate: engineStatus?.lastUpdate || new Date().toISOString(),
-            isLoading: engineStatus?.isLoading || false,
-            loadingStage: engineStatus?.loadingStage || "idle",
+            activePositions: engineStatus?.active_positions || 0,
+            activeSymbols: engineStatus?.active_symbols || 0,
+            indicationsActive: engineStatus?.indications_active || 0,
+            lastUpdate: engineStatus?.last_update || new Date().toISOString(),
+            isLoading: engineStatus?.is_loading || false,
+            loadingStage: engineStatus?.loading_stage || "idle",
             error: engineStatus?.error || null,
           }
         } catch (error) {

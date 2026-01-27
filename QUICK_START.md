@@ -4,27 +4,27 @@ Get CTS v3.1 running in under 5 minutes.
 
 ## One-Command Install
 
-```bash
+\`\`\`bash
 npx create-cts-app my-trading-bot
 cd my-trading-bot
 npm run dev
-```
+\`\`\`
 
 ## Step-by-Step
 
 ### 1. Clone & Install (2 minutes)
 
-```bash
+\`\`\`bash
 git clone https://github.com/your-repo/cts-v3.1.git
 cd cts-v3.1
 npm install
-```
+\`\`\`
 
 ### 2. Setup (2 minutes)
 
-```bash
+\`\`\`bash
 npm run setup
-```
+\`\`\`
 
 **The setup wizard will ask:**
 - Project name? (default: CTS-v3)
@@ -40,14 +40,14 @@ It automatically:
 
 ### 3. Start (1 minute)
 
-```bash
+\`\`\`bash
 # Development
 npm run dev
 
 # Production
 npm run build
 npm start
-```
+\`\`\`
 
 Open http://localhost:3000
 
@@ -71,13 +71,13 @@ Open http://localhost:3000
 
 ## Common Commands
 
-```bash
+\`\`\`bash
 npm run dev              # Development server
 npm run build            # Production build  
 npm start                # Production server
 npm run db:status        # Check database
 npm run system:check     # Health check
-```
+\`\`\`
 
 ## Need Help?
 
