@@ -194,8 +194,9 @@ export async function register() {
       console.log("[v0] SYSTEM READY")
       console.log("=".repeat(60) + "\n")
       
-      // Start auto-backup (non-blocking)
+      // Start background services (non-blocking)
       setTimeout(async () => {
+        // Auto-backup service
         try {
           const { getAutoBackupManager } = await import("./lib/auto-backup")
           const backupManager = getAutoBackupManager()
@@ -204,7 +205,16 @@ export async function register() {
         } catch (err) {
           console.warn("[v0] Auto-backup unavailable")
         }
-      }, 1000)
+
+        // Trade engine auto-start for active connections
+        try {
+          const { initializeTradeEngineAutoStart } = await import("./lib/trade-engine-auto-start")
+          console.log("[v0] Starting trade engine auto-start...")
+          await initializeTradeEngineAutoStart()
+        } catch (err) {
+          console.error("[v0] Trade engine auto-start failed:", err)
+        }
+      }, 3000) // Wait 3 seconds for full system stabilization
       
     } catch (error) {
       console.error("[v0] Initialization error:", error instanceof Error ? error.message : String(error))
