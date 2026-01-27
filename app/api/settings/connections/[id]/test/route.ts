@@ -307,16 +307,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     try {
       // Update failure status in file storage
       const connections = loadConnections()
-      const connectionIndex = connections.findIndex((c) => c.id === id)
-      if (connectionIndex !== -1) {
-        connections[connectionIndex] = {
-          ...connections[connectionIndex],
-          last_test_status: "failed",
-          last_test_log: testLog,
-          last_test_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+      if (Array.isArray(connections)) {
+        const connectionIndex = connections.findIndex((c) => c.id === id)
+        if (connectionIndex !== -1) {
+          connections[connectionIndex] = {
+            ...connections[connectionIndex],
+            last_test_status: "failed",
+            last_test_log: testLog,
+            last_test_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          saveConnections(connections)
         }
-        saveConnections(connections)
       }
     } catch (updateError) {
       console.error("[v0] Failed to update connection with error status:", updateError)
