@@ -51,8 +51,12 @@ class DatabaseManager {
   private dynamicOps: DynamicOperationHandler | null = null
 
   private constructor() {
-    if (isBuildPhase) {
-      console.log("[v0] Skipping database initialization during build phase")
+    // Don't initialize in constructor - do it lazily when methods are called
+    console.log("[v0] DatabaseManager instance created (lazy initialization)")
+  }
+  
+  private ensureInitialized() {
+    if (this.initialized || isBuildPhase) {
       return
     }
 
@@ -61,11 +65,11 @@ class DatabaseManager {
       const dbType = getDatabaseType()
       const isPostgres = dbType === "postgresql" || dbType === "remote"
 
-      this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
-      this.initializeTables().catch((error) => {
-        console.error("[v0] Failed to initialize DatabaseManager tables:", error)
-        console.log("[v0] System will use file-based storage as fallback")
-      })
+      if (DynamicOperationHandler) {
+        this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
+      }
+      this.initialized = true
+      console.log("[v0] DatabaseManager initialized")
     } catch (error) {
       console.error("[v0] Failed to initialize DatabaseManager:", error)
       console.log("[v0] System will use file-based storage as fallback")
@@ -80,7 +84,8 @@ class DatabaseManager {
   }
 
   private async initializeTables() {
-    if (isBuildPhase || this.initialized) return
+    this.ensureInitialized()
+    if (isBuildPhase) return
 
     // Tables are now created by the migration runner in instrumentation.ts
     // This method is disabled to avoid schema conflicts
@@ -739,6 +744,7 @@ class DatabaseManager {
     subType: (typeof ConfigSubTypes)[keyof typeof ConfigSubTypes] | null,
     data: Record<string, any>,
   ) {
+    this.ensureInitialized()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.insert(entityType, subType, data)
   }
@@ -806,9 +812,10 @@ class DatabaseManager {
   }
 
   public async getConnections() {
-    const client = getClient()
-    const dbType = getDatabaseType()
-    const isPostgres = dbType === "postgresql" || dbType === "remote"
+    this.ensureInitialized()
+    try {
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
       const result = await (client as Pool).query("SELECT * FROM exchange_connections ORDER BY created_at DESC")
@@ -1052,9 +1059,10 @@ class DatabaseManager {
   }
 
   public async getAllSettings(): Promise<Record<string, string>> {
-    const client = getClient()
-    const dbType = getDatabaseType()
-    const isPostgres = dbType === "postgresql" || dbType === "remote"
+    this.ensureInitialized()
+    try {
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
 
     if (isPostgres) {
       const result = await (client as Pool).query("SELECT key, value FROM system_settings")
