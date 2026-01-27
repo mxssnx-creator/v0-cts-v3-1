@@ -217,7 +217,6 @@ export function loadConnections(): Connection[] {
 
     const cached = getFromCache("all_connections")
     if (cached) {
-      console.log("[v0] Loaded", cached.length, "connections from cache")
       return cached
     }
 
@@ -227,7 +226,6 @@ export function loadConnections(): Connection[] {
         try {
           const connections = JSON.parse(data)
           if (Array.isArray(connections)) {
-            console.log("[v0] Loaded", connections.length, "connections from file")
             setInCache("all_connections", connections)
             return connections
           }
@@ -237,13 +235,11 @@ export function loadConnections(): Connection[] {
       }
     }
 
-    console.log("[v0] No valid connections file found, using defaults")
-    const defaults = getDefaultConnections()
-    saveConnections(defaults)
-    return defaults
+    // Return empty array instead of defaults to avoid re-adding deleted connections
+    return []
   } catch (error) {
     console.error("[v0] Error loading connections from file:", error)
-    return getDefaultConnections()
+    return []
   }
 }
 
@@ -493,10 +489,10 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false, // Default to false, user must enable
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
-      is_active: true, // Active means it appears in active connections list
+      is_active: true,
       is_predefined: true,
       volume_factor: 1.0,
       connection_settings: {},
@@ -523,10 +519,10 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false, // Default to false, user must enable
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
-      is_active: true, // Active means it appears in active connections list
+      is_active: true,
       is_predefined: true,
       volume_factor: 1.0,
       connection_settings: {},
@@ -553,7 +549,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -584,7 +580,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -615,7 +611,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -646,7 +642,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -676,7 +672,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -706,7 +702,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,
@@ -736,7 +732,7 @@ function getDefaultConnections(): Connection[] {
       margin_type: "cross",
       position_mode: "hedge",
       is_testnet: false,
-      is_enabled: false,
+      is_enabled: true,
       is_live_trade: false,
       is_preset_trade: false,
       is_active: true,

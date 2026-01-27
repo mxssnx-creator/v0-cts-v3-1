@@ -51,7 +51,6 @@ export default function ExchangeConnectionManager() {
       if (!response.ok) throw new Error("Failed to load connections")
 
       const data = await response.json()
-      console.log("[v0] Loaded connections:", data)
 
       // Handle both array and object response formats
       let connectionsArray = Array.isArray(data) ? data : (data?.connections || [])
