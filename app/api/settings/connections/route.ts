@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Update connection
+// PUT - Update connection with support for is_enabled, is_live_trade, is_active
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
@@ -193,22 +193,55 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
+    const connection = connections[connIndex]
+
+    // Handle is_enabled toggle (disable live trade if disabling)
+    if (typeof body.is_enabled === "boolean" && body.is_enabled === false) {
+      body.is_live_trade = false
+      body.is_preset_trade = false
+      console.log("[v0] Disabled connection, also disabling live trade:", id)
+    }
+
+    // Handle is_live_trade toggle (require connection to be enabled)
+    if (typeof body.is_live_trade === "boolean" && body.is_live_trade === true) {
+      if (!connection.is_enabled) {
+        return NextResponse.json(
+          { error: "Connection must be enabled before enabling live trade" },
+          { status: 400 }
+        )
+      }
+      console.log("[v0] Enabled live trade for connection:", id)
+    }
+
     // Update connection fields
-    const updated = { ...connections[connIndex], ...body, updated_at: new Date().toISOString() }
+    const updated = { ...connection, ...body, updated_at: new Date().toISOString() }
     connections[connIndex] = updated
 
     saveConnections(connections)
 
-    console.log("[v0] Connection updated:", id)
+    console.log("[v0] Connection updated:", id, "- Changes:", Object.keys(body).filter((k) => k !== "id"))
     await SystemLogger.logConnection(`Connection updated: ${updated.name}`, id, "info", {
       updated_fields: Object.keys(body).filter((k) => k !== "id"),
+      values: body,
     })
 
-    return NextResponse.json({ success: true, message: "Connection updated" })
+    return NextResponse.json({
+      success: true,
+      message: "Connection updated",
+      connection: updated,
+    })
   } catch (error) {
     console.error("[v0] Error updating connection:", error)
-    await SystemLogger.logError(error, "api", "PUT /api/settings/connections")
-    return NextResponse.json({ error: "Failed to update connection" }, { status: 500 })
+    await SystemLogger.logError(error, "api", "PUT /api/settings/connections", {
+      connectionId: body?.id,
+    })
+    return NextResponse.json(
+      {
+        error: "Failed to update connection",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    )
   }
 }
 
