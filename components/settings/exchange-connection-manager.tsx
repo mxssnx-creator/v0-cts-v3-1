@@ -656,11 +656,11 @@ export default function ExchangeConnectionManagerV2() {
                             <p className="font-medium">${conn.last_test_balance.toFixed(2)}</p>
                           </div>
                         )}
-                        {conn.last_test_at && (
+                        {conn.last_test_timestamp && (
                           <div>
                             <p className="text-muted-foreground">Last Test</p>
                             <p className="font-medium text-xs">
-                              {new Date(conn.last_test_at).toLocaleString()}
+                              {new Date(conn.last_test_timestamp).toLocaleString()}
                             </p>
                           </div>
                         )}
