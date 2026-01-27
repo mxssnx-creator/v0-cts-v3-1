@@ -59,7 +59,7 @@ Successfully split the massive settings page into smaller, manageable component 
 
 All components are properly integrated into the main page:
 
-```tsx
+\`\`\`tsx
 <Tabs value={activeTab} onValueChange={setActiveTab}>
   <TabsList className="grid w-full grid-cols-5">
     <TabsTrigger value="overall">Overall</TabsTrigger>
@@ -89,7 +89,7 @@ All components are properly integrated into the main page:
     <SystemTab {...props} />
   </TabsContent>
 </Tabs>
-```
+\`\`\`
 
 ## Functionality Preserved
 
@@ -145,7 +145,7 @@ Added automatic database initialization to `/lib/init-app.ts`:
 
 ## File Structure
 
-```
+\`\`\`
 /app/settings/page.tsx (2,423 lines)
 /components/settings/
   ├── tabs/
@@ -159,7 +159,7 @@ Added automatic database initialization to `/lib/init-app.ts`:
   ├── README.md
   ├── REFACTORING_GUIDE.md
   └── REFACTORING_COMPLETE.md (this file)
-```
+\`\`\`
 
 **Total Component Code**: 2,019 lines across 5 tab components
 **Main Page Code**: 2,423 lines (state management, handlers, layout)

@@ -56,7 +56,7 @@ Comprehensive refactoring of the TradeEngine architecture implementing:
 ### 3. API Compatibility
 
 #### Backward Compatible Functions
-```typescript
+\`\`\`typescript
 // Still works - returns GlobalTradeEngineCoordinator
 getTradeEngine()
 initializeTradeEngine(strategies, indications)
@@ -64,7 +64,7 @@ initializeTradeEngine(strategies, indications)
 // New clear names (recommended)
 getGlobalCoordinator()
 initializeGlobalCoordinator(strategies, indications)
-```
+\`\`\`
 
 #### Breaking Changes
 - `ContinuousTradeEngine` type renamed to `GlobalTradeEngineCoordinator`
@@ -73,7 +73,7 @@ initializeGlobalCoordinator(strategies, indications)
 ### 4. Updated Interfaces
 
 #### GlobalTradeEngineCoordinator
-```typescript
+\`\`\`typescript
 interface TradeEngineInterface {
   start(): Promise<void>
   stop(): Promise<void>
@@ -85,10 +85,10 @@ interface TradeEngineInterface {
   getHealthStatus(): HealthStatus // NEW
   // ... existing methods
 }
-```
+\`\`\`
 
 #### EngineStatus (Enhanced)
-```typescript
+\`\`\`typescript
 interface EngineStatus {
   running: boolean
   paused: boolean                 // NEW
@@ -102,10 +102,10 @@ interface EngineStatus {
     avgOrderCycleDuration: number
   }
 }
-```
+\`\`\`
 
 #### New Health Status Interface
-```typescript
+\`\`\`typescript
 interface HealthStatus {
   overall: "healthy" | "degraded" | "unhealthy"
   components: {
@@ -123,7 +123,7 @@ interface ComponentHealth {
   errorCount: number
   successRate: number
 }
-```
+\`\`\`
 
 ### 5. Documentation Updates
 
@@ -142,7 +142,7 @@ Original file backed up to: `lib/trade-engine_backup_v3.1.ts`
 
 ### For Existing Code Using Global Engine
 
-```typescript
+\`\`\`typescript
 // Before
 import { ContinuousTradeEngine, getTradeEngine } from '@/lib/trade-engine'
 
@@ -151,7 +151,7 @@ import { GlobalTradeEngineCoordinator, getGlobalCoordinator } from '@/lib/trade-
 
 // Or (Backward Compatible)
 import { GlobalTradeEngineCoordinator, getTradeEngine } from '@/lib/trade-engine'
-```
+\`\`\`
 
 ### For Settings Page
 
@@ -159,7 +159,7 @@ No changes required - all API routes maintain compatibility.
 
 ### For Health Monitoring
 
-```typescript
+\`\`\`typescript
 // Get health status
 const coordinator = getGlobalCoordinator()
 const health = coordinator.getHealthStatus()
@@ -171,7 +171,7 @@ if (health.overall !== "healthy") {
 
 // Check component health
 console.log("Main Engine:", health.components.mainEngine)
-```
+\`\`\`
 
 ## Testing Recommendations
 

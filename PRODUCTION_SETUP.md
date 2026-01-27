@@ -9,19 +9,19 @@
 
 ### One-Line Installation (Recommended)
 
-```bash
+\`\`\`bash
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash
-```
+\`\`\`
 
 ### Custom Installation
 
-```bash
+\`\`\`bash
 # Custom port
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --port 8080
 
 # Custom project name
 curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/scripts/download-and-install.sh | bash -s -- --name my-trading-bot
-```
+\`\`\`
 
 ---
 
@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/mxssnx-creator/v0-cts-v3-zw/main/sc
 
 Create `.env.local` with the following:
 
-```env
+\`\`\`env
 # Security (Required)
 SESSION_SECRET="your-random-32-char-secret"
 JWT_SECRET="your-random-32-char-secret"
@@ -45,11 +45,11 @@ NODE_ENV="production"
 # Database (Optional - SQLite is used by default)
 # Only add DATABASE_URL if you want to use PostgreSQL instead of SQLite
 # DATABASE_URL="postgresql://user:password@host:5432/database"
-```
+\`\`\`
 
 ### Optional Configuration
 
-```env
+\`\`\`env
 # Data Retention
 MARKET_DATA_RETENTION_DAYS=7
 INDICATION_STATE_RETENTION_HOURS=48
@@ -57,7 +57,7 @@ INDICATION_STATE_RETENTION_HOURS=48
 # Auto Cleanup
 ENABLE_AUTO_CLEANUP=true
 CLEANUP_INTERVAL_HOURS=24
-```
+\`\`\`
 
 ---
 
@@ -71,15 +71,15 @@ CLEANUP_INTERVAL_HOURS=24
 - Created automatically on first run
 - Migrations run automatically
 
-```bash
+\`\`\`bash
 # No database configuration needed!
 # Just build and start
 npm run build && npm start
-```
+\`\`\`
 
 ### PostgreSQL (Optional - For Multi-Server or Cloud)
 
-```bash
+\`\`\`bash
 # Create database
 createdb cts_v3
 
@@ -88,7 +88,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/cts_v3"
 
 # Migrations run automatically on first start
 npm run build && npm start
-```
+\`\`\`
 
 ### Database Migrations
 
@@ -106,13 +106,13 @@ Migrations run automatically on application start:
 
 ### Position Flow (4 Layers)
 
-```
+\`\`\`
 Market Data → Indication Processing → Strategy Evaluation
      ↓              ↓                       ↓
   WebSocket    Main/Common           Additional/Adjust
      ↓              ↓                       ↓
 Base Pseudo → Main Pseudo → Real Pseudo → Exchange Positions
-```
+\`\`\`
 
 ### Indication System
 
@@ -152,9 +152,9 @@ Base Pseudo → Main Pseudo → Real Pseudo → Exchange Positions
 **With PostgreSQL:**
 - Navigate to Settings → Install → Initialize Database
 - Or use API:
-```bash
+\`\`\`bash
 curl -X POST https://your-domain.com/api/install/database/init
-```
+\`\`\`
 
 ### Step 2: Add Exchange Connection
 
@@ -197,31 +197,31 @@ curl -X POST https://your-domain.com/api/install/database/init
 Access via: Settings → Install → Diagnostics
 
 Or view:
-```bash
+\`\`\`bash
 journalctl -u cts-web -f
-```
+\`\`\`
 
 ### Backup Management
 
 Create backup:
-```bash
+\`\`\`bash
 curl -X POST https://your-domain.com/api/install/backup/create \
   -H "Content-Type: application/json" \
   -d '{"name": "pre-update-backup"}'
-```
+\`\`\`
 
 ### Database Backup (SQLite)
 
 SQLite database can be backed up simply by copying the file:
-```bash
+\`\`\`bash
 cp ./data/cts.db ./data/backups/cts-$(date +%Y%m%d).db
-```
+\`\`\`
 
 ### Health Check
 
-```bash
+\`\`\`bash
 curl https://your-domain.com/api/install/diagnostics
-```
+\`\`\`
 
 ---
 
@@ -242,7 +242,7 @@ curl https://your-domain.com/api/install/diagnostics
 
 ### Database Connection Failed (SQLite)
 
-```bash
+\`\`\`bash
 # Check data directory exists and is writable
 ls -la ./data
 
@@ -251,24 +251,24 @@ ls -la ./data/cts.db
 
 # Verify database file integrity
 sqlite3 ./data/cts.db "PRAGMA integrity_check;"
-```
+\`\`\`
 
 ### Database Connection Failed (PostgreSQL)
 
-```bash
+\`\`\`bash
 # Check PostgreSQL status
 pg_isready
 
 # Verify connection string
 psql $DATABASE_URL -c "SELECT 1;"
-```
+\`\`\`
 
 ### Migrations Not Running
 
 Check application logs for migration errors:
-```bash
+\`\`\`bash
 journalctl -u cts-web -n 100 | grep migration
-```
+\`\`\`
 
 ### Exchange Connection Issues
 
@@ -290,20 +290,20 @@ journalctl -u cts-web -n 100 | grep migration
 ### From SQLite to PostgreSQL
 
 1. **Export SQLite data** (if you have existing data):
-```bash
+\`\`\`bash
 sqlite3 ./data/cts.db .dump > cts-export.sql
-```
+\`\`\`
 
 2. **Set DATABASE_URL** in `.env.local`:
-```env
+\`\`\`env
 DATABASE_URL="postgresql://user:password@host:5432/database"
-```
+\`\`\`
 
 3. **Import data** (if applicable):
-```bash
+\`\`\`bash
 # Convert and import SQL (may need manual adjustments)
 psql $DATABASE_URL < cts-export.sql
-```
+\`\`\`
 
 4. **Restart application**
 

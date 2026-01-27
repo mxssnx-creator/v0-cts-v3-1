@@ -146,9 +146,13 @@ function getClient(): Database.Database | Pool {
   throw new Error(`[v0] Unknown database type: ${DATABASE_TYPE}`)
 }
 
-const getDatabaseType = getDatabaseTypeFromSettings
+export function getDatabaseType(): string {
+  // Ensure client is initialized first
+  getClient()
+  return DATABASE_TYPE || getDatabaseTypeFromSettings()
+}
 
-export { getDatabaseType }
+export { getDatabaseTypeFromSettings }
 
 export async function query<T = any>(queryText: string, params: any[] = []): Promise<T[]> {
   try {
@@ -158,7 +162,8 @@ export async function query<T = any>(queryText: string, params: any[] = []): Pro
     // Get client and ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.all(...params)
       return result as T[]
@@ -182,7 +187,8 @@ export async function queryOne<T = any>(queryText: string, params: any[] = []): 
     // Get client and ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.get(...params)
       return (result as T) || null
@@ -208,7 +214,8 @@ export async function execute(
     // Get client first to ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.run(...params)
       return {
@@ -231,22 +238,26 @@ export async function execute(
 
 export async function insertReturning<T = any>(queryText: string, params: any[] = []): Promise<T | null> {
   try {
-    if (DATABASE_TYPE === "sqlite") {
-      const client = getClient() as Database.Database
-      const stmt = client.prepare(queryText)
+    // Get client first to ensure DATABASE_TYPE is initialized
+    const client = getClient()
+    
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
+      const sqliteClient = client as Database.Database
+      const stmt = sqliteClient.prepare(queryText)
       const result = stmt.run(...params)
 
       if (result.lastInsertRowid) {
         const tableName = queryText.match(/INSERT INTO (\w+)/i)?.[1]
         if (tableName) {
-          const selectStmt = client.prepare(`SELECT * FROM ${tableName} WHERE rowid = ?`)
+          const selectStmt = sqliteClient.prepare(`SELECT * FROM ${tableName} WHERE rowid = ?`)
           return selectStmt.get(result.lastInsertRowid) as T
         }
       }
       return null
     } else {
-      const client = getClient() as Pool
-      const result = await client.query(queryText, params)
+      const pgClient = client as Pool
+      const result = await pgClient.query(queryText, params)
       return (result.rows[0] as T) || null
     }
   } catch (error) {
@@ -259,7 +270,8 @@ export const sql = async <T = any>(strings: TemplateStringsArray, ...values: any
   // Get client and ensure DATABASE_TYPE is initialized
   const client = getClient()
   
-  if (DATABASE_TYPE === "sqlite") {
+  // Re-check DATABASE_TYPE after client initialization
+  if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
     let queryText = strings[0]
     const params: any[] = []
 

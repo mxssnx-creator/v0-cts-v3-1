@@ -8,7 +8,7 @@
 
 ### Frontend → Backend Flow
 
-```
+\`\`\`
 Dashboard (app/page.tsx)
     └─> GlobalTradeEngineControls component
         └─> Fetch API calls
@@ -18,11 +18,11 @@ Dashboard (app/page.tsx)
             ├─> POST /api/trade-engine/stop
             └─> GET /api/trade-engine/status
                 └─> lib/trade-engine.ts (GlobalTradeEngineCoordinator)
-```
+\`\`\`
 
 ### API Endpoint → Engine Coordinator
 
-```
+\`\`\`
 /api/trade-engine/pause
     └─> getTradeEngine()
         └─> GlobalTradeEngineCoordinator.pause()
@@ -42,11 +42,11 @@ Dashboard (app/page.tsx)
     └─> getTradeEngine()
         └─> GlobalTradeEngineCoordinator.stop()
             └─> SystemLogger.logTradeEngine()
-```
+\`\`\`
 
 ### Per-Connection Engine Flow
 
-```
+\`\`\`
 Connection Settings (app/settings/page.tsx)
     └─> Connection controls
         └─> POST /api/trade-engine/[connectionId]/start
@@ -57,13 +57,13 @@ Connection Settings (app/settings/page.tsx)
 /api/trade-engine/[connectionId]/stop
     └─> Update database state
     └─> Engine stops on next cycle check
-```
+\`\`\`
 
 ## Data Flow
 
 ### Status Updates
 
-```
+\`\`\`
 GlobalTradeEngineCoordinator
     ├─> mainEngineCycleCount (increments on main loop)
     ├─> presetEngineCycleCount (increments on preset loop)
@@ -73,11 +73,11 @@ GlobalTradeEngineCoordinator
         └─> GET /api/trade-engine/status
             └─> GlobalTradeEngineControls component
                 └─> UI display (updates every 3 seconds)
-```
+\`\`\`
 
 ### State Transitions
 
-```
+\`\`\`
 [Stopped] ─start()─> [Running] ─pause()─> [Paused]
     ^                    |                      |
     |                    |                      |
@@ -85,13 +85,13 @@ GlobalTradeEngineCoordinator
                                          |
                                          v
                                     [Running]
-```
+\`\`\`
 
 ## Database Relations
 
 ### Trade Engine State Storage
 
-```
+\`\`\`
 connections table
     ├─> state: 'active' | 'stopped' | 'paused'
     ├─> updated_at: timestamp
@@ -100,11 +100,11 @@ connections table
 No global state stored in database
     └─> GlobalTradeEngineCoordinator state is in-memory only
     └─> Status queried via API on-demand
-```
+\`\`\`
 
 ### System Logging
 
-```
+\`\`\`
 system_logs table
     ├─> trade_engine events
     ├─> Logged by SystemLogger.logTradeEngine()
@@ -113,13 +113,13 @@ system_logs table
         ├─> Pause/Resume events
         ├─> Error conditions
         └─> State transitions
-```
+\`\`\`
 
 ## Import Dependencies
 
 ### Who imports what
 
-```
+\`\`\`
 app/page.tsx
     └─> GlobalTradeEngineControls
 
@@ -138,7 +138,7 @@ API routes (per-connection)
 lib/trade-engine/index.ts (barrel)
     └─> Re-exports from "../trade-engine"
     └─> Re-exports from "./trade-engine/trade-engine"
-```
+\`\`\`
 
 ## Key Integration Points
 
