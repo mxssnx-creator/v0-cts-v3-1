@@ -396,7 +396,6 @@ export function ConnectionCard({
     </>
   )
 }
-      case "success":
         return <CheckCircle2 className="h-4 w-4 text-green-600" />
       case "failed":
         return <AlertCircle className="h-4 w-4 text-red-600" />
