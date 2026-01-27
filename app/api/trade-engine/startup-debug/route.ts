@@ -9,6 +9,17 @@ export async function GET() {
 
     const coordinator = getGlobalTradeEngineCoordinator()
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] [DEBUG] Connections is not an array:", typeof connections)
+      return NextResponse.json({
+        success: false,
+        error: "Invalid connections data",
+        log: [`ERROR: Connections data is not an array (type: ${typeof connections})`],
+      }, { status: 500 })
+    }
+
     const enabledConnections = connections.filter(
       (c) => c.is_enabled === true && c.is_active === true
     )
@@ -55,6 +66,7 @@ export async function GET() {
       results,
     })
   } catch (error) {
+    console.error("[v0] [DEBUG] Startup failed:", error)
     await SystemLogger.logError(error, "trade-engine", "Manual startup failed")
 
     return NextResponse.json(

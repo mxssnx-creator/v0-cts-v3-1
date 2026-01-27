@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
     let connection
     try {
       const connections = loadConnections()
+      
+      // Ensure connections is an array
+      if (!Array.isArray(connections)) {
+        console.error("[v0] [Trade Engine] Connections is not an array:", typeof connections)
+        return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+      }
+
       connection = connections.find((c) => c.id === connectionId && c.is_enabled)
 
       if (!connection) {
