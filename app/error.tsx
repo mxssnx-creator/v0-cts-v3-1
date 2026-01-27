@@ -1,19 +1,13 @@
 "use client"
 
 import { useEffect } from "react"
-import { AlertCircle, RefreshCw, Home } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("[v0] Page error:", error)
+    console.error("[v0] Error:", error)
   }, [error])
 
   return (
@@ -23,33 +17,16 @@ export default function Error({
           <div className="flex items-center gap-3">
             <AlertCircle className="h-6 w-6 text-destructive" />
             <div>
-              <CardTitle>Page Error</CardTitle>
-              <CardDescription>An error occurred while loading this page</CardDescription>
+              <CardTitle>Error</CardTitle>
+              <CardDescription>An error occurred</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg">
-            <p className="font-mono text-sm text-destructive">{error.message}</p>
-            {error.digest && <p className="font-mono text-xs text-muted-foreground mt-2">Error ID: {error.digest}</p>}
-          </div>
-
-          {process.env.NODE_ENV === "development" && error.stack && (
-            <details className="text-sm">
-              <summary className="cursor-pointer font-medium mb-2">Stack Trace</summary>
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-xs">{error.stack}</pre>
-            </details>
-          )}
-
+          <p className="text-sm">{error.message}</p>
           <div className="flex gap-2">
-            <Button onClick={reset} variant="default">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-            <Button onClick={() => (window.location.href = "/")} variant="outline">
-              <Home className="h-4 w-4 mr-2" />
-              Go Home
-            </Button>
+            <Button onClick={reset}>Try Again</Button>
+            <Button onClick={() => (window.location.href = "/")} variant="outline">Go Home</Button>
           </div>
         </CardContent>
       </Card>

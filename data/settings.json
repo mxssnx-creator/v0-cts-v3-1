@@ -1,0 +1,10 @@
+{
+  "app_name": "Automated Trading System",
+  "app_version": "1.0.0",
+  "database_type": "file-based",
+  "file_storage_enabled": true,
+  "api_gateway_enabled": true,
+  "system_status": "operational",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
