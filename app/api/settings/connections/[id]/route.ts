@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     await SystemLogger.logConnection(`Connection updated successfully`, id, "info")
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, connection: updatedConnection })
   } catch (error) {
     console.error("[v0] Failed to update connection:", error)
     await SystemLogger.logError(error, "api", `PATCH /api/settings/connections/${(await params).id}`)

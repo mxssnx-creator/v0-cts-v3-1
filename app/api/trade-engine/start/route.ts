@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { loadConnections, loadSettings } from "@/lib/file-storage"
-import { TradeEngine, type TradeEngineConfig } from "@/lib/trade-engine/"
+import { getGlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 import { SystemLogger } from "@/lib/system-logger"
-
-const activeEngines = new Map<string, TradeEngine>()
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +11,19 @@ export async function POST(request: NextRequest) {
     console.log("[v0] [Trade Engine] Starting trade engine for connection:", connectionId)
     await SystemLogger.logTradeEngine(`Starting trade engine for connection: ${connectionId}`, "info", { connectionId })
 
-    if (activeEngines.has(connectionId)) {
+    const coordinator = getGlobalTradeEngineCoordinator()
+    
+    if (!coordinator) {
+      console.error("[v0] [Trade Engine] Coordinator not initialized")
+      return NextResponse.json(
+        { error: "Trade engine coordinator not initialized" },
+        { status: 503 }
+      )
+    }
+
+    // Check if already running
+    const existingManager = coordinator.getEngineManager(connectionId)
+    if (existingManager) {
       console.log("[v0] [Trade Engine] Already running for connection:", connectionId)
       return NextResponse.json({
         success: true,
@@ -26,7 +36,6 @@ export async function POST(request: NextRequest) {
     try {
       const connections = loadConnections()
       
-      // Ensure connections is an array
       if (!Array.isArray(connections)) {
         console.error("[v0] [Trade Engine] Connections is not an array:", typeof connections)
         return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
@@ -49,34 +58,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Load settings from file storage
-    let tradeInterval = 1.0
-    let realInterval = 0.3
+    let indicationInterval = 5
+    let strategyInterval = 10
+    let realtimeInterval = 3
 
     try {
       const settings = loadSettings()
-      tradeInterval = settings.mainEngineIntervalMs ? settings.mainEngineIntervalMs / 1000 : 1.0
-      realInterval = settings.strategyUpdateIntervalMs ? settings.strategyUpdateIntervalMs / 1000 : 0.3
-      console.log("[v0] [Trade Engine] Loaded settings - tradeInterval:", tradeInterval, "realInterval:", realInterval)
+      indicationInterval = settings.mainEngineIntervalMs ? settings.mainEngineIntervalMs / 1000 : 5
+      strategyInterval = settings.strategyUpdateIntervalMs ? settings.strategyUpdateIntervalMs / 1000 : 10
+      realtimeInterval = settings.realtimeIntervalMs ? settings.realtimeIntervalMs / 1000 : 3
+      console.log("[v0] [Trade Engine] Loaded settings - indicationInterval:", indicationInterval, "strategyInterval:", strategyInterval, "realtimeInterval:", realtimeInterval)
     } catch (settingsError) {
       console.warn("[v0] [Trade Engine] Could not load settings from file, using defaults:", settingsError)
     }
 
-    const config: TradeEngineConfig = {
-      connectionId: connectionId,
-      tradeInterval: tradeInterval,
-      realInterval: realInterval,
-      maxConcurrency: 10,
-    }
-
-    console.log("[v0] [Trade Engine] Creating trade engine with config:", config)
-
-    const tradeEngine = new TradeEngine(config)
-
     try {
-      await tradeEngine.start(config)
-      activeEngines.set(connectionId, tradeEngine)
-      console.log("[v0] [Trade Engine] Trade engine started successfully")
+      await coordinator.startEngine(connectionId, {
+        connectionId,
+        indicationInterval,
+        strategyInterval,
+        realtimeInterval,
+      })
+
+      console.log("[v0] [Trade Engine] Trade engine started successfully via coordinator")
       await SystemLogger.logTradeEngine(`Trade engine started successfully for connection: ${connection.name}`, "info", {
+        connectionId,
+        connectionName: connection.name,
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: "Trade engine started successfully",
         connectionId,
         connectionName: connection.name,
       })
@@ -91,13 +103,6 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       )
     }
-
-    return NextResponse.json({
-      success: true,
-      message: "Trade engine started successfully",
-      connectionId,
-      connectionName: connection.name,
-    })
   } catch (error) {
     console.error("[v0] [Trade Engine] Failed to start:", error)
     await SystemLogger.logError(error, "trade-engine", "POST /api/trade-engine/start")

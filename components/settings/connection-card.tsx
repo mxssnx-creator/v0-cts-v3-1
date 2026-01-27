@@ -3,9 +3,19 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Power, Trash2, Settings, FileText, Zap, Loader2 } from "lucide-react"
+import { Power, Trash2, Settings, ChevronDown, Loader2, AlertCircle, CheckCircle2, Edit2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "@/lib/simple-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export interface ExchangeConnection {
   id: string
@@ -33,7 +43,7 @@ interface ConnectionCardProps {
   onToggle: () => void
   onActivate: () => void
   onDelete: () => void
-  onEdit?: () => void
+  onEdit?: (settings: Partial<ExchangeConnection>) => void
   onShowDetails?: () => void
   onShowLogs?: () => void
   onTestConnection?: (logs: string[]) => void
@@ -50,6 +60,14 @@ export function ConnectionCard({
   onTestConnection,
 }: ConnectionCardProps) {
   const [testingConnection, setTestingConnection] = useState(false)
+  const [logsExpanded, setLogsExpanded] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editFormData, setEditFormData] = useState({
+    api_key: connection.api_key,
+    api_secret: connection.api_secret,
+    name: connection.name,
+  })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const handleTestConnection = async () => {
     setTestingConnection(true)
@@ -62,14 +80,14 @@ export function ConnectionCard({
 
       if (!response.ok) {
         toast.error("Connection Test Failed", {
-          description: data.error || "Failed to test connection",
+          description: data.details || data.error || "Failed to test connection",
         })
         onTestConnection?.(data.log || [])
         return
       }
 
       toast.success("Connection Test Successful", {
-        description: `Balance: ${data.balance?.toFixed(2) || 'N/A'} USDT`,
+        description: `Balance: ${data.balance?.toFixed(2) || "N/A"} USDT`,
       })
       onTestConnection?.(data.log || [])
     } catch (error) {
@@ -81,105 +99,435 @@ export function ConnectionCard({
     }
   }
 
+  const handleSaveSettings = async () => {
+    if (!editFormData.api_key || !editFormData.api_secret) {
+      toast.error("Validation Error", {
+        description: "API key and secret are required",
+      })
+      return
+    }
+
+    setSavingSettings(true)
+    try {
+      const response = await fetch(`/api/settings/connections/${connection.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: editFormData.api_key,
+          api_secret: editFormData.api_secret,
+          name: editFormData.name,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update connection settings")
+      }
+
+      toast.success("Settings Updated", {
+        description: "Connection settings have been saved successfully",
+      })
+
+      onEdit?.(editFormData)
+      setEditDialogOpen(false)
+    } catch (error) {
+      toast.error("Update Failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case "success":
+        return "bg-green-50 border-green-200 text-green-900"
+      case "failed":
+        return "bg-red-50 border-red-200 text-red-900"
+      case "warning":
+        return "bg-yellow-50 border-yellow-200 text-yellow-900"
+      default:
+        return "bg-gray-50 border-gray-200 text-gray-900"
+    }
+  }
+
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case "success":
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />
+      case "failed":
+        return <AlertCircle className="h-4 w-4 text-red-600" />
+      case "warning":
+        return <AlertCircle className="h-4 w-4 text-yellow-600" />
+      default:
+        return null
+    }
+  }
+
+  const credentialsConfigured =
+    connection.api_key && connection.api_key !== "" && !connection.api_key.includes("PLACEHOLDER")
+
   return (
-    <Card className="p-4 space-y-3 border-l-4" style={{ borderLeftColor: connection.is_enabled ? '#3b82f6' : '#e5e7eb' }}>
-      {/* Header with name and badges */}
-      <div className="flex items-start justify-between">
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-semibold text-sm">{connection.name}</h4>
-            <Badge variant="outline" className="text-xs">
-              {connection.exchange.toUpperCase()}
-            </Badge>
-            {connection.is_active && (
-              <Badge className="text-xs bg-green-600">Active</Badge>
-            )}
-            {connection.is_enabled && !connection.is_active && (
-              <Badge variant="secondary" className="text-xs">Enabled</Badge>
-            )}
-            {!connection.is_enabled && (
-              <Badge variant="destructive" className="text-xs">Disabled</Badge>
-            )}
-            {connection.is_testnet && (
-              <Badge variant="outline" className="text-xs">Testnet</Badge>
-            )}
-            {connection.last_test_status === "success" && (
-              <Badge className="text-xs bg-green-50 text-green-700 border-green-200">✓ Tested</Badge>
-            )}
-          </div>
-          
-          {/* Double-line info */}
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div>API Type: <span className="font-medium text-foreground">{connection.api_type}</span> • Method: <span className="font-medium text-foreground">{connection.connection_method}</span></div>
-            <div>Margin: <span className="font-medium text-foreground">{connection.margin_type}</span> • Position: <span className="font-medium text-foreground">{connection.position_mode}</span></div>
+    <>
+      <Card className="border border-border p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold text-sm">{connection.name}</h3>
+              <Badge variant="outline" className="text-xs">
+                {connection.exchange.toUpperCase()}
+              </Badge>
+              {connection.is_testnet && <Badge className="text-xs bg-blue-100 text-blue-900">Testnet</Badge>}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">ID: {connection.id}</p>
           </div>
 
-          {/* Warning if credentials not configured */}
-          {(!connection.api_key || connection.api_key === "" || connection.api_key.includes("PLACEHOLDER")) && (
-            <div className="text-xs p-2 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
-              ⚠️ API credentials not configured. Please enter valid credentials to test this connection.
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={connection.is_enabled ? "default" : "outline"}
+              onClick={onToggle}
+              className="w-9 h-9 p-0"
+              title={connection.is_enabled ? "Disable" : "Enable"}
+            >
+              <Power className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div>
+            API Type: <span className="font-medium text-foreground">{connection.api_type}</span> • Method:{" "}
+            <span className="font-medium text-foreground">{connection.connection_method}</span>
+          </div>
+          <div>
+            Margin: <span className="font-medium text-foreground">{connection.margin_type}</span> • Position:{" "}
+            <span className="font-medium text-foreground">{connection.position_mode}</span>
+          </div>
+        </div>
+
+        {/* Credentials Warning */}
+        {!credentialsConfigured && (
+          <div className="text-xs p-2 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
+            ⚠️ API credentials not configured. Please add your API key and secret to test this connection.
+          </div>
+        )}
+
+        {/* Test Result */}
+        {connection.last_test_status && (
+          <div className={`p-3 rounded border flex items-start gap-2 ${getStatusColor(connection.last_test_status)}`}>
+            <div className="flex-shrink-0 mt-0.5">{getStatusIcon(connection.last_test_status)}</div>
+            <div className="flex-1">
+              <div className="font-medium text-sm">
+                {connection.last_test_status === "success" ? "Connection Active" : "Connection Failed"}
+              </div>
+              {connection.last_test_balance !== undefined && (
+                <div className="text-xs mt-1">Balance: ${connection.last_test_balance.toFixed(2)} USDT</div>
+              )}
+              {connection.last_test_at && (
+                <div className="text-xs mt-1">
+                  Last tested: {new Date(connection.last_test_at).toLocaleDateString()} at{" "}
+                  {new Date(connection.last_test_at).toLocaleTimeString()}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleTestConnection}
+            disabled={!credentialsConfigured || testingConnection}
+            className="flex-1"
+          >
+            {testingConnection ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              "Test Connection"
+            )}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditDialogOpen(true)}
+            className="w-9 h-9 p-0"
+            title="Edit Settings"
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onShowLogs}
+            className="w-9 h-9 p-0"
+            title="Show Logs"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onDelete}
+            className="w-9 h-9 p-0 text-red-600 hover:text-red-700"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Logs */}
+        {connection.last_test_log && connection.last_test_log.length > 0 && (
+          <div className="space-y-1 border-t pt-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-xs justify-between"
+              onClick={() => setLogsExpanded(!logsExpanded)}
+            >
+              <span>Test Logs</span>
+              <ChevronDown className={`h-3 w-3 transition-transform ${logsExpanded ? "rotate-180" : ""}`} />
+            </Button>
+            {logsExpanded && (
+              <div className="bg-muted p-2 rounded text-xs font-mono max-h-48 overflow-y-auto space-y-0.5">
+                {(Array.isArray(connection.last_test_log) ? connection.last_test_log : []).map((line, i) => (
+                  <div key={i} className="text-muted-foreground">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Edit Settings Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Connection Settings</DialogTitle>
+            <DialogDescription>Update API credentials and connection name for {connection.name}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Connection Name</Label>
+              <Input
+                id="name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., My Bybit Connection"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="api-key">API Key</Label>
+              <Input
+                id="api-key"
+                type="password"
+                value={editFormData.api_key}
+                onChange={(e) => setEditFormData((prev) => ({ ...prev, api_key: e.target.value }))}
+                placeholder="Enter your API key"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="api-secret">API Secret</Label>
+              <Input
+                id="api-secret"
+                type="password"
+                value={editFormData.api_secret}
+                onChange={(e) => setEditFormData((prev) => ({ ...prev, api_secret: e.target.value }))}
+                placeholder="Enter your API secret"
+              />
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-900">
+              ℹ️ Your API credentials are encrypted and only used for secure connections to {connection.exchange}.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSettings} disabled={savingSettings}>
+              {savingSettings ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Settings"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+      case "success":
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />
+      case "failed":
+        return <AlertCircle className="h-4 w-4 text-red-600" />
+      case "warning":
+        return <AlertCircle className="h-4 w-4 text-yellow-600" />
+      default:
+        return null
+    }
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b p-4">
+        <div className="flex items-center gap-3 flex-1">
+          <div>
+            <h3 className="font-semibold text-foreground">{connection.name}</h3>
+            <p className="text-xs text-muted-foreground">{connection.exchange.toUpperCase()}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Badge variant={connection.is_enabled ? "default" : "secondary"}>
+            {connection.is_enabled ? "Enabled" : "Disabled"}
+          </Badge>
+          <Badge variant={connection.is_active ? "default" : "outline"}>
+            {connection.is_active ? "Active" : "Inactive"}
+          </Badge>
+          {connection.is_testnet && <Badge variant="outline" className="bg-amber-50">Testnet</Badge>}
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleTestConnection}
-          disabled={testingConnection || !connection.is_enabled}
-          className="text-xs"
-        >
-          {testingConnection ? (
-            <>
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              Testing...
-            </>
-          ) : (
-            <>
-              <Zap className="h-3 w-3 mr-1" />
-              Test Connection
-            </>
+      {/* Test Status Section */}
+      {connection.last_test_status && (
+        <div className={`border-b p-4 ${getStatusColor(connection.last_test_status)}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {getStatusIcon(connection.last_test_status)}
+              <span className="font-medium text-sm">
+                Last Test: {connection.last_test_status === "success" ? "Success" : "Failed"}
+              </span>
+            </div>
+            {connection.last_test_at && (
+              <span className="text-xs">{new Date(connection.last_test_at).toLocaleString()}</span>
+            )}
+          </div>
+
+          {connection.last_test_balance !== undefined && (
+            <div className="text-sm font-mono">Balance: ${connection.last_test_balance.toFixed(2)} USDT</div>
           )}
-        </Button>
-        
-        {onEdit && (
-          <Button size="sm" variant="outline" onClick={onEdit} className="text-xs">
-            <Settings className="h-3 w-3 mr-1" />
-            Edit
-          </Button>
-        )}
-        
-        {onShowLogs && (
-          <Button size="sm" variant="outline" onClick={onShowLogs} className="text-xs">
-            <FileText className="h-3 w-3 mr-1" />
-            Logs
-          </Button>
-        )}
+
+          {connection.last_test_status === "warning" && (
+            <div className="text-xs mt-2">API credentials may not be configured or valid. Please enter valid credentials.</div>
+          )}
+        </div>
+      )}
+
+      {/* Credential Warning */}
+      {(!connection.api_key || connection.api_key === "" || connection.api_key.includes("PLACEHOLDER")) && (
+        <div className="border-b bg-yellow-50 p-4 border-yellow-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-yellow-900">
+              <strong>API Credentials Not Configured</strong>
+              <p className="text-xs mt-1">Please enter valid API credentials to test and use this connection.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection Info */}
+      <div className="p-4 space-y-3 border-b">
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <span className="text-muted-foreground">API Type:</span>
+            <span className="font-medium ml-2">{connection.api_type}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Method:</span>
+            <span className="font-medium ml-2">{connection.connection_method}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Margin:</span>
+            <span className="font-medium ml-2">{connection.margin_type}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Position:</span>
+            <span className="font-medium ml-2">{connection.position_mode}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Control Buttons */}
-      <div className="flex gap-2 items-center justify-between pt-2 border-t">
-        <Button 
-          size="sm" 
-          variant="ghost" 
+      {/* Test Logs */}
+      {connection.last_test_log && connection.last_test_log.length > 0 && (
+        <div className="border-b">
+          <button
+            onClick={() => setLogsExpanded(!logsExpanded)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+          >
+            <span className="text-sm font-medium">Test Log</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${logsExpanded ? "rotate-180" : ""}`} />
+          </button>
+
+          {logsExpanded && (
+            <div className="bg-muted p-4 max-h-48 overflow-y-auto font-mono text-xs space-y-1 border-t">
+              {connection.last_test_log.map((line, i) => (
+                <div key={i} className="text-muted-foreground">
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="p-4 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleTestConnection}
+          disabled={testingConnection || !connection.api_key || connection.api_key.includes("PLACEHOLDER")}
+        >
+          {testingConnection && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+          Test Connection
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
           onClick={onToggle}
-          className="text-xs text-muted-foreground hover:text-foreground"
+          className={connection.is_enabled ? "text-green-600 hover:text-green-700" : "text-gray-600"}
         >
           <Power className="h-3 w-3 mr-1" />
           {connection.is_enabled ? "Disable" : "Enable"}
         </Button>
-        
-        <Button 
-          size="sm" 
-          variant="ghost"
-          onClick={onDelete}
-          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <Trash2 className="h-3 w-3 mr-1" />
-          Delete
+
+        {!connection.is_active && (
+          <Button size="sm" variant="outline" onClick={onActivate} className="text-blue-600 hover:text-blue-700">
+            Activate
+          </Button>
+        )}
+
+        <Button size="sm" variant="outline" onClick={onEdit} className="text-indigo-600 hover:text-indigo-700">
+          <Settings className="h-3 w-3 mr-1" />
+          Edit
+        </Button>
+
+        <Button size="sm" variant="outline" onClick={onDelete} className="text-red-600 hover:text-red-700 ml-auto">
+          <Trash2 className="h-3 w-3" />
         </Button>
       </div>
     </Card>

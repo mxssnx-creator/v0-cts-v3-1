@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { SystemLogger } from "@/lib/system-logger"
 import { createExchangeConnector } from "@/lib/exchange-connectors"
 import { loadConnections, saveConnections } from "@/lib/file-storage"
+import { getConnectionManager } from "@/lib/connection-manager"
 import DatabaseManager from "@/lib/database"
 
 const TEST_TIMEOUT_MS = 30000
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       saveConnections(connections)
 
+      // Update connection manager
+      const manager = getConnectionManager()
+      await manager.markTestFailed(id, "API credentials not configured")
+
       return NextResponse.json(
         {
           error: "Invalid credentials",
@@ -76,12 +81,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     await new Promise((resolve) => setTimeout(resolve, minInterval))
 
+    testLog.push(`[${new Date().toISOString()}] Creating exchange connector...`)
+
     const connector = createExchangeConnector(connection.exchange, {
       apiKey: connection.api_key,
       apiSecret: connection.api_secret,
       apiPassphrase: connection.api_passphrase || "",
       isTestnet: connection.is_testnet || false,
     })
+
+    testLog.push(`[${new Date().toISOString()}] Connector created, sending test request...`)
 
     const testPromise = connector.testConnection()
     const timeoutPromise = new Promise((_, reject) =>
@@ -97,6 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const duration = Date.now() - startTime
     testLog.push(`[${new Date().toISOString()}] Connection successful!`)
     testLog.push(`[${new Date().toISOString()}] Account Balance: ${result.balance.toFixed(2)} USDT`)
+    testLog.push(`[${new Date().toISOString()}] Response received from ${connection.exchange}`)
     testLog.push(`[${new Date().toISOString()}] Test completed in ${duration}ms`)
 
     connections = loadConnections()
@@ -115,6 +125,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       connections[updatedIndex] = updatedConnection
       saveConnections(connections)
+
+      // Update connection manager
+      const manager = getConnectionManager()
+      await manager.markTestPassed(id, result.balance)
     }
 
     await SystemLogger.logConnection(`Connection test successful: ${connection.name}`, id, "info", {
@@ -137,13 +151,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     let userFriendlyError = errorMessage
     if (errorMessage.includes("JSON")) {
       userFriendlyError = "API returned invalid response. Check your credentials or try again."
+      testLog.push(`[${new Date().toISOString()}] ERROR: API response parsing failed - likely invalid credentials`)
     } else if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
       userFriendlyError = "Invalid API credentials. Please verify your API key and secret."
+      testLog.push(`[${new Date().toISOString()}] ERROR: Unauthorized - invalid API credentials`)
     } else if (errorMessage.includes("timeout")) {
       userFriendlyError = "Connection timeout. Check your network or if the API endpoint is available."
+      testLog.push(`[${new Date().toISOString()}] ERROR: Connection timeout - check network connectivity`)
+    } else if (errorMessage.includes("ENOTFOUND") || errorMessage.includes("ERR_MODULE_NOT_FOUND")) {
+      userFriendlyError = "Network error. Check your internet connection."
+      testLog.push(`[${new Date().toISOString()}] ERROR: Network connectivity issue`)
+    } else {
+      testLog.push(`[${new Date().toISOString()}] ERROR: ${errorMessage}`)
     }
 
-    testLog.push(`[${new Date().toISOString()}] ERROR: ${errorMessage}`)
     testLog.push(`[${new Date().toISOString()}] Test failed after ${duration}ms`)
 
     console.error("[v0] Connection test failed:", error)
@@ -162,6 +183,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             updated_at: new Date().toISOString(),
           }
           saveConnections(connections)
+
+          // Update connection manager
+          const manager = getConnectionManager()
+          await manager.markTestFailed(id, userFriendlyError)
         }
       }
     } catch (updateError) {
