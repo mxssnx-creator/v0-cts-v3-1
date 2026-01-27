@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { loadSettings } from "@/lib/file-storage"
 import { SystemLogger } from "@/lib/system-logger"
-import { query } from "@/lib/database" // Declared the query variable
 
 export const runtime = "nodejs"
 

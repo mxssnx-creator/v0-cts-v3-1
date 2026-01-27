@@ -1,21 +1,10 @@
 import { Pool } from "./pg-compat"
+import Database from "better-sqlite3"
+import path from "path"
+import fs from "fs"
 
-// better-sqlite3 is a native module that may not be available in all environments
-let Database: any = null
-try {
-  Database = require("better-sqlite3")
-} catch {
-  console.log("[v0] better-sqlite3 not available, SQLite disabled")
-}
-
-let path: any = null
-let fs: any = null
-try {
-  path = require("path")
-  fs = require("fs")
-} catch {
-  console.log("[v0] Node.js fs/path not available")
-}
+// Ensure pg uses pure JavaScript implementation
+process.env.NODE_PG_FORCE_NATIVE = "false"
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
 
@@ -26,7 +15,7 @@ function getDatabaseURL(): string | undefined {
 const DATABASE_URL = getDatabaseURL()
 
 let sqlClient: Pool | null = null
-let sqliteClient: any = null
+let sqliteClient: Database.Database | null = null
 
 function getDatabaseTypeFromSettings(): string {
   if (process.env.DATABASE_TYPE) {
@@ -44,19 +33,17 @@ function getDatabaseTypeFromSettings(): string {
   }
 
   // Try to load from settings file
-  if (path && fs) {
-    try {
-      const settingsPath = path.join(process.cwd(), "data", "settings.json")
-      if (fs.existsSync(settingsPath)) {
-        const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-        if (settings.database_type) {
-          console.log("[v0] Using database_type from settings file:", settings.database_type)
-          return settings.database_type
-        }
+  try {
+    const settingsPath = path.join(process.cwd(), "data", "settings.json")
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
+      if (settings.database_type) {
+        console.log("[v0] Using database_type from settings file:", settings.database_type)
+        return settings.database_type
       }
-    } catch (error) {
-      console.log("[v0] Could not load database type from settings, using default")
     }
+  } catch (error) {
+    console.log("[v0] Could not load database type from settings, using default")
   }
 
   console.log("[v0] No DATABASE_URL set, using default: SQLite")
@@ -66,7 +53,7 @@ function getDatabaseTypeFromSettings(): string {
 
 let DATABASE_TYPE: string | null = null
 
-function getClient(): any {
+function getClient(): Database.Database | Pool {
   if (isBuildPhase) {
     throw new Error("[v0] Database not available during build phase")
   }
@@ -77,13 +64,7 @@ function getClient(): any {
   }
 
   if (DATABASE_TYPE === "sqlite") {
-    if (!Database) {
-      throw new Error("[v0] SQLite (better-sqlite3) is not available in this environment")
-    }
     if (!sqliteClient) {
-      if (!path || !fs) {
-        throw new Error("[v0] Node.js fs/path modules not available")
-      }
       const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
       const dbDir = path.dirname(dbPath)
 
@@ -177,7 +158,8 @@ export async function query<T = any>(queryText: string, params: any[] = []): Pro
     // Get client and ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.all(...params)
       return result as T[]
@@ -201,7 +183,8 @@ export async function queryOne<T = any>(queryText: string, params: any[] = []): 
     // Get client and ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.get(...params)
       return (result as T) || null
@@ -227,7 +210,8 @@ export async function execute(
     // Get client first to ensure DATABASE_TYPE is initialized
     const client = getClient()
     
-    if (DATABASE_TYPE === "sqlite") {
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
       const stmt = (client as Database.Database).prepare(queryText)
       const result = stmt.run(...params)
       return {
@@ -250,22 +234,26 @@ export async function execute(
 
 export async function insertReturning<T = any>(queryText: string, params: any[] = []): Promise<T | null> {
   try {
-    if (DATABASE_TYPE === "sqlite") {
-      const client = getClient() as Database.Database
-      const stmt = client.prepare(queryText)
+    // Get client first to ensure DATABASE_TYPE is initialized
+    const client = getClient()
+    
+    // Re-check DATABASE_TYPE after client initialization
+    if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
+      const sqliteClient = client as Database.Database
+      const stmt = sqliteClient.prepare(queryText)
       const result = stmt.run(...params)
 
       if (result.lastInsertRowid) {
         const tableName = queryText.match(/INSERT INTO (\w+)/i)?.[1]
         if (tableName) {
-          const selectStmt = client.prepare(`SELECT * FROM ${tableName} WHERE rowid = ?`)
+          const selectStmt = sqliteClient.prepare(`SELECT * FROM ${tableName} WHERE rowid = ?`)
           return selectStmt.get(result.lastInsertRowid) as T
         }
       }
       return null
     } else {
-      const client = getClient() as Pool
-      const result = await client.query(queryText, params)
+      const pgClient = client as Pool
+      const result = await pgClient.query(queryText, params)
       return (result.rows[0] as T) || null
     }
   } catch (error) {
@@ -278,7 +266,8 @@ export const sql = async <T = any>(strings: TemplateStringsArray, ...values: any
   // Get client and ensure DATABASE_TYPE is initialized
   const client = getClient()
   
-  if (DATABASE_TYPE === "sqlite") {
+  // Re-check DATABASE_TYPE after client initialization
+  if ((DATABASE_TYPE || getDatabaseTypeFromSettings()) === "sqlite") {
     let queryText = strings[0]
     const params: any[] = []
 

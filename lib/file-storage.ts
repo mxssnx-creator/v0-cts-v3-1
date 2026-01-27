@@ -1,32 +1,21 @@
-// Node.js modules - may not be available in all environments
-let fs: any = null
-let path: any = null
-let DATA_DIR = "/tmp/data"
-let CONNECTIONS_FILE = "/tmp/data/connections.json"
-let SETTINGS_FILE = "/tmp/data/settings.json"
-let MAIN_INDICATIONS_FILE = "/tmp/data/main-indications.json"
-let COMMON_INDICATIONS_FILE = "/tmp/data/common-indications.json"
+import fs from "fs"
+import path from "path"
 
-try {
-  fs = require("fs")
-  path = require("path")
-  DATA_DIR = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+const DATA_DIR =
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
     ? path.join("/tmp", "data")
     : path.join(process.cwd(), "data")
-  CONNECTIONS_FILE = path.join(DATA_DIR, "connections.json")
-  SETTINGS_FILE = path.join(DATA_DIR, "settings.json")
-  MAIN_INDICATIONS_FILE = path.join(DATA_DIR, "main-indications.json")
-  COMMON_INDICATIONS_FILE = path.join(DATA_DIR, "common-indications.json")
-} catch {
-  console.log("[v0] Node.js fs/path not available, file storage disabled")
-}
+
+const CONNECTIONS_FILE = path.join(DATA_DIR, "connections.json")
+const SETTINGS_FILE = path.join(DATA_DIR, "settings.json")
+const MAIN_INDICATIONS_FILE = path.join(DATA_DIR, "main-indications.json")
+const COMMON_INDICATIONS_FILE = path.join(DATA_DIR, "common-indications.json")
 
 const connectionCache = new Map<string, { data: Connection[]; timestamp: number }>()
 const settingsCache = new Map<string, { data: any; timestamp: number }>()
 const CACHE_TTL = 5000 // 5 seconds
 
 function ensureDataDir() {
-  if (!fs) return
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true })
@@ -224,12 +213,6 @@ function setInCache(key: string, data: Connection[]): void {
 
 export function loadConnections(): Connection[] {
   try {
-    // Return defaults if fs is not available
-    if (!fs) {
-      console.log("[v0] File storage not available, using defaults")
-      return getDefaultConnections()
-    }
-
     ensureDataDir()
 
     const cached = getFromCache("all_connections")
@@ -266,12 +249,6 @@ export function loadConnections(): Connection[] {
 
 export function saveConnections(connections: Connection[]): void {
   try {
-    // Just update cache if fs is not available
-    if (!fs) {
-      setInCache("all_connections", connections)
-      return
-    }
-
     ensureDataDir()
     fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(connections, null, 2), "utf-8")
     console.log("[v0] Saved", connections.length, "connections to file")

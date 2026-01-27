@@ -10,7 +10,7 @@ import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
-import TradingEngine from "@/lib/trading-engine" // Declare the TradingEngine variable
+import { GlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 
 export default function LiveTradingPage() {
   // ... existing state ...
@@ -42,7 +42,7 @@ export default function LiveTradingPage() {
   }
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedConnection, setSelectedConnection] = useState<string>("")
-  const [tradingEngine] = useState(() => new TradingEngine())
+  const [tradingEngine] = useState(() => new GlobalTradeEngineCoordinator())
   const [openPositions, setOpenPositions] = useState<TradingPosition[]>([])
   const [closedPositions, setClosedPositions] = useState<TradingPosition[]>([])
   const [tradingStats, setTradingStats] = useState<TradingStats>({
