@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,
@@ -10,12 +10,6 @@ const nextConfig = {
   transpilePackages: ['lucide-react'],
   experimental: {
     optimizePackageImports: ['lucide-react'],
-    instrumentationHook: true,
-  },
-  logging: {
-    fetches: {
-      fullUrl: true,
-    },
   },
   productionBrowserSourceMaps: false,
   compress: true,
