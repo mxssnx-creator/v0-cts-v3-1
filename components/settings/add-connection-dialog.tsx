@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, AlertCircle, Lock } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
+import type { Connection } from "@/lib/file-storage"
 
 const EXCHANGES = {
   bybit: { name: "Bybit", apiTypes: ["unified", "perpetual_futures", "spot"] },
@@ -32,12 +33,13 @@ interface AddConnectionDialogProps {
 
 export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnectionDialogProps) {
   const [loading, setLoading] = useState(false)
+  const [enabledExchanges, setEnabledExchanges] = useState<string[]>([])
   const [formData, setFormData] = useState({
     name: "",
     exchange: "bybit",
     api_type: "perpetual_futures",
-    connection_method: "library",
-    connection_library: "native",
+    connection_method: "rest",
+    connection_library: "library",
     api_key: "",
     api_secret: "",
     api_passphrase: "",
@@ -45,6 +47,37 @@ export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnection
     position_mode: "hedge",
     is_testnet: false,
   })
+
+  // Load enabled exchanges from settings on mount and when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadEnabledExchanges()
+    }
+  }, [open])
+
+  const loadEnabledExchanges = async () => {
+    try {
+      const response = await fetch("/api/settings/connections")
+      if (response.ok) {
+        const data = await response.json()
+        const connections = Array.isArray(data) ? data : (data?.connections || [])
+        const enabled = connections
+          .filter((c: Connection) => c.is_enabled)
+          .map((c: Connection) => c.exchange)
+          .filter((e: string, i: number, a: string[]) => a.indexOf(e) === i)
+        
+        setEnabledExchanges(enabled.length > 0 ? enabled : ["bybit", "bingx"])
+        
+        // Default to first enabled exchange
+        if (enabled.length > 0 && !enabled.includes(formData.exchange)) {
+          setFormData(prev => ({ ...prev, exchange: enabled[0] }))
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Error loading enabled exchanges:", error)
+      setEnabledExchanges(["bybit", "bingx"])
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,18 +143,28 @@ export function AddConnectionDialog({ open, onOpenChange, onAdd }: AddConnection
 
               <div className="space-y-2">
                 <Label htmlFor="exchange">Exchange</Label>
-                <Select value={formData.exchange} onValueChange={(value) => setFormData({ ...formData, exchange: value })}>
-                  <SelectTrigger id="exchange" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(EXCHANGES).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {enabledExchanges.length === 0 ? (
+                  <div className="flex items-center gap-2 p-2 border rounded bg-muted">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <span className="text-sm text-muted-foreground">No exchanges enabled in settings</span>
+                  </div>
+                ) : (
+                  <Select value={formData.exchange} onValueChange={(value) => setFormData({ ...formData, exchange: value })}>
+                    <SelectTrigger id="exchange" disabled={loading}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {enabledExchanges.map((exchangeKey) => {
+                        const config = EXCHANGES[exchangeKey as keyof typeof EXCHANGES]
+                        return (
+                          <SelectItem key={exchangeKey} value={exchangeKey}>
+                            {config?.name || exchangeKey}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
           </div>

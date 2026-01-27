@@ -43,10 +43,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const initialize = async () => {
-      console.log("[v0] Dashboard initializing...")
-
-      setActiveConnections([])
-
       await loadConnections()
       await loadSystemStats()
       await loadStrategies()
@@ -60,14 +56,6 @@ export default function Dashboard() {
     initialize().catch((error) => {
       console.error("[v0] Dashboard initialization error:", error)
     })
-
-    const interval = setInterval(() => {
-      loadConnections()
-      loadSystemStats()
-      loadStrategies()
-    }, 10000)
-
-    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
