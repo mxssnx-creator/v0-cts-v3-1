@@ -87,7 +87,7 @@ export async function initializeTradeEngineAutoStart(): Promise<void> {
 
         await SystemLogger.logError(
           error,
-          "trade-engine-auto-start",
+          "trade-engine",
           `Auto-start failed for ${connection.name}`
         )
       }
@@ -108,7 +108,7 @@ export async function initializeTradeEngineAutoStart(): Promise<void> {
     startConnectionMonitoring()
   } catch (error) {
     console.error("[v0] Trade engine auto-start initialization failed:", error)
-    await SystemLogger.logError(error, "trade-engine-auto-start", "Initialization failed")
+    await SystemLogger.logError(error, "trade-engine", "Auto-start initialization failed")
 
     // Still mark as initialized to prevent retries
     autoStartInitialized = true

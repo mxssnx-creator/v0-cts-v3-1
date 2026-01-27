@@ -25,7 +25,7 @@ export async function initializeDatabase(): Promise<void> {
 
     if (dbType !== "sqlite") {
       console.log("[v0] PostgreSQL detected - using migration runner")
-      const { runAllMigrations } = await import("./lib/db-migration-runner")
+      const { runAllMigrations } = await import("./db-migration-runner")
       const result = await runAllMigrations()
       console.log(`[v0] Migrations: ${result.applied} applied, ${result.skipped} skipped`)
       initializationComplete = true
