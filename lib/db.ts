@@ -18,36 +18,47 @@ let sqlClient: Pool | null = null
 let sqliteClient: Database.Database | null = null
 
 function getDatabaseTypeFromSettings(): string {
+  console.log("[v0] Determining database type...")
+  
+  // 1. Explicit DATABASE_TYPE environment variable
   if (process.env.DATABASE_TYPE) {
     const dbType = process.env.DATABASE_TYPE.toLowerCase()
-    if (dbType === "postgresql" || dbType === "sqlite") {
-      console.log("[v0] Using DATABASE_TYPE from environment:", dbType)
-      return dbType
+    if (dbType === "postgresql" || dbType === "postgres") {
+      console.log("[v0] DATABASE_TYPE explicitly set to PostgreSQL")
+      return "postgresql"
     }
+    if (dbType === "sqlite") {
+      console.log("[v0] DATABASE_TYPE explicitly set to SQLite")
+      return "sqlite"
+    }
+    console.warn("[v0] Invalid DATABASE_TYPE value, defaulting to SQLite")
   }
 
+  // 2. Check for valid PostgreSQL DATABASE_URL
   if (DATABASE_URL && (DATABASE_URL.startsWith("postgres://") || DATABASE_URL.startsWith("postgresql://"))) {
-    console.log("[v0] Valid PostgreSQL DATABASE_URL detected, using PostgreSQL")
+    console.log("[v0] Valid PostgreSQL DATABASE_URL detected")
     console.log("[v0] Database URL:", DATABASE_URL.replace(/:[^:@]+@/, ":****@")) // Hide password
     return "postgresql"
   }
 
-  // Try to load from settings file
+  // 3. Try to load from settings file (backward compatibility)
   try {
     const settingsPath = path.join(process.cwd(), "data", "settings.json")
     if (fs.existsSync(settingsPath)) {
       const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-      if (settings.database_type) {
-        console.log("[v0] Using database_type from settings file:", settings.database_type)
-        return settings.database_type
+      if (settings.database_type === "postgresql" || settings.database_type === "postgres") {
+        console.log("[v0] Using PostgreSQL from settings file")
+        return "postgresql"
       }
     }
   } catch (error) {
-    console.log("[v0] Could not load database type from settings, using default")
+    // Silently fail, will use default
   }
 
-  console.log("[v0] No DATABASE_URL set, using default: SQLite")
-  console.log("[v0] SQLite database will be created at: data/cts.db")
+  // 4. DEFAULT: SQLite (most reliable for standalone systems)
+  console.log("[v0] ✓ Using SQLite as default database")
+  console.log("[v0] SQLite database location: data/cts.db")
+  console.log("[v0] This is the recommended database for CTS v3.1")
   return "sqlite"
 }
 
@@ -69,22 +80,50 @@ function getClient(): Database.Database | Pool {
       const dbDir = path.dirname(dbPath)
 
       try {
+        // Ensure database directory exists
         if (!fs.existsSync(dbDir)) {
+          console.log(`[v0] Creating database directory: ${dbDir}`)
           fs.mkdirSync(dbDir, { recursive: true })
+        }
+
+        // Initialize SQLite database
+        console.log(`[v0] Initializing SQLite database at ${dbPath}...`)
+        sqliteClient = new Database(dbPath)
+        
+        // Enable important SQLite pragmas for performance and reliability
+        sqliteClient.pragma("journal_mode = WAL") // Write-Ahead Logging for better concurrency
+        sqliteClient.pragma("foreign_keys = ON") // Enforce foreign key constraints
+        sqliteClient.pragma("synchronous = NORMAL") // Balance between safety and performance
+        sqliteClient.pragma("temp_store = MEMORY") // Use memory for temp storage
+        sqliteClient.pragma("cache_size = -64000") // 64MB cache
+        
+        const fileSize = fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0
+        const isNewDb = fileSize === 0
+        
+        console.log("[v0] ✓ SQLite database client initialized successfully")
+        console.log(`[v0]   - Location: ${dbPath}`)
+        console.log(`[v0]   - Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`)
+        console.log(`[v0]   - Status: ${isNewDb ? 'New database' : 'Existing database'}`)
+        console.log(`[v0]   - WAL mode: Enabled`)
+        console.log(`[v0]   - Foreign keys: Enabled`)
+        
+        if (isNewDb) {
+          console.log("[v0] ℹ New database detected - schema will be initialized on first request")
         }
       } catch (error) {
         console.error("[v0] Failed to create database directory:", error)
         // In serverless environment, use /tmp directory instead
         const tmpDbPath = path.join("/tmp", "cts.db")
-        console.log(`[v0] Using temporary database at ${tmpDbPath}`)
+        console.log(`[v0] ⚠ Using temporary database at ${tmpDbPath}`)
+        console.log(`[v0] ⚠ WARNING: Data will be lost when serverless function terminates!`)
+        
         sqliteClient = new Database(tmpDbPath)
+        sqliteClient.pragma("journal_mode = WAL")
+        sqliteClient.pragma("foreign_keys = ON")
+        
         console.log("[v0] SQLite database client initialized successfully (temporary)")
         return sqliteClient
       }
-
-      console.log(`[v0] Initializing SQLite database at ${dbPath}...`)
-      sqliteClient = new Database(dbPath)
-      console.log("[v0] SQLite database client initialized successfully")
     }
     return sqliteClient
   } else if (DATABASE_TYPE === "postgresql" || DATABASE_TYPE === "remote") {
