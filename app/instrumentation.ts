@@ -4,10 +4,6 @@
  * and connection manager
  */
 
-import { initializeTradeEngineAutoStart, stopConnectionMonitoring } from "@/lib/trade-engine-auto-start"
-import { getConnectionManager } from "@/lib/connection-manager"
-import { getGlobalTradeEngineCoordinator, initializeGlobalCoordinator } from "@/lib/trade-engine"
-
 console.log("[v0] ========================================")
 console.log("[v0] CTS v3.1 - Trade Engine System Startup")
 console.log("[v0] ========================================")
@@ -20,6 +16,15 @@ export async function register() {
     console.log("[v0] Server runtime detected - initializing trade engine systems...")
 
     try {
+      // Safe dynamic imports to prevent circular dependencies
+      const { initializeTradeEngineAutoStart, stopConnectionMonitoring } = await import(
+        "@/lib/trade-engine-auto-start"
+      )
+      const { getConnectionManager } = await import("@/lib/connection-manager")
+      const { initializeGlobalCoordinator, getGlobalTradeEngineCoordinator } = await import(
+        "@/lib/trade-engine"
+      )
+
       // Initialize ConnectionManager singleton
       console.log("[v0] Initializing ConnectionManager...")
       const manager = getConnectionManager()
@@ -47,45 +52,46 @@ export async function register() {
       console.log("[v0] ========================================")
       console.log("[v0] Trade Engine System Ready")
       console.log("[v0] ========================================")
+
+      // Graceful shutdown
+      process.on("SIGTERM", async () => {
+        console.log("[v0] Received SIGTERM - gracefully shutting down...")
+        stopConnectionMonitoring()
+
+        const coordinator = getGlobalTradeEngineCoordinator()
+        if (coordinator) {
+          console.log("[v0] Stopping all trade engines...")
+          try {
+            await coordinator.stopAllEngines()
+            console.log("[v0] All trade engines stopped")
+          } catch (error) {
+            console.error("[v0] Error stopping engines:", error)
+          }
+        }
+
+        process.exit(0)
+      })
+
+      process.on("SIGINT", async () => {
+        console.log("[v0] Received SIGINT - gracefully shutting down...")
+        stopConnectionMonitoring()
+
+        const coordinator = getGlobalTradeEngineCoordinator()
+        if (coordinator) {
+          console.log("[v0] Stopping all trade engines...")
+          try {
+            await coordinator.stopAllEngines()
+            console.log("[v0] All trade engines stopped")
+          } catch (error) {
+            console.error("[v0] Error stopping engines:", error)
+          }
+        }
+
+        process.exit(0)
+      })
     } catch (error) {
       console.error("[v0] Failed to initialize trade engine systems:", error)
+      // Don't throw - allow the server to continue even if initialization fails
     }
-
-    // Graceful shutdown
-    process.on("SIGTERM", async () => {
-      console.log("[v0] Received SIGTERM - gracefully shutting down...")
-      stopConnectionMonitoring()
-
-      const coordinator = getGlobalTradeEngineCoordinator()
-      if (coordinator) {
-        console.log("[v0] Stopping all trade engines...")
-        try {
-          await coordinator.stopAllEngines()
-          console.log("[v0] All trade engines stopped")
-        } catch (error) {
-          console.error("[v0] Error stopping engines:", error)
-        }
-      }
-
-      process.exit(0)
-    })
-
-    process.on("SIGINT", async () => {
-      console.log("[v0] Received SIGINT - gracefully shutting down...")
-      stopConnectionMonitoring()
-
-      const coordinator = getGlobalTradeEngineCoordinator()
-      if (coordinator) {
-        console.log("[v0] Stopping all trade engines...")
-        try {
-          await coordinator.stopAllEngines()
-          console.log("[v0] All trade engines stopped")
-        } catch (error) {
-          console.error("[v0] Error stopping engines:", error)
-        }
-      }
-
-      process.exit(0)
-    })
   }
 }
