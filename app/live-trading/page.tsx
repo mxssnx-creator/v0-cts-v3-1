@@ -116,7 +116,7 @@ export default function LiveTradingPage() {
       { id: "bybit-x03", name: "Bybit X03 (BYBIT)", is_enabled: false },
       { id: "bingx-x01", name: "BingX X01 (BINGX)", is_enabled: false },
       { id: "pionex-x01", name: "Pionex X01 (PIONEX)", is_enabled: false },
-      { id: "orangex-x01", name: "OrangeX X01" },
+      { id: "orangex-x01", name: "OrangeX X01", is_enabled: false },
     ]
     setConnections(mockConnections)
     if (selectedConnection === "") {

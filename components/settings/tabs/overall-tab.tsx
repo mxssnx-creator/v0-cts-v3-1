@@ -444,7 +444,7 @@ export function OverallTab({
         </TabsContent>
 
         <TabsContent value="connection" className="space-y-4">
-          <ExchangeConnectionManager connections={connections} />
+          <ExchangeConnectionManager />
         </TabsContent>
 
         <TabsContent value="monitoring" className="space-y-4">
