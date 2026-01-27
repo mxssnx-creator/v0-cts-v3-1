@@ -10,7 +10,7 @@ import { SystemOverview } from "@/components/dashboard/system-overview"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import { StrategiesOverview } from "@/components/dashboard/strategies-overview"
 import type { ExchangeConnection } from "@/lib/types"
-import { RefreshCw, Plus } from "lucide-react"
+import { RefreshCw, Plus, AlertCircle } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthGuard } from "@/components/auth-guard"
@@ -25,7 +25,8 @@ export default function Dashboard() {
   const [hasRealConnections, setHasRealConnections] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedToAdd, setSelectedToAdd] = useState<string>("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [systemHealth, setSystemHealth] = useState<"healthy" | "degraded" | "unhealthy">("healthy")
   const [systemStats, setSystemStats] = useState({
     activeConnections: 0,
     totalPositions: 0,
@@ -42,24 +43,29 @@ export default function Dashboard() {
   })
   const [strategies, setStrategies] = useState<any[]>([])
 
+  // Initialize dashboard
   useEffect(() => {
     const initialize = async () => {
       console.log("[v0] Dashboard initializing...")
       setIsLoading(true)
 
       try {
-        setActiveConnections([])
-        await loadConnections()
-        await loadSystemStats()
-        await loadStrategies()
+        // Check system health first
+        await checkSystemHealth()
 
+        // Load all data
+        await Promise.all([loadConnections(), loadSystemStats(), loadStrategies()])
+
+        // Restore previous selection
         const savedSelection = localStorage.getItem("selectedExchange")
         if (savedSelection) {
           setSelectedConnection(savedSelection)
         }
+
+        toast.success("Dashboard ready")
       } catch (error) {
         console.error("[v0] Dashboard initialization error:", error)
-        toast.error("Failed to initialize dashboard")
+        toast.error("Failed to initialize dashboard - some features may be limited")
       } finally {
         setIsLoading(false)
       }
@@ -67,68 +73,79 @@ export default function Dashboard() {
 
     initialize()
 
+    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       loadConnections().catch(console.error)
       loadSystemStats().catch(console.error)
       loadStrategies().catch(console.error)
-    }, 10000)
+    }, 30000)
 
     return () => clearInterval(interval)
   }, [])
 
+  // Monitor connection statuses
   useEffect(() => {
     if (activeConnections.length === 0) return
 
-    const updateConnectionStatuses = async () => {
+    const updateStatuses = async () => {
       try {
         const response = await fetch("/api/connections/status")
         if (response.ok) {
           const statuses = await response.json()
-          // Update connection states with real data
-          statuses.forEach((statusData: any) => {
-            const conn = activeConnections.find((c) => c.id === statusData.id)
-            if (conn) {
-              // Real-time progress and status updates
-              console.log(`[v0] Connection ${conn.name}: ${statusData.status} - ${statusData.progress}%`)
-            }
-          })
+          console.log("[v0] Connection statuses updated:", statuses.length)
         }
       } catch (error) {
-        console.error("[v0] Failed to update connection statuses:", error)
+        console.error("[v0] Failed to update statuses:", error)
       }
     }
 
-    const interval = setInterval(updateConnectionStatuses, 5000)
-    updateConnectionStatuses()
+    const interval = setInterval(updateStatuses, 15000)
+    updateStatuses()
 
     return () => clearInterval(interval)
   }, [activeConnections])
 
+  const checkSystemHealth = async () => {
+    try {
+      const response = await fetch("/api/system/health")
+      if (response.ok) {
+        const data = await response.json()
+        setSystemHealth(data.status || "healthy")
+
+        if (data.status === "unhealthy") {
+          console.error("[v0] System unhealthy:", data.workflowIntegrity?.criticalIssues)
+          toast.error("System health degraded - check admin panel")
+        }
+      }
+    } catch (error) {
+      console.warn("[v0] Could not check system health:", error)
+      setSystemHealth("degraded")
+    }
+  }
+
   const loadConnections = async () => {
     try {
-      console.log("[v0] Loading connections from API")
+      console.log("[v0] Loading connections...")
       const response = await fetch("/api/settings/connections", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       })
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] Connections API error, using predefined")
+        const predefined = getPredefinedConnectionsAsStatic()
+        setAvailableConnections(predefined)
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] No connections, using predefined")
+        const predefined = getPredefinedConnectionsAsStatic()
+        setAvailableConnections(predefined)
         return
       }
-
-      console.log("[v0] Loaded connections:", data.length)
 
       const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
       const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
@@ -136,12 +153,11 @@ export default function Dashboard() {
       setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 
-      const enabledConnections = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
-      setHasRealConnections(enabledConnections.length > 0)
+      const enabledConns = activeConns.filter((c: ExchangeConnection) => c?.is_enabled && !c?.is_predefined)
+      setHasRealConnections(enabledConns.length > 0)
 
       if (activeConns.length > 0 && !selectedConnection) {
-        const savedSelection = localStorage.getItem("selectedExchange")
-        setSelectedConnection(savedSelection || activeConns[0]?.id || "")
+        setSelectedConnection(activeConns[0]?.id || "")
       }
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
@@ -151,23 +167,17 @@ export default function Dashboard() {
 
   const loadSystemStats = async () => {
     try {
-      console.log("[v0] Loading system stats from API")
       const response = await fetch("/api/structure/metrics", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       })
 
-      if (!response.ok) {
-        console.log("[v0] System stats not available yet")
-        return
+      if (response.ok) {
+        const data = await response.json()
+        setSystemStats(data)
       }
-
-      const data = await response.json()
-      console.log("[v0] Loaded system stats")
-      setSystemStats(data)
     } catch (error) {
       console.error("[v0] Failed to load system stats:", error)
-      // Don't show error toast for this, as it's background data
     }
   }
 
@@ -189,66 +199,54 @@ export default function Dashboard() {
 
   const handleToggleEnable = async (id: string, enabled: boolean) => {
     try {
-      console.log("[v0] Toggling connection:", id, "enabled:", enabled)
-
-      const response = await fetch(`/api/settings/connections/${id}/toggle`, {
-        method: "POST",
+      const response = await fetch(`/api/settings/connections`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_enabled: enabled }),
+        body: JSON.stringify({ id, is_enabled: enabled }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to toggle connection")
-      }
+      if (!response.ok) throw new Error("Failed to toggle")
 
       await loadConnections()
       toast.success(enabled ? "Connection enabled" : "Connection disabled")
     } catch (error) {
-      console.error("[v0] Failed to toggle connection:", error)
+      console.error("[v0] Toggle error:", error)
       toast.error("Failed to toggle connection")
     }
   }
 
   const handleToggleLiveTrade = async (id: string, enabled: boolean) => {
     try {
-      console.log("[v0] Toggling live trade:", id, "enabled:", enabled)
-
-      const response = await fetch(`/api/settings/connections/${id}/live-trade`, {
-        method: "POST",
+      const response = await fetch(`/api/settings/connections`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_live_trade: enabled }),
+        body: JSON.stringify({ id, is_live_trade: enabled }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to toggle live trade")
-      }
+      if (!response.ok) throw new Error("Failed to toggle")
 
       await loadConnections()
       toast.success(enabled ? "Live trading enabled" : "Live trading disabled")
     } catch (error) {
-      console.error("[v0] Failed to toggle live trade:", error)
-      toast.error("Failed to toggle live trade")
+      console.error("[v0] Toggle error:", error)
+      toast.error("Failed to toggle live trading")
     }
   }
 
   const handleRemoveFromActive = async (id: string) => {
     try {
-      console.log("[v0] Removing from active:", id)
-
       const response = await fetch(`/api/settings/connections`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, is_active: false }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to remove from active")
-      }
+      if (!response.ok) throw new Error("Failed to remove")
 
       await loadConnections()
       toast.success("Connection removed from active")
     } catch (error) {
-      console.error("[v0] Failed to remove from active:", error)
+      console.error("[v0] Remove error:", error)
       toast.error("Failed to remove from active")
     }
   }
@@ -257,24 +255,20 @@ export default function Dashboard() {
     if (!selectedToAdd) return
 
     try {
-      console.log("[v0] Adding as active:", selectedToAdd)
-
       const response = await fetch(`/api/settings/connections`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selectedToAdd, is_active: true }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to add as active")
-      }
+      if (!response.ok) throw new Error("Failed to add")
 
       await loadConnections()
       setShowAddDialog(false)
       setSelectedToAdd("")
       toast.success("Connection added to active")
     } catch (error) {
-      console.error("[v0] Failed to add as active:", error)
+      console.error("[v0] Add error:", error)
       toast.error("Failed to add as active")
     }
   }
@@ -287,7 +281,7 @@ export default function Dashboard() {
   const handleRefresh = async () => {
     setIsLoading(true)
     try {
-      await Promise.all([loadConnections(), loadSystemStats(), loadStrategies()])
+      await Promise.all([checkSystemHealth(), loadConnections(), loadSystemStats(), loadStrategies()])
       toast.success("Dashboard refreshed")
     } catch (error) {
       console.error("[v0] Refresh error:", error)
@@ -317,7 +311,12 @@ export default function Dashboard() {
           <div className="flex h-14 items-center gap-4 px-4">
             <SidebarTrigger />
             <div className="flex flex-1 items-center justify-between">
-              <h1 className="text-lg font-semibold">Dashboard</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold">Dashboard</h1>
+                {systemHealth === "unhealthy" && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <Select value={selectedConnection} onValueChange={handleExchangeChange}>
                   <SelectTrigger className="w-[200px]">
@@ -339,7 +338,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="flex-1 space-y-6 p-6">
+        <main className="flex-1 space-y-6 overflow-auto p-6">
           <SystemOverview stats={systemStats} />
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -355,7 +354,7 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
                 <CardTitle>Active Connections</CardTitle>
-                <CardDescription>Manage your exchange connections</CardDescription>
+                <CardDescription>Manage your exchange connections ({activeConnections.length})</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
