@@ -169,14 +169,6 @@ export default function LiveTradingPage() {
       loadRealData()
       const interval = setInterval(loadRealData, 5000) // Refresh every 5 seconds
       return () => clearInterval(interval)
-      refreshData()
-      
-      // Poll real data every 5 seconds
-      const interval = setInterval(() => {
-        refreshData()
-      }, 5000)
-      
-      return () => clearInterval(interval)
     }
   }, [selectedConnection, hasRealConnections])
 
