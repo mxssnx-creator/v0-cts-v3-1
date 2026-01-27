@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     testLog.push(`[${new Date().toISOString()}] Starting connection test for ID: ${id}`)
 
-    const connections = loadConnections()
+    let connections = loadConnections()
 
     if (!Array.isArray(connections)) {
       testLog.push(`[${new Date().toISOString()}] ERROR: Connections data is not an array`)
