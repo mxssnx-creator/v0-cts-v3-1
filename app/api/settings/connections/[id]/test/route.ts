@@ -34,6 +34,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     testLog.push(`[${new Date().toISOString()}] Connection Method: ${connection.connection_method}`)
     testLog.push(`[${new Date().toISOString()}] Testnet: ${connection.is_testnet ? "Yes" : "No"}`)
 
+    // Validate credentials before attempting connection
+    if (!connection.api_key || connection.api_key === "" || connection.api_key.includes("PLACEHOLDER")) {
+      testLog.push(`[${new Date().toISOString()}] WARNING: API key appears to be empty or placeholder`)
+      testLog.push(`[${new Date().toISOString()}] Please configure valid API credentials before testing`)
+      
+      // Update connection with warning status
+      connections[connectionIndex] = {
+        ...connection,
+        last_test_status: "warning",
+        last_test_log: testLog,
+        last_test_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      saveConnections(connections)
+
+      return NextResponse.json(
+        { 
+          error: "Invalid credentials", 
+          details: "API key and secret must be configured. Please enter your valid exchange API credentials.",
+          log: testLog,
+          duration: Date.now() - startTime 
+        }, 
+        { status: 400 }
+      )
+    }
+
     // Try to get setting from DB but fallback safely
     let minInterval = 200
     try {
@@ -41,7 +67,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const intervalSetting = await db.getSetting("minimum_connect_interval")
       minInterval = intervalSetting ? Number.parseInt(intervalSetting) : 200
     } catch (settingsError) {
-      // console.warn("[v0] Could not load system settings, using default interval")
       testLog.push(`[${new Date().toISOString()}] Using default connect interval: ${minInterval}ms`)
     }
 
@@ -53,13 +78,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const connector = createExchangeConnector(connection.exchange, {
       apiKey: connection.api_key,
       apiSecret: connection.api_secret,
-      apiPassphrase: connection.api_passphrase,
+      apiPassphrase: connection.api_passphrase || "",
       isTestnet: connection.is_testnet || false,
     })
 
     const testPromise = connector.testConnection()
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Connection test timeout")), TEST_TIMEOUT_MS),
+      setTimeout(() => reject(new Error("Connection test timeout after 30 seconds")), TEST_TIMEOUT_MS),
     )
 
     const result = (await Promise.race([testPromise, timeoutPromise])) as any
@@ -78,9 +103,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ...connection,
       last_test_status: "success",
       last_test_balance: result.balance,
-      last_test_log: testLog, // Store array directly
+      last_test_log: testLog,
       last_test_at: new Date().toISOString(),
-      api_capabilities: JSON.stringify(result.capabilities),
+      api_capabilities: JSON.stringify(result.capabilities || []),
       updated_at: new Date().toISOString(),
     }
 
@@ -95,14 +120,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({
       success: true,
       balance: result.balance,
-      balances: result.balances,
-      capabilities: result.capabilities,
+      balances: result.balances || [],
+      capabilities: result.capabilities || [],
       log: testLog,
       duration,
     })
   } catch (error) {
     const duration = Date.now() - startTime
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    
+    // Parse specific error types
+    let userFriendlyError = errorMessage
+    if (errorMessage.includes("JSON")) {
+      userFriendlyError = "API returned invalid response. Check your credentials or try again."
+    } else if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
+      userFriendlyError = "Invalid API credentials. Please verify your API key and secret."
+    } else if (errorMessage.includes("timeout")) {
+      userFriendlyError = "Connection timeout. Check your network or if the API endpoint is available."
+    }
+    
     testLog.push(`[${new Date().toISOString()}] ERROR: ${errorMessage}`)
     testLog.push(`[${new Date().toISOString()}] Test failed after ${duration}ms`)
 
@@ -128,7 +164,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     return NextResponse.json(
-      { error: "Connection test failed", details: errorMessage, log: testLog, duration },
+      { 
+        error: "Connection test failed", 
+        details: userFriendlyError, 
+        log: testLog, 
+        duration 
+      },
       { status: 500 },
     )
   }

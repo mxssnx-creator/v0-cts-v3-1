@@ -113,6 +113,13 @@ export function ConnectionCard({
             <div>API Type: <span className="font-medium text-foreground">{connection.api_type}</span> • Method: <span className="font-medium text-foreground">{connection.connection_method}</span></div>
             <div>Margin: <span className="font-medium text-foreground">{connection.margin_type}</span> • Position: <span className="font-medium text-foreground">{connection.position_mode}</span></div>
           </div>
+
+          {/* Warning if credentials not configured */}
+          {(!connection.api_key || connection.api_key === "" || connection.api_key.includes("PLACEHOLDER")) && (
+            <div className="text-xs p-2 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
+              ⚠️ API credentials not configured. Please enter valid credentials to test this connection.
+            </div>
+          )}
         </div>
       </div>
 
@@ -175,63 +182,6 @@ export function ConnectionCard({
           Delete
         </Button>
       </div>
-    </Card>
-  )
-}
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          onClick={onDelete}
-          className="text-xs text-destructive"
-        >
-          <Trash2 className="h-3 w-3 mr-1" />
-          Delete
-        </Button>
-      </div>
-
-      {/* Test Result Summary */}
-      {connection.last_test_status && (
-        <div className="p-2 bg-muted rounded text-xs space-y-1">
-          <div className="flex justify-between">
-            <span className="font-medium">Last Test:</span>
-            <span>{connection.last_test_status === "success" ? "✓ Success" : "✗ Failed"}</span>
-          </div>
-          {connection.last_test_balance !== undefined && (
-            <div className="flex justify-between">
-              <span>Balance:</span>
-              <span className="font-mono">${connection.last_test_balance.toFixed(2)}</span>
-            </div>
-          )}
-          {connection.last_test_at && (
-            <div className="flex justify-between">
-              <span>Tested:</span>
-              <span>{new Date(connection.last_test_at).toLocaleDateString()} {new Date(connection.last_test_at).toLocaleTimeString()}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Expandable Logs */}
-      {connection.last_test_log && connection.last_test_log.length > 0 && (
-        <div className="space-y-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="w-full text-xs justify-between"
-            onClick={() => setLogsExpanded(!logsExpanded)}
-          >
-            <span>Test Log</span>
-            <ChevronDown className={`h-3 w-3 transition-transform ${logsExpanded ? "rotate-180" : ""}`} />
-          </Button>
-          {logsExpanded && (
-            <div className="bg-muted p-2 rounded text-xs font-mono max-h-48 overflow-y-auto space-y-0.5">
-              {(Array.isArray(connection.last_test_log) ? connection.last_test_log : []).map((line, i) => (
-                <div key={i} className="text-muted-foreground">{line}</div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </Card>
   )
 }
