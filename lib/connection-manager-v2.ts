@@ -57,6 +57,8 @@ export interface ConnectionUpdateInput {
   margin_type?: "isolated" | "cross"
   position_mode?: "one_way" | "hedge"
   is_testnet?: boolean
+  is_enabled?: boolean
+  is_active?: boolean
   volume_factor?: number
 }
 
@@ -86,8 +88,13 @@ class ConnectionManagerV2 {
    */
   getAllConnections(): ConnectionV2[] {
     try {
-      const connections = loadConnections()
-      return Array.isArray(connections) ? connections : []
+      const connections = loadConnections() as any
+      return Array.isArray(connections)
+        ? connections.map((c: any) => ({
+            ...c,
+            authentication_type: c.authentication_type || "api_key_secret",
+          } as ConnectionV2))
+        : []
     } catch (error) {
       console.error("[v0] [ConnectionManager] Failed to load connections:", error)
       return []
@@ -144,7 +151,7 @@ class ConnectionManagerV2 {
     }
 
     connections.push(newConnection)
-    saveConnections(connections)
+    saveConnections(connections as any)
 
     await SystemLogger.logConnection(`Connection created: ${newConnection.name}`, newConnection.id, "info", {
       exchange: newConnection.exchange,
@@ -181,7 +188,7 @@ class ConnectionManagerV2 {
     }
 
     connections[index] = updated
-    saveConnections(connections)
+    saveConnections(connections as any)
 
     await SystemLogger.logConnection(`Connection updated: ${updated.name}`, id, "info")
 
@@ -202,7 +209,7 @@ class ConnectionManagerV2 {
     connections[index].is_active = false
     connections[index].updated_at = new Date().toISOString()
 
-    saveConnections(connections)
+    saveConnections(connections as any)
 
     await SystemLogger.logConnection(`Connection deleted: ${connections[index].name}`, id, "info")
   }
@@ -280,7 +287,7 @@ class ConnectionManagerV2 {
     }
     connections[index].updated_at = new Date().toISOString()
 
-    saveConnections(connections)
+    saveConnections(connections as any)
 
     return connections[index]
   }

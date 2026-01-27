@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[v0] Integration test: Testing ${connectionsToTest.length} connections`)
 
-    const batchProcessor = new BatchProcessor({ maxConcurrent: 5 })
+    const batchProcessor = BatchProcessor.getInstance()
 
     for (const connection of connectionsToTest) {
       const testFn = async () => {

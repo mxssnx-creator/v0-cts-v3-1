@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 
 const EXCHANGES = {
   bybit: { name: "Bybit", apiTypes: ["unified", "perpetual_futures", "spot"] },
@@ -609,7 +610,7 @@ export default function ExchangeConnectionManagerV2() {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={conn.is_enabled || false}
-                            onCheckedChange={(checked) => toggleEnabled(conn.id, checked)}
+                            onCheckedChange={(checked: boolean) => toggleEnabled(conn.id, checked)}
                           />
                           <Button variant="ghost" size="icon" onClick={() => deleteConnection(conn.id)}>
                             <Trash2 className="h-4 w-4" />

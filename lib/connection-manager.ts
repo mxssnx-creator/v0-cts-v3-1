@@ -69,7 +69,11 @@ export class ConnectionManager {
       console.log("[v0] ConnectionManager loaded", this.connections.size, "connections")
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
-      await SystemLogger.logError(error, "connection-manager", "loadConnections")
+      try {
+        await SystemLogger.logError(error, "system", "loadConnections")
+      } catch (logError) {
+        console.error("[v0] Failed to log error:", logError)
+      }
     }
   }
 
