@@ -10,9 +10,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#000000',
-  userScalable: false,
 }
 
 export default function RootLayout({
@@ -22,9 +19,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name="theme-color" content="#000000" />
-      </head>
       <body className="bg-background text-foreground">
         {children}
       </body>
