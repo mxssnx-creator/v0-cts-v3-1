@@ -128,7 +128,7 @@ export async function executeCompleteInitialization(): Promise<InitializationRes
 /**
  * Apply SQLite PRAGMA optimizations
  */
-function applyPragmaOptimizations(db: Database.Database): number {
+function applyPragmaOptimizations(db: any): number {
   const pragmas = [
     { name: "journal_mode", value: "WAL" },
     { name: "foreign_keys", value: "ON" },
@@ -160,7 +160,7 @@ function applyPragmaOptimizations(db: Database.Database): number {
  * Apply unified schema setup
  */
 async function applyUnifiedSchema(
-  db: Database.Database,
+  db: any,
 ): Promise<{ tables: number; indexes: number }> {
   const scriptPath = path.join(process.cwd(), "scripts", "unified_complete_setup.sql")
 
@@ -206,7 +206,7 @@ async function applyUnifiedSchema(
  * Verify schema integrity
  */
 function verifySchemaIntegrity(
-  db: Database.Database,
+  db: any,
 ): { isValid: boolean; warnings: string[] } {
   const warnings: string[] = []
 
@@ -267,7 +267,7 @@ function verifySchemaIntegrity(
 /**
  * Get comprehensive database health report
  */
-export function getDatabaseHealthReport(db: Database.Database): Record<string, any> {
+export function getDatabaseHealthReport(db: any): Record<string, any> {
   const report: Record<string, any> = {
     timestamp: new Date().toISOString(),
     pragmas: {},

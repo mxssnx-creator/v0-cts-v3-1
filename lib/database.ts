@@ -709,7 +709,7 @@ class DatabaseManager {
         }),
       )
     } else {
-      const insertSetting = (client as Database.Database).prepare(`
+      const insertSetting = (client as any).prepare(`
         INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)
       `)
 
@@ -779,7 +779,7 @@ class DatabaseManager {
     if (isPostgres) {
       return await (client as Pool).query(query, params)
     } else {
-      const stmt = (client as Database.Database).prepare(query)
+      const stmt = (client as any).prepare(query)
       if (query.trim().toUpperCase().startsWith("SELECT")) {
         return stmt.all(...params)
       } else {
@@ -802,7 +802,7 @@ class DatabaseManager {
       const result = await (client as Pool).query("SELECT * FROM exchange_connections ORDER BY created_at DESC")
       return result.rows
     } else {
-      const stmt = (client as Database.Database).prepare("SELECT * FROM exchange_connections ORDER BY created_at DESC")
+      const stmt = (client as any).prepare("SELECT * FROM exchange_connections ORDER BY created_at DESC")
       return stmt.all()
     }
   }
@@ -821,7 +821,7 @@ class DatabaseManager {
       )
       return result.rows[0]
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         UPDATE exchange_connections 
         SET is_enabled = ?, is_live_trade = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
@@ -894,7 +894,7 @@ class DatabaseManager {
       }
     } else {
       const placeholders = connectionIds.map(() => "?").join(",")
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         SELECT * FROM pseudo_positions 
         WHERE status = "active" AND connection_id IN (${placeholders})
         ORDER BY connection_id, created_at DESC
@@ -944,7 +944,7 @@ class DatabaseManager {
         ],
       )
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT INTO real_positions 
         (id, connection_id, exchange_position_id, symbol, strategy_type, volume, 
          entry_price, current_price, takeprofit, stoploss, profit_loss)
@@ -995,7 +995,7 @@ class DatabaseManager {
 
       query += " ORDER BY opened_at DESC"
 
-      const stmt = (client as Database.Database).prepare(query)
+      const stmt = (client as any).prepare(query)
       return stmt.all(...params)
     }
   }
@@ -1010,7 +1010,7 @@ class DatabaseManager {
       const result = await (client as Pool).query("SELECT value FROM system_settings WHERE key = $1", [key])
       return result.rows[0]?.value || null
     } else {
-      const stmt = (client as Database.Database).prepare("SELECT value FROM system_settings WHERE key = ?")
+      const stmt = (client as any).prepare("SELECT value FROM system_settings WHERE key = ?")
       const result = stmt.get(key) as { value: string } | undefined
       return result?.value || null
     }
@@ -1031,7 +1031,7 @@ class DatabaseManager {
       )
       return result.rows[0]
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT OR REPLACE INTO system_settings (key, value, updated_at) 
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `)
@@ -1052,7 +1052,7 @@ class DatabaseManager {
       })
       return settings
     } else {
-      const stmt = (client as Database.Database).prepare("SELECT key, value FROM system_settings")
+      const stmt = (client as any).prepare("SELECT key, value FROM system_settings")
       const rows = stmt.all() as Array<{ key: string; value: string }>
       const settings: Record<string, string> = {}
       rows.forEach((row) => {
@@ -1074,7 +1074,7 @@ class DatabaseManager {
         [connection_id, symbol, price],
       )
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT INTO market_data (connection_id, symbol, price) VALUES (?, ?, ?)
       `)
       return stmt.run(connection_id, symbol, price)
@@ -1096,7 +1096,7 @@ class DatabaseManager {
       )
       return result.rows
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         SELECT * FROM market_data 
         WHERE connection_id = ? AND symbol = ? 
         AND timestamp > datetime('now', '-${hours} hours')
@@ -1129,11 +1129,11 @@ class DatabaseManager {
 
       await (client as Pool).query(`INSERT INTO market_data (connection_id, symbol, price) VALUES ${values}`, params)
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT INTO market_data (connection_id, symbol, price) VALUES (?, ?, ?)
       `)
 
-      const insertMany = (client as Database.Database).transaction((dataPoints: any[]) => {
+      const insertMany = (client as any).transaction((dataPoints: any[]) => {
         for (const d of dataPoints) {
           stmt.run(d.connection_id, d.symbol, d.price)
         }
@@ -1170,7 +1170,7 @@ class DatabaseManager {
       }
     } else {
       const placeholders = connectionIds.map(() => "?").join(",")
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         SELECT * FROM market_data 
         WHERE connection_id IN (${placeholders}) AND symbol = ? 
         AND timestamp > datetime('now', '-${hours} hours')
@@ -1201,7 +1201,7 @@ class DatabaseManager {
         [level, category, message, details || null],
       )
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT INTO logs (level, category, message, details) VALUES (?, ?, ?, ?)
       `)
       return stmt.run(level, category, message, details || null)
@@ -1249,7 +1249,7 @@ class DatabaseManager {
       query += " ORDER BY timestamp DESC LIMIT ?"
       params.push(limit)
 
-      const stmt = (client as Database.Database).prepare(query)
+      const stmt = (client as any).prepare(query)
       return stmt.all(...params)
     }
   }
@@ -1264,7 +1264,7 @@ class DatabaseManager {
         DELETE FROM logs WHERE timestamp < NOW() - INTERVAL '${days} days'
       `)
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         DELETE FROM logs WHERE timestamp < datetime('now', '-${days} days')
       `)
       return stmt.run()
@@ -1282,7 +1282,7 @@ class DatabaseManager {
         [type, message, stack || null, context || null],
       )
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         INSERT INTO errors (type, message, stack, context) VALUES (?, ?, ?, ?)
       `)
       return stmt.run(type, message, stack || null, context || null)
@@ -1301,7 +1301,7 @@ class DatabaseManager {
       )
       return result.rows
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         SELECT * FROM errors WHERE resolved = ? ORDER BY timestamp DESC LIMIT ?
       `)
       return stmt.all(resolved ? 1 : 0, limit)
@@ -1316,7 +1316,7 @@ class DatabaseManager {
     if (isPostgres) {
       return await (client as Pool).query(`UPDATE errors SET resolved = true WHERE id = $1`, [id])
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         UPDATE errors SET resolved = 1 WHERE id = ?
       `)
       return stmt.run(id)
@@ -1333,7 +1333,7 @@ class DatabaseManager {
         DELETE FROM errors WHERE resolved = true AND timestamp < NOW() - INTERVAL '${days} days'
       `)
     } else {
-      const stmt = (client as Database.Database).prepare(`
+      const stmt = (client as any).prepare(`
         DELETE FROM errors WHERE resolved = 1 AND timestamp < datetime('now', '-${days} days')
       `)
       return stmt.run()
@@ -1375,7 +1375,7 @@ class DatabaseManager {
       stats.positions = positionStats
       stats.marketDataPoints = marketDataCount.count
     } else {
-      const positionStats = (client as Database.Database)
+      const positionStats = (client as any)
         .prepare(`
         SELECT 
           COUNT(*) as total,
@@ -1386,7 +1386,7 @@ class DatabaseManager {
       `)
         .get(connectionId)
 
-      const marketDataCount = (client as Database.Database)
+      const marketDataCount = (client as any)
         .prepare(`
         SELECT COUNT(*) as count FROM market_data 
         WHERE connection_id = ? AND timestamp > datetime('now', '-24 hours')
@@ -1427,7 +1427,7 @@ class DatabaseManager {
       const result = await (client as Pool).query(pgQuery, [connectionId])
       return result.rows[0]
     } else {
-      const stmt = (client as Database.Database).prepare(query)
+      const stmt = (client as any).prepare(query)
       return stmt.get(connectionId)
     }
   }
@@ -1454,7 +1454,7 @@ class DatabaseManager {
       const result = await (client as Pool).query(query)
       return result.rows[0]
     } else {
-      const stmt = (client as Database.Database).prepare(query)
+      const stmt = (client as any).prepare(query)
       return stmt.get()
     }
   }
