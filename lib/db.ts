@@ -6,6 +6,7 @@ import fs from "fs"
 process.env.NODE_PG_FORCE_NATIVE = "false"
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
+const isDevPreview = !process.env.NODE_ENV?.includes("production") && process.env.NEXT_RUNTIME === "edge"
 
 function getDatabaseURL(): string | undefined {
   return process.env.DATABASE_URL
@@ -15,6 +16,19 @@ const DATABASE_URL = getDatabaseURL()
 
 let sqlClient: Pool | null = null
 let sqliteClient: any = null
+
+// Mock SQLite client for preview/dev environments
+const mockSQLiteClient = {
+  prepare: (sql: string) => ({
+    run: (...params: any[]) => ({ changes: 0, lastInsertRowid: 0 }),
+    get: (...params: any[]) => undefined,
+    all: (...params: any[]) => [],
+    finalize: () => {},
+  }),
+  exec: (sql: string) => [],
+  pragma: (pragma: string) => ({ value: "" }),
+  close: () => {},
+}
 
 function getDatabaseTypeFromSettings(): string {
   console.log("[v0] Determining database type...")
@@ -103,8 +117,10 @@ function initializeSQLiteClient(): any {
 }
 
 function getClient(): any {
-  if (isBuildPhase) {
-    return createMockDatabase()
+  // Always return mock during build phase or dev preview
+  if (isBuildPhase || isDevPreview) {
+    console.log("[v0] Using mock database for dev/preview environment")
+    return mockSQLiteClient
   }
 
   // Initialize DATABASE_TYPE if not set

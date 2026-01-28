@@ -1,8 +1,15 @@
 /**
  * Application instrumentation - runs on app startup
  * Non-blocking initialization of database and trade engine systems
+ * Skipped during build and dev preview to avoid native module issues
  */
 export async function register() {
+  // Skip all database initialization during build phase or dev preview
+  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_RUNTIME === "edge") {
+    console.log("[v0] Database initialization skipped (dev/preview mode)")
+    return
+  }
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     console.log("[v0] CTS v3.1 - Server initialization started")
     
