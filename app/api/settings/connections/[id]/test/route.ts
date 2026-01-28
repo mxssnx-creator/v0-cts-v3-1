@@ -84,7 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     testLog.push(`[${new Date().toISOString()}] Creating exchange connector...`)
 
-    const connector = createExchangeConnector(connection.exchange, {
+    const connector = await createExchangeConnector(connection.exchange, {
       apiKey: connection.api_key,
       apiSecret: connection.api_secret,
       apiPassphrase: connection.api_passphrase || "",

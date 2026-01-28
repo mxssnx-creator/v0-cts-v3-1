@@ -179,7 +179,7 @@ export class VolumeCalculator {
 
           if (connection?.api_key && connection?.api_secret) {
             const { createExchangeConnector } = await import("@/lib/exchange-connectors")
-            const connector = createExchangeConnector(connection.exchange, {
+            const connector = await createExchangeConnector(connection.exchange, {
               apiKey: connection.api_key,
               apiSecret: connection.api_secret,
               isTestnet: connection.is_testnet,

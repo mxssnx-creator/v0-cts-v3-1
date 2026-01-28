@@ -164,7 +164,7 @@ export class ConnectionCoordinator {
         return { success: false, error: "API credentials not configured" }
       }
 
-      const connector = createExchangeConnector(connection.exchange, {
+      const connector = await createExchangeConnector(connection.exchange, {
         apiKey: connection.api_key,
         apiSecret: connection.api_secret,
         apiPassphrase: connection.api_passphrase,
