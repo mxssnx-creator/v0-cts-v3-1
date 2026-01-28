@@ -478,4 +478,3 @@ export async function checkpoint(): Promise<{ success: boolean; duration: number
     return { success: false, duration: Date.now() - startTime }
   }
 }
-}
