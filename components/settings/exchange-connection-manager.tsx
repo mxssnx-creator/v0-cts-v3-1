@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Loader2, Trash2, Info, Settings } from 'lucide-react'
+import { Plus, Loader2, Trash2, Info, Settings, Eye, EyeOff } from 'lucide-react'
 import { toast } from "@/lib/simple-toast"
 import type { Connection } from "@/lib/file-storage"
 import { AddConnectionDialog } from "@/components/settings/add-connection-dialog"
@@ -19,6 +19,9 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AlertCircle, Lock, Zap } from "lucide-react"
 
 const EXCHANGES: Record<string, { name: string }> = {
   bybit: { name: "Bybit" },
@@ -32,6 +35,257 @@ const EXCHANGES: Record<string, { name: string }> = {
   bitget: { name: "Bitget" },
   kucoin: { name: "KuCoin" },
   huobi: { name: "Huobi" },
+}
+
+// Edit Connection Dialog Component
+function EditConnectionDialog({ connection, onSave, exchangeName }: { connection: Connection; onSave: () => Promise<void>; exchangeName: string }) {
+  const [loading, setLoading] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testLog, setTestLog] = useState<string[]>([])
+  const [showTestLog, setShowTestLog] = useState(false)
+  const [showSecrets, setShowSecrets] = useState(false)
+  const [formData, setFormData] = useState({
+    api_key: connection.api_key || "",
+    api_secret: connection.api_secret || "",
+    api_passphrase: connection.api_passphrase || "",
+    margin_type: connection.margin_type || "cross",
+    position_mode: connection.position_mode || "hedge",
+    is_testnet: connection.is_testnet || false,
+  })
+
+  const handleTestConnection = async () => {
+    if (!formData.api_key || !formData.api_secret) {
+      toast.error("Please enter API Key and API Secret")
+      return
+    }
+
+    setTesting(true)
+    setTestLog([])
+    setShowTestLog(true)
+
+    try {
+      const response = await fetch("/api/settings/connections/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exchange: connection.exchange,
+          api_type: connection.api_type,
+          connection_method: connection.connection_method,
+          connection_library: connection.connection_library,
+          api_key: formData.api_key,
+          api_secret: formData.api_secret,
+          api_passphrase: formData.api_passphrase || "",
+          is_testnet: formData.is_testnet,
+        }),
+      })
+
+      const data = await response.json()
+      let logs = data.log || []
+      if (!Array.isArray(logs)) logs = [logs.toString()]
+      if (data.balance !== undefined) logs.push(`[${new Date().toISOString()}] Account Balance: $${parseFloat(data.balance).toFixed(2)}`)
+      setTestLog(logs)
+
+      if (response.ok) {
+        toast.success("Connection test passed!")
+      } else {
+        toast.error(data.error || "Connection test failed")
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Test connection error"
+      setTestLog([`Error: ${errorMsg}`])
+      toast.error(errorMsg)
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/settings/connections/${connection.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: formData.api_key,
+          api_secret: formData.api_secret,
+          api_passphrase: formData.api_passphrase,
+          margin_type: formData.margin_type,
+          position_mode: formData.position_mode,
+          is_testnet: formData.is_testnet,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update")
+      toast.success("Connection updated")
+      await onSave()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Tabs defaultValue="credentials" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="credentials">API Credentials</TabsTrigger>
+        <TabsTrigger value="settings">Settings & Test</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="credentials" className="space-y-4 mt-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-900 mt-0.5" />
+          <div className="text-sm text-amber-900">
+            <p className="font-semibold mb-1">Update API Credentials</p>
+            <p className="text-xs">Change your API keys here if needed</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="font-medium flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            API Key
+          </Label>
+          <div className="relative">
+            <Input
+              type={showSecrets ? "text" : "password"}
+              value={formData.api_key}
+              onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+              placeholder="Enter your API Key"
+              disabled={loading}
+              className="pr-10 bg-white"
+            />
+            <button
+              type="button"
+              onClick={() => setShowSecrets(!showSecrets)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="font-medium flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            API Secret
+          </Label>
+          <Input
+            type={showSecrets ? "text" : "password"}
+            value={formData.api_secret}
+            onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+            placeholder="Enter your API Secret"
+            disabled={loading}
+            className="bg-white"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="font-medium">API Passphrase (Optional)</Label>
+          <Input
+            type={showSecrets ? "text" : "password"}
+            value={formData.api_passphrase}
+            onChange={(e) => setFormData({ ...formData, api_passphrase: e.target.value })}
+            placeholder="Leave blank if not required"
+            disabled={loading}
+            className="bg-white"
+          />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="settings" className="space-y-4 mt-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-medium">Margin Type</Label>
+            <Select value={formData.margin_type} onValueChange={(value) => setFormData({ ...formData, margin_type: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cross">Cross Margin</SelectItem>
+                <SelectItem value="isolated">Isolated Margin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="font-medium">Position Mode</Label>
+            <Select value={formData.position_mode} onValueChange={(value) => setFormData({ ...formData, position_mode: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hedge">Hedge Mode</SelectItem>
+                <SelectItem value="one-way">One-way Mode</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t pt-4">
+          <div>
+            <Label className="font-medium">Use Testnet</Label>
+            <p className="text-xs text-muted-foreground mt-1">{formData.is_testnet ? "Testnet" : "Live"}</p>
+          </div>
+          <Switch checked={formData.is_testnet} onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })} disabled={loading} />
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-orange-600" />
+            <h4 className="font-semibold text-sm">Test Connection</h4>
+          </div>
+
+          {!showTestLog && (
+            <Button onClick={handleTestConnection} disabled={testing || !formData.api_key || !formData.api_secret || loading} className="w-full bg-orange-600 hover:bg-orange-700">
+              {testing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 mr-2" />
+                  Test Connection
+                </>
+              )}
+            </Button>
+          )}
+
+          {showTestLog && testLog.length > 0 && (
+            <div className="space-y-2">
+              <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs space-y-1 max-h-48 overflow-y-auto border border-slate-700">
+                {testLog.map((log, idx) => (
+                  <div key={idx} className="text-slate-300">
+                    {log}
+                  </div>
+                ))}
+              </div>
+              <Button type="button" onClick={handleTestConnection} disabled={testing || loading} variant="outline" size="sm" className="w-full">
+                {testing ? "Testing..." : "Test Again"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </TabsContent>
+
+      <div className="flex gap-2 justify-end pt-4 mt-4 border-t">
+        <Button variant="outline" disabled={loading} onClick={() => window.location.reload()}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
+      </div>
+    </Tabs>
+  )
 }
 
 export default function ExchangeConnectionManager() {
@@ -146,7 +400,8 @@ export default function ExchangeConnectionManager() {
       if (!response.ok) throw new Error("Failed to delete")
 
       toast.success("Connection deleted")
-      setConnections((prev) => prev.filter((c) => c.id !== id))
+      // Reload all connections to ensure sync
+      await loadConnections()
     } catch (error) {
       console.error("[v0] Delete error:", error)
       toast.error("Failed to delete connection")
@@ -287,98 +542,10 @@ export default function ExchangeConnectionManager() {
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>Connection Settings - {conn.name}</DialogTitle>
+                              <DialogTitle>Edit Connection - {conn.name}</DialogTitle>
                               <DialogDescription>{exchangeName} - {conn.api_type}</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-6">
-                              {/* Connection Info */}
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Connection Name</Label>
-                                  <Input value={conn.name} readOnly className="mt-1" />
-                                </div>
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Exchange</Label>
-                                  <Input value={exchangeName} readOnly className="mt-1" />
-                                </div>
-                              </div>
-
-                              {/* API Configuration */}
-                              <div className="border-t pt-4">
-                                <h4 className="font-semibold text-sm mb-3">API Configuration</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">API Type</Label>
-                                    <div className="text-sm font-medium mt-2">{conn.api_type}</div>
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">Connection Method</Label>
-                                    <div className="text-sm font-medium mt-2 capitalize">{conn.connection_method || "REST"}</div>
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">Connection Library</Label>
-                                    <div className="text-sm font-mono font-semibold mt-2">{conn.connection_library}</div>
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">Testnet Mode</Label>
-                                    <div className="mt-2 flex items-center gap-2">
-                                      <Switch checked={conn.is_testnet || false} disabled />
-                                      <span className="text-sm">{conn.is_testnet ? "Testnet" : "Live"}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Trading Settings */}
-                              <div className="border-t pt-4">
-                                <h4 className="font-semibold text-sm mb-3">Trading Settings</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">Margin Type</Label>
-                                    <div className="text-sm font-medium mt-2 capitalize">{conn.margin_type}</div>
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">Position Mode</Label>
-                                    <div className="text-sm font-medium mt-2 capitalize">{conn.position_mode}</div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Test Status */}
-                              <div className="border-t pt-4">
-                                <h4 className="font-semibold text-sm mb-3">Connection Status</h4>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Badge variant={conn.last_test_status === "success" ? "default" : "secondary"}>
-                                    {conn.last_test_status === "success" ? "✓ Tested" : conn.last_test_status === "failed" ? "✗ Failed" : "Not Tested"}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {conn.last_test_timestamp ? new Date(conn.last_test_timestamp).toLocaleString() : "Never"}
-                                  </span>
-                                </div>
-                                {conn.last_test_log && conn.last_test_log.length > 0 && (
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button variant="outline" size="sm">
-                                        <Info className="h-4 w-4 mr-2" />
-                                        View Test Log
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-3xl max-h-[70vh] overflow-y-auto">
-                                      <DialogHeader>
-                                        <DialogTitle>{conn.name} - Test Connection Log</DialogTitle>
-                                      </DialogHeader>
-                                      <div className="space-y-2 font-mono text-xs bg-slate-900 text-slate-100 p-4 rounded overflow-auto max-h-96 border border-slate-700">
-                                        {conn.last_test_log.map((log, idx) => (
-                                          <div key={idx} className="text-slate-300">
-                                            {log}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </DialogContent>
-                                  </Dialog>
-                                )}
-                              </div>
-                            </div>
+                            <EditConnectionDialog connection={conn} onSave={loadConnections} exchangeName={exchangeName} />
                           </DialogContent>
                         </Dialog>
 

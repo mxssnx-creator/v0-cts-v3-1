@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, AlertCircle, Lock, ExternalLink, Check, Eye, EyeOff, Zap } from "lucide-react"
+import { Loader2, AlertCircle, Lock, ExternalLink, Check, Eye, EyeOff, Zap, ChevronDown } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 import type { Connection } from "@/lib/file-storage"
 import { 
@@ -160,13 +160,40 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       })
 
       const data = await response.json()
-      setTestLog(data.log || ["Test completed"])
+      
+      // Extract and format log
+      let logs = data.log || []
+      if (!Array.isArray(logs)) {
+        logs = [logs.toString()]
+      }
+
+      // Add balance and price info if available
+      if (data.balance !== undefined) {
+        logs.push(`[${new Date().toISOString()}] Account Balance: $${parseFloat(data.balance).toFixed(2)}`)
+      }
+
+      // Fetch BTC price for context
+      try {
+        const priceResponse = await fetch("https://api.coinbase.com/v2/prices/BTC-USD/spot")
+        if (priceResponse.ok) {
+          const priceData = await priceResponse.json()
+          const btcPrice = priceData.data?.amount || "N/A"
+          logs.push(`[${new Date().toISOString()}] BTC Price: $${btcPrice}`)
+        }
+      } catch (e) {
+        console.log("[v0] Could not fetch BTC price")
+      }
+
+      setTestLog(logs)
 
       if (response.ok) {
+        logs.push(`[${new Date().toISOString()}] ✓ Connection test PASSED`)
         toast.success("Connection test passed!")
       } else {
-        toast.error(data.message || "Connection test failed")
+        logs.push(`[${new Date().toISOString()}] ✗ Connection test FAILED: ${data.error || "Unknown error"}`)
+        toast.error(data.error || "Connection test failed")
       }
+      setTestLog(logs)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Test connection error"
       setTestLog([`Error: ${errorMsg}`])
@@ -230,6 +257,16 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
   const selectedExchange = ALL_EXCHANGES.find((e) => e.id === formData.exchange)
   const availableApiTypes = EXCHANGE_API_TYPES[formData.exchange] || []
   const libraryPackage = EXCHANGE_LIBRARY_PACKAGES[formData.exchange] || "unknown"
+
+  // Map API types to trading types
+  const getTradingTypeFromApiType = (apiType: string): string => {
+    if (apiType.includes("spot")) return "spot"
+    if (apiType.includes("margin")) return "margin"
+    if (apiType.includes("perpetual") || apiType.includes("futures") || apiType.includes("unified") || apiType.includes("contract")) {
+      return "derivatives"
+    }
+    return "derivatives"
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -327,21 +364,9 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Available for {selectedExchange?.name}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="connection-method" className="font-medium">Connection Method</Label>
-                  <Select value={formData.connection_method} onValueChange={(value) => setFormData({ ...formData, connection_method: value })}>
-                    <SelectTrigger id="connection-method" disabled={loading} className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="rest">REST API</SelectItem>
-                      <SelectItem value="websocket">WebSocket</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Library: <span className="font-mono font-semibold">{libraryPackage}</span></p>
+                  <p className="text-xs text-muted-foreground">
+                    Library: <span className="font-mono font-semibold">{libraryPackage}</span>
+                  </p>
                 </div>
               </div>
 
