@@ -265,18 +265,62 @@ export default function ExchangeConnectionManager() {
                         </div>
                         <CardDescription className="flex flex-wrap gap-4">
                           <span>API Type: <span className="font-medium">{conn.api_type}</span></span>
-                          <span>Method: <span className="font-medium capitalize">{conn.connection_method || "rest"}</span></span>
                           <span>Margin: <span className="font-medium capitalize">{conn.margin_type}</span></span>
                           <span>Position: <span className="font-medium capitalize">{conn.position_mode}</span></span>
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Settings"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Edit Connection Settings - {conn.name}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="edit-name">Connection Name</Label>
+                                <Input id="edit-name" value={conn.name} readOnly />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>API Type</Label>
+                                  <div className="text-sm font-medium">{conn.api_type}</div>
+                                </div>
+                                <div>
+                                  <Label>Margin Type</Label>
+                                  <div className="text-sm font-medium capitalize">{conn.margin_type}</div>
+                                </div>
+                                <div>
+                                  <Label>Position Mode</Label>
+                                  <div className="text-sm font-medium capitalize">{conn.position_mode}</div>
+                                </div>
+                                <div>
+                                  <Label>Connection Method</Label>
+                                  <div className="text-sm font-medium capitalize">{conn.connection_method}</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Label>Testnet Mode</Label>
+                                <Switch checked={conn.is_testnet || false} disabled />
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          title="Edit Settings"
+                          size="sm"
+                          title={conn.is_enabled ? "Disable" : "Enable"}
+                          onClick={() => toggleEnabled(conn.id, !conn.is_enabled)}
                         >
-                          <Settings className="h-4 w-4" />
+                          {conn.is_enabled ? "Enabled" : "Disabled"}
                         </Button>
                         <Button
                           variant="ghost"

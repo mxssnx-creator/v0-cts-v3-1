@@ -45,7 +45,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
   useEffect(() => {
     if (open) {
       loadExistingConnections()
-      setShowForm(false)
+      setShowForm(true)
       setSelectedTemplate(null)
       setActiveTab("basic")
       resetForm()
@@ -97,10 +97,8 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       api_passphrase: "",
       margin_type: template.marginType,
       position_mode: template.positionMode,
-      is_testnet: false,
+      is_testnet: template.testnetSupported ? false : false,
     })
-    
-    setShowForm(true)
   }
 
   const handleBackToTemplates = () => {
@@ -152,26 +150,27 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
     }
   }
 
-  if (!showForm) {
+  if (true) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Connection</DialogTitle>
-            <DialogDescription>Configure a new exchange API connection</DialogDescription>
+            <DialogDescription>Configure a new exchange API connection. Optionally use a predefined template to auto-fill settings.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-sm mb-3">Quick Setup - Use Predefined Template</h3>
-              <p className="text-xs text-muted-foreground mb-3">Select Predefined Connection</p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Quick Setup Template Section */}
+            <div className="border rounded-lg p-4 bg-blue-50">
+              <h3 className="font-semibold text-sm mb-2">Quick Setup - Use Predefined Template (Optional)</h3>
+              <p className="text-xs text-muted-foreground mb-3">Select a predefined connection template to auto-fill the form</p>
               
               <Select onValueChange={(templateId) => {
                 const template = CONNECTION_PREDEFINITIONS.find(t => t.id === templateId)
                 if (template) handleSelectTemplate(template)
               }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a template..." />
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Choose a template to auto-fill form..." />
                 </SelectTrigger>
                 <SelectContent>
                   {CONNECTION_PREDEFINITIONS.map((template) => (
@@ -184,92 +183,34 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                   ))}
                 </SelectContent>
               </Select>
+
+              {selectedTemplate && (
+                <Card className="mt-3 border-blue-200">
+                  <CardContent className="pt-4">
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Contract Type</p>
+                        <p className="font-medium">{selectedTemplate.contractType}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Position Mode</p>
+                        <p className="font-medium capitalize">{selectedTemplate.positionMode}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Margin Type</p>
+                        <p className="font-medium capitalize">{selectedTemplate.marginType}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Method</p>
+                        <p className="font-medium uppercase">{selectedTemplate.connectionMethod}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
-            {selectedTemplate && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">{selectedTemplate.displayName}</CardTitle>
-                      <CardDescription className="text-xs mt-1">{selectedTemplate.description}</CardDescription>
-                    </div>
-                    <Badge className="bg-blue-600">{selectedTemplate.maxLeverage}x Leverage</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground text-xs">Contract Type</p>
-                      <p className="font-medium text-sm">{selectedTemplate.contractType}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Position Mode</p>
-                      <p className="font-medium text-sm capitalize">{selectedTemplate.positionMode}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Margin Type</p>
-                      <p className="font-medium text-sm capitalize">{selectedTemplate.marginType}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Connection Method</p>
-                      <p className="font-medium text-sm uppercase">{selectedTemplate.connectionMethod}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-3 mt-3 space-y-2">
-                    <p className="text-xs font-medium">Default Settings</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="text-muted-foreground">
-                        <p>Live Volume Factor: <span className="font-semibold text-foreground">1</span></p>
-                      </div>
-                      <div className="text-muted-foreground">
-                        <p>Preset Volume Factor: <span className="font-semibold text-foreground">1</span></p>
-                      </div>
-                      <div className="text-muted-foreground">
-                        <p>Trailing: <span className="font-semibold text-foreground">Enabled</span></p>
-                      </div>
-                      <div className="text-muted-foreground">
-                        <p>Block: <span className="font-semibold text-foreground">Enabled</span></p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <a
-                      href={selectedTemplate.documentationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
-                    >
-                      View Documentation
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                    <Button
-                      onClick={() => setShowForm(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Use This Template
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New Connection</DialogTitle>
-          <DialogDescription>Configure a new exchange API connection</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Configuration Form */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -419,20 +360,12 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
             <Button
               type="button"
               variant="outline"
-              onClick={handleBackToTemplates}
-              disabled={loading}
-            >
-              Back to Templates
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
