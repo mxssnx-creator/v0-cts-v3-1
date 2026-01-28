@@ -255,7 +255,7 @@ export default function ExchangeConnectionManager() {
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           <CardTitle className="text-lg">{conn.name}</CardTitle>
-                          <Badge variant={exchangeName}>{exchangeName}</Badge>
+                          <Badge variant="outline">{exchangeName}</Badge>
                           <Badge variant={conn.is_enabled ? "default" : "secondary"}>
                             {conn.is_enabled ? "Enabled" : "Disabled"}
                           </Badge>
