@@ -193,31 +193,6 @@ export async function execute(queryText: string, params: any[] = []): Promise<{ 
 }
 
 /**
- * Execute insert/update/delete
- */
-export async function execute(queryText: string, params: any[] = []): Promise<{ rowCount: number }> {
-  try {
-    if (DATABASE_TYPE === null) {
-      DATABASE_TYPE = getDatabaseTypeFromSettings()
-    }
-
-    const client = getClient()
-
-    if (DATABASE_TYPE === "sqlite") {
-      const stmt = (client as any).prepare(queryText)
-      const result = stmt.run(...params)
-      return { rowCount: result.changes }
-    } else {
-      const result = await (client as Pool).query(queryText, params)
-      return { rowCount: result.rowCount || 0 }
-    }
-  } catch (error) {
-    console.error("[v0] Execute error:", error)
-    return { rowCount: 0 }
-  }
-}
-
-/**
  * Insert and return the inserted row
  */
 export async function insertReturning<T = any>(queryText: string, params: any[] = []): Promise<T | null> {

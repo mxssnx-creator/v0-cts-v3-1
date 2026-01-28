@@ -773,7 +773,7 @@ class DatabaseManager {
 
   public async batchUpdate(
     entityType: (typeof EntityTypes)[keyof typeof EntityTypes],
-    updates: Record<string, any>[],
+    updates: Array<{ id: string | number; data: Record<string, any> }>,
   ) {
     this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
