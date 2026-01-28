@@ -1,57 +1,34 @@
-import { NextResponse } from "next/server"
-import { loadSettings } from "@/lib/file-storage"
-import { SystemLogger } from "@/lib/system-logger"
-
-export const runtime = "nodejs"
+import { type NextRequest, NextResponse } from "next/server"
+import { settingsDb } from "@/lib/db-service"
 
 export async function GET() {
   try {
-    console.log("[v0] GET /api/settings - Loading settings from file...")
-    await SystemLogger.logAPI("Loading system settings from file", "info", "GET /api/settings")
-
-    // Load settings from file instead of database
-    const settings = loadSettings()
-
-    console.log("[v0] Settings loaded successfully from file:", Object.keys(settings).length, "keys")
-    await SystemLogger.logAPI(`Settings loaded from file: ${Object.keys(settings).length} keys`, "info", "GET /api/settings")
-
-    return NextResponse.json({ settings })
+    const settings = await settingsDb.get()
+    return NextResponse.json(settings)
   } catch (error) {
-    console.error("[v0] Failed to get settings:", error)
-    await SystemLogger.logError(error, "api", "GET /api/settings")
-
-    return NextResponse.json({ settings: {} }, { status: 200 })
+    console.error("[v0] Error fetching settings:", error)
+    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-
-    console.log("[v0] Saving settings to file:", Object.keys(body).length, "keys")
-    await SystemLogger.logAPI(`Saving ${Object.keys(body).length} settings to file`, "info", "POST /api/settings")
-
-    // Load existing settings
-    const existingSettings = loadSettings()
-
-    // Merge with new settings
-    const updatedSettings = { ...existingSettings, ...body }
-
-    // Save to file
-    const { saveSettings } = await import("@/lib/file-storage")
-    saveSettings(updatedSettings)
-
-    console.log("[v0] Settings saved successfully to file")
-    await SystemLogger.logAPI("Settings saved successfully to file", "info", "POST /api/settings")
-
-    return NextResponse.json({ success: true })
+    const settings = await settingsDb.update(body)
+    return NextResponse.json(settings)
   } catch (error) {
-    console.error("[v0] Failed to update settings:", error)
-    await SystemLogger.logError(error, "api", "POST /api/settings")
+    console.error("[v0] Error updating settings:", error)
+    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 })
+  }
+}
 
-    return NextResponse.json(
-      { error: "Failed to update settings", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 },
-    )
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const settings = await settingsDb.update(body)
+    return NextResponse.json({ success: true, settings })
+  } catch (error) {
+    console.error("[v0] Error updating settings:", error)
+    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 })
   }
 }

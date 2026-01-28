@@ -1,355 +1,223 @@
-import { sql } from '@vercel/postgres'
-import type { Connection, ExchangeConnection } from '@/lib/file-storage'
+import fs from "fs"
+import path from "path"
+import crypto from "crypto"
 
-/**
- * Connection Database Service
- * Handles all database operations for exchange connections
- */
+const DB_DIR = path.join(process.cwd(), ".data")
 
+export interface Connection {
+  id: string
+  name: string
+  exchange: string
+  api_type: string
+  connection_method: string
+  connection_library: string
+  api_key: string
+  api_secret: string
+  api_passphrase?: string
+  margin_type: string
+  position_mode: string
+  is_testnet: boolean
+  is_enabled: boolean
+  is_active: boolean
+  is_predefined: boolean
+  last_test_status?: "success" | "failed" | "error" | null
+  last_test_timestamp?: string
+  last_test_log?: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ConnectionLog {
+  id: string
+  connection_id: string
+  event_type: string
+  status: string
+  message: string
+  details?: Record<string, any>
+  created_at: string
+}
+
+export interface Settings {
+  autoTestConnections: boolean
+  testIntervalMinutes: number
+  notifyOnConnectionFailure: boolean
+  logLevel: string
+}
+
+// File paths
+const CONNECTIONS_FILE = path.join(DB_DIR, "connections.json")
+const LOGS_FILE = path.join(DB_DIR, "connection-logs.json")
+const SETTINGS_FILE = path.join(DB_DIR, "settings.json")
+
+// Utility functions
+function readJsonFile<T>(filePath: string, defaultValue: T): T {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return defaultValue
+    }
+    const content = fs.readFileSync(filePath, "utf-8")
+    return JSON.parse(content)
+  } catch (error) {
+    console.error(`[v0] Error reading ${filePath}:`, error)
+    return defaultValue
+  }
+}
+
+function writeJsonFile<T>(filePath: string, data: T): void {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+  } catch (error) {
+    console.error(`[v0] Error writing ${filePath}:`, error)
+    throw error
+  }
+}
+
+function generateId(): string {
+  return crypto.randomUUID()
+}
+
+// Connection Database Service
 export const connectionDb = {
-  /**
-   * Get all connections
-   */
-  async getAll(): Promise<Connection[]> {
-    try {
-      const result = await sql`
-        SELECT * FROM connections 
-        ORDER BY created_at DESC
-      `
-      return result.rows as Connection[]
-    } catch (error) {
-      console.error('[v0] Error fetching connections:', error)
-      return []
-    }
+  getAll: async (): Promise<Connection[]> => {
+    return readJsonFile(CONNECTIONS_FILE, [])
   },
 
-  /**
-   * Get connection by ID
-   */
-  async getById(id: string): Promise<Connection | null> {
-    try {
-      const result = await sql`
-        SELECT * FROM connections 
-        WHERE id = ${id}
-        LIMIT 1
-      `
-      return result.rows[0] as Connection | undefined || null
-    } catch (error) {
-      console.error('[v0] Error fetching connection:', error)
-      return null
-    }
+  getById: async (id: string): Promise<Connection | null> => {
+    const connections = await connectionDb.getAll()
+    return connections.find((c) => c.id === id) || null
   },
 
-  /**
-   * Get connections by exchange
-   */
-  async getByExchange(exchange: string): Promise<Connection[]> {
-    try {
-      const result = await sql`
-        SELECT * FROM connections 
-        WHERE exchange = ${exchange}
-        ORDER BY created_at DESC
-      `
-      return result.rows as Connection[]
-    } catch (error) {
-      console.error('[v0] Error fetching connections by exchange:', error)
-      return []
-    }
+  getByExchange: async (exchange: string): Promise<Connection[]> => {
+    const connections = await connectionDb.getAll()
+    return connections.filter((c) => c.exchange === exchange)
   },
 
-  /**
-   * Create new connection
-   */
-  async create(connection: Omit<Connection, 'id' | 'created_at' | 'updated_at'>): Promise<Connection | null> {
-    try {
-      const id = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date().toISOString()
-
-      const result = await sql`
-        INSERT INTO connections (
-          id, name, exchange, api_type, connection_method, 
-          connection_library, api_key, api_secret, api_passphrase,
-          margin_type, position_mode, is_enabled, is_active, 
-          is_testnet, is_predefined, created_at, updated_at
-        ) VALUES (
-          ${id}, ${connection.name}, ${connection.exchange}, 
-          ${connection.api_type}, ${connection.connection_method || 'rest'}, 
-          ${connection.connection_library || 'native'}, 
-          ${connection.api_key}, ${connection.api_secret}, 
-          ${connection.api_passphrase || null},
-          ${connection.margin_type || 'cross'}, 
-          ${connection.position_mode || 'hedge'},
-          ${connection.is_enabled !== false}, 
-          ${connection.is_active !== false},
-          ${connection.is_testnet || false}, 
-          ${connection.is_predefined || false},
-          ${now}, ${now}
-        )
-        RETURNING *
-      `
-
-      return result.rows[0] as Connection
-    } catch (error) {
-      console.error('[v0] Error creating connection:', error)
-      return null
-    }
+  getActive: async (): Promise<Connection[]> => {
+    const connections = await connectionDb.getAll()
+    return connections.filter((c) => c.is_active && c.is_enabled)
   },
 
-  /**
-   * Update connection
-   */
-  async update(id: string, updates: Partial<Connection>): Promise<Connection | null> {
-    try {
-      const now = new Date().toISOString()
-      
-      // Build dynamic SET clause
-      const setClauses: string[] = []
-      const values: any[] = []
-
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key !== 'id' && key !== 'created_at') {
-          setClauses.push(`${key} = $${setClauses.length + 1}`)
-          values.push(value)
-        }
-      })
-
-      if (setClauses.length === 0) {
-        return await this.getById(id)
-      }
-
-      values.push(now)
-      values.push(id)
-
-      const query = `
-        UPDATE connections 
-        SET ${setClauses.join(', ')}, updated_at = $${setClauses.length + 1}
-        WHERE id = $${setClauses.length + 2}
-        RETURNING *
-      `
-
-      const result = await sql.query(query, values)
-      return result.rows[0] as Connection
-    } catch (error) {
-      console.error('[v0] Error updating connection:', error)
-      return null
+  create: async (data: Omit<Connection, "id" | "created_at" | "updated_at">): Promise<Connection> => {
+    const connections = await connectionDb.getAll()
+    const now = new Date().toISOString()
+    const connection: Connection = {
+      ...data,
+      id: generateId(),
+      created_at: now,
+      updated_at: now,
     }
+    connections.push(connection)
+    writeJsonFile(CONNECTIONS_FILE, connections)
+    return connection
   },
 
-  /**
-   * Delete connection
-   */
-  async delete(id: string): Promise<boolean> {
-    try {
-      const result = await sql`
-        DELETE FROM connections 
-        WHERE id = ${id}
-      `
-      return result.rowCount > 0
-    } catch (error) {
-      console.error('[v0] Error deleting connection:', error)
-      return false
+  update: async (id: string, data: Partial<Connection>): Promise<Connection | null> => {
+    const connections = await connectionDb.getAll()
+    const index = connections.findIndex((c) => c.id === id)
+    if (index === -1) return null
+
+    connections[index] = {
+      ...connections[index],
+      ...data,
+      id: connections[index].id,
+      created_at: connections[index].created_at,
+      updated_at: new Date().toISOString(),
     }
+
+    writeJsonFile(CONNECTIONS_FILE, connections)
+    return connections[index]
   },
 
-  /**
-   * Toggle connection enabled status
-   */
-  async toggleEnabled(id: string): Promise<Connection | null> {
-    try {
-      const connection = await this.getById(id)
-      if (!connection) return null
+  delete: async (id: string): Promise<boolean> => {
+    const connections = await connectionDb.getAll()
+    const filtered = connections.filter((c) => c.id !== id)
+    if (filtered.length === connections.length) return false
 
-      return await this.update(id, {
-        is_enabled: !connection.is_enabled,
-      })
-    } catch (error) {
-      console.error('[v0] Error toggling connection:', error)
-      return null
-    }
+    writeJsonFile(CONNECTIONS_FILE, filtered)
+    return true
   },
 
-  /**
-   * Record test result
-   */
-  async recordTestResult(
-    id: string,
-    status: 'success' | 'failed',
-    log: string[]
-  ): Promise<Connection | null> {
-    try {
-      const now = new Date().toISOString()
-      return await this.update(id, {
-        last_test_status: status,
-        last_test_timestamp: now,
-        last_test_log: JSON.stringify(log),
-      })
-    } catch (error) {
-      console.error('[v0] Error recording test result:', error)
-      return null
-    }
+  toggleEnabled: async (id: string): Promise<Connection | null> => {
+    const connection = await connectionDb.getById(id)
+    if (!connection) return null
+
+    return connectionDb.update(id, { is_enabled: !connection.is_enabled })
+  },
+
+  toggleActive: async (id: string): Promise<Connection | null> => {
+    const connection = await connectionDb.getById(id)
+    if (!connection) return null
+
+    return connectionDb.update(id, { is_active: !connection.is_active })
+  },
+
+  recordTestResult: async (id: string, status: "success" | "failed" | "error", log: string[]): Promise<Connection | null> => {
+    return connectionDb.update(id, {
+      last_test_status: status,
+      last_test_timestamp: new Date().toISOString(),
+      last_test_log: log,
+    })
   },
 }
 
-/**
- * Settings Database Service
- */
-export const settingsDb = {
-  /**
-   * Get all settings
-   */
-  async getAll(userId?: string): Promise<any[]> {
-    try {
-      if (userId) {
-        const result = await sql`
-          SELECT * FROM settings 
-          WHERE user_id = ${userId}
-          ORDER BY created_at DESC
-        `
-        return result.rows
-      }
-
-      const result = await sql`
-        SELECT * FROM settings 
-        ORDER BY created_at DESC
-      `
-      return result.rows
-    } catch (error) {
-      console.error('[v0] Error fetching settings:', error)
-      return []
-    }
-  },
-
-  /**
-   * Get setting by key
-   */
-  async getByKey(key: string, userId?: string): Promise<any | null> {
-    try {
-      let result
-      if (userId) {
-        result = await sql`
-          SELECT * FROM settings 
-          WHERE user_id = ${userId} AND key = ${key}
-          LIMIT 1
-        `
-      } else {
-        result = await sql`
-          SELECT * FROM settings 
-          WHERE key = ${key}
-          LIMIT 1
-        `
-      }
-
-      return result.rows[0] || null
-    } catch (error) {
-      console.error('[v0] Error fetching setting:', error)
-      return null
-    }
-  },
-
-  /**
-   * Set or update setting
-   */
-  async set(
-    key: string,
-    value: any,
-    options?: { userId?: string; type?: string; description?: string; encrypted?: boolean }
-  ): Promise<boolean> {
-    try {
-      const id = `setting_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date().toISOString()
-
-      await sql`
-        INSERT INTO settings (
-          id, user_id, key, value, setting_type, description, is_encrypted, created_at, updated_at
-        ) VALUES (
-          ${id}, ${options?.userId || null}, ${key}, 
-          ${typeof value === 'string' ? value : JSON.stringify(value)},
-          ${options?.type || 'string'}, 
-          ${options?.description || null},
-          ${options?.encrypted || false},
-          ${now}, ${now}
-        )
-        ON CONFLICT (user_id, key) DO UPDATE SET 
-          value = EXCLUDED.value,
-          setting_type = EXCLUDED.setting_type,
-          updated_at = ${now}
-      `
-
-      return true
-    } catch (error) {
-      console.error('[v0] Error setting setting:', error)
-      return false
-    }
-  },
-
-  /**
-   * Delete setting
-   */
-  async delete(key: string, userId?: string): Promise<boolean> {
-    try {
-      if (userId) {
-        const result = await sql`
-          DELETE FROM settings 
-          WHERE user_id = ${userId} AND key = ${key}
-        `
-        return result.rowCount > 0
-      }
-
-      const result = await sql`
-        DELETE FROM settings 
-        WHERE key = ${key}
-      `
-      return result.rowCount > 0
-    } catch (error) {
-      console.error('[v0] Error deleting setting:', error)
-      return false
-    }
-  },
-}
-
-/**
- * Connection Logs Database Service
- */
+// Connection Logs Database Service
 export const connectionLogsDb = {
-  /**
-   * Add log entry
-   */
-  async add(connectionId: string, logType: string, status: string, message: string, details?: any): Promise<boolean> {
-    try {
-      const id = `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-      await sql`
-        INSERT INTO connection_logs (
-          id, connection_id, log_type, status, message, details, created_at
-        ) VALUES (
-          ${id}, ${connectionId}, ${logType}, ${status}, ${message},
-          ${details ? JSON.stringify(details) : null},
-          CURRENT_TIMESTAMP
-        )
-      `
-
-      return true
-    } catch (error) {
-      console.error('[v0] Error adding log:', error)
-      return false
-    }
+  getAll: async (): Promise<ConnectionLog[]> => {
+    return readJsonFile(LOGS_FILE, [])
   },
 
-  /**
-   * Get logs for connection
-   */
-  async getByConnectionId(connectionId: string, limit = 100): Promise<any[]> {
-    try {
-      const result = await sql`
-        SELECT * FROM connection_logs 
-        WHERE connection_id = ${connectionId}
-        ORDER BY created_at DESC
-        LIMIT ${limit}
-      `
-      return result.rows
-    } catch (error) {
-      console.error('[v0] Error fetching logs:', error)
-      return []
+  getByConnectionId: async (connectionId: string): Promise<ConnectionLog[]> => {
+    const logs = await connectionLogsDb.getAll()
+    return logs.filter((l) => l.connection_id === connectionId)
+  },
+
+  add: async (connectionId: string, eventType: string, status: string, message: string, details?: Record<string, any>): Promise<ConnectionLog> => {
+    const logs = await connectionLogsDb.getAll()
+    const log: ConnectionLog = {
+      id: generateId(),
+      connection_id: connectionId,
+      event_type: eventType,
+      status,
+      message,
+      details,
+      created_at: new Date().toISOString(),
     }
+    logs.push(log)
+    writeJsonFile(LOGS_FILE, logs)
+    return log
+  },
+
+  deleteByConnectionId: async (connectionId: string): Promise<void> => {
+    const logs = await connectionLogsDb.getAll()
+    const filtered = logs.filter((l) => l.connection_id !== connectionId)
+    writeJsonFile(LOGS_FILE, filtered)
+  },
+
+  deleteOldLogs: async (daysOld: number = 30): Promise<void> => {
+    const logs = await connectionLogsDb.getAll()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld)
+
+    const filtered = logs.filter((l) => new Date(l.created_at) > cutoffDate)
+    writeJsonFile(LOGS_FILE, filtered)
+  },
+}
+
+// Settings Database Service
+export const settingsDb = {
+  get: async (): Promise<Settings> => {
+    return readJsonFile(SETTINGS_FILE, {
+      autoTestConnections: false,
+      testIntervalMinutes: 60,
+      notifyOnConnectionFailure: true,
+      logLevel: "info",
+    })
+  },
+
+  update: async (data: Partial<Settings>): Promise<Settings> => {
+    const current = await settingsDb.get()
+    const updated = { ...current, ...data }
+    writeJsonFile(SETTINGS_FILE, updated)
+    return updated
   },
 }
