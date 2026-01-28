@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { getClient, getDatabaseType } from "@/lib/db"
-import Database from "better-sqlite3"
 import fs from "fs"
 import path from "path"
 
@@ -21,7 +20,7 @@ export async function POST() {
     console.log("[v0] FORCE DATABASE REINITIALIZATION")
     console.log("[v0] ================================================")
 
-    const client = getClient() as Database.Database
+    const client = getClient() as any
     
     // Get all existing tables
     const tables = client.prepare(

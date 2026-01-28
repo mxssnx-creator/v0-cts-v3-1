@@ -1,32 +1,98 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { loadConnections } from "@/lib/file-storage"
+import { getGlobalTradeEngineCoordinator } from "@/lib/trade-engine"
+import { SystemLogger } from "@/lib/system-logger"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { connectionId } = body
 
+    if (!connectionId) {
+      return NextResponse.json(
+        { success: false, error: "Connection ID is required" },
+        { status: 400 }
+      )
+    }
+
     console.log("[v0] [Trade Engine] Stopping trade engine for connection:", connectionId)
 
-    await sql`
-      UPDATE trade_engine_state
-      SET state = 'stopped', updated_at = CURRENT_TIMESTAMP
-      WHERE connection_id = ${connectionId}
-    `
+    const coordinator = getGlobalTradeEngineCoordinator()
 
-    console.log("[v0] [Trade Engine] Stopped successfully for connection:", connectionId)
+    if (!coordinator) {
+      console.error("[v0] [Trade Engine] Coordinator not initialized")
+      return NextResponse.json(
+        { success: false, error: "Trade engine coordinator not initialized" },
+        { status: 503 }
+      )
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: "Trade engine stop signal sent",
-      note: "Engine will stop on next cycle check",
-    })
+    // Verify connection exists
+    const connections = loadConnections()
+    
+    if (!Array.isArray(connections)) {
+      console.error("[v0] [Trade Engine] Connections is not an array:", typeof connections)
+      return NextResponse.json(
+        { success: false, error: "Invalid connections data" },
+        { status: 500 }
+      )
+    }
+
+    const connection = connections.find((c) => c.id === connectionId)
+
+    if (!connection) {
+      console.error("[v0] [Trade Engine] Connection not found:", connectionId)
+      return NextResponse.json(
+        { success: false, error: "Connection not found" },
+        { status: 404 }
+      )
+    }
+
+    try {
+      // Stop the engine via coordinator
+      await coordinator.stopEngine(connectionId)
+
+      await SystemLogger.logTradeEngine(
+        `Trade engine stopped successfully for connection: ${connection.name}`,
+        "info",
+        { connectionId, connectionName: connection.name }
+      )
+
+      console.log("[v0] [Trade Engine] Engine stopped successfully for connection:", connectionId)
+
+      return NextResponse.json({
+        success: true,
+        message: "Trade engine stopped successfully",
+        connectionId,
+        connectionName: connection.name,
+      })
+    } catch (stopError) {
+      console.error("[v0] [Trade Engine] Failed to stop engine:", stopError)
+      await SystemLogger.logTradeEngine(
+        `Failed to stop trade engine: ${stopError}`,
+        "error",
+        { connectionId, error: stopError instanceof Error ? stopError.message : String(stopError) }
+      )
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to stop trade engine",
+          details: stopError instanceof Error ? stopError.message : "Unknown error",
+        },
+        { status: 500 },
+      )
+    }
   } catch (error) {
-    console.error("[v0] [Trade Engine] Failed to stop:", error)
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    console.error("[v0] [Trade Engine] Failed to process stop request:", errorMessage)
+    await SystemLogger.logError(error, "trade-engine", "POST /api/trade-engine/stop")
+    
     return NextResponse.json(
       {
+        success: false,
         error: "Failed to stop trade engine",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: errorMessage,
       },
       { status: 500 },
     )

@@ -18,10 +18,22 @@ const EXCHANGE_NAME_TO_ID: Record<string, number> = {
   orangex: 11,
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log("[v0] Fetching all connections from file...")
-    await SystemLogger.logAPI("Fetching all connections", "info", "GET /api/settings/connections")
+    console.log("[v0] Fetching connections with filters...")
+    const { searchParams } = new URL(request.url)
+
+    const exchange = searchParams.get("exchange")
+    const apiType = searchParams.get("apiType")
+    const enabled = searchParams.get("enabled")
+    const active = searchParams.get("active")
+
+    await SystemLogger.logAPI("Fetching connections", "info", "GET /api/settings/connections", {
+      exchange,
+      apiType,
+      enabled,
+      active,
+    })
 
     let connections: any[] = []
     try {
@@ -35,10 +47,30 @@ export async function GET() {
       connections = getPredefinedConnectionsAsStatic()
     }
 
-    console.log("[v0] Found connections:", connections.length)
-    await SystemLogger.logAPI(`Found ${connections.length} connections`, "info", "GET /api/settings/connections")
+    // Apply filters
+    let filtered = connections
 
-    const formattedConnections = connections.map((conn) => ({
+    if (exchange) {
+      filtered = filtered.filter((c) => c.exchange?.toLowerCase() === exchange.toLowerCase())
+    }
+
+    if (apiType) {
+      filtered = filtered.filter((c) => c.api_type === apiType)
+    }
+
+    if (enabled !== null) {
+      const enabledBool = enabled === "true"
+      filtered = filtered.filter((c) => Boolean(c.is_enabled) === enabledBool)
+    }
+
+    if (active !== null) {
+      const activeBool = active === "true"
+      filtered = filtered.filter((c) => Boolean(c.is_active) === activeBool)
+    }
+
+    console.log(`[v0] Found ${filtered.length} connections (from ${connections.length} total)`)
+
+    const formattedConnections = filtered.map((conn) => ({
       ...conn,
       is_enabled: Boolean(conn.is_enabled),
       is_live_trade: Boolean(conn.is_live_trade),
@@ -50,13 +82,29 @@ export async function GET() {
       exchange_id: conn.exchange_id || EXCHANGE_NAME_TO_ID[conn.exchange?.toLowerCase()] || null,
     }))
 
-    return NextResponse.json(formattedConnections, { status: 200 })
+    return NextResponse.json(
+      {
+        success: true,
+        count: formattedConnections.length,
+        filters: { exchange, apiType, enabled, active },
+        connections: formattedConnections,
+      },
+      { status: 200 }
+    )
   } catch (error) {
     console.error("[v0] Error fetching connections:", error)
     await SystemLogger.logError(error, "api", "GET /api/settings/connections")
 
     const predefinedConnections = getPredefinedConnectionsAsStatic()
-    return NextResponse.json(predefinedConnections, { status: 200 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch connections",
+        count: 0,
+        connections: predefinedConnections,
+      },
+      { status: 200 }
+    )
   }
 }
 
@@ -125,20 +173,19 @@ export async function POST(request: NextRequest) {
       exchange_id: exchangeId,
       api_type: body.api_type || "perpetual_futures",
       connection_method: body.connection_method || "rest",
-      connection_library: body.connection_library || "rest",
+      connection_library: body.connection_library || "library",
       api_key: body.api_key,
       api_secret: body.api_secret,
-      api_passphrase: body.api_passphrase,
+      api_passphrase: body.api_passphrase || "",
       margin_type: body.margin_type || "cross",
       position_mode: body.position_mode || "hedge",
       is_testnet: body.is_testnet || false,
-      is_enabled: true, // Base connection enabled by default
-      is_live_trade: false, // Active trading disabled by default
-      is_preset_trade: false, // Active trading disabled by default
+      is_enabled: true,
+      is_live_trade: false,
+      is_preset_trade: false,
       is_active: true,
       is_predefined: false,
-      volume_factor: 1.0,
-      connection_settings: body.connection_settings ? JSON.stringify(body.connection_settings) : undefined,
+      volume_factor: body.volume_factor || 1.0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

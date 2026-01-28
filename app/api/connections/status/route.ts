@@ -9,6 +9,13 @@ export async function GET() {
     console.log("[v0] Fetching real connection statuses")
 
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data", statuses: [] }, { status: 500 })
+    }
+
     const activeConnections = connections.filter((c) => c.is_active)
 
     // Get real statuses from trade engines
@@ -50,6 +57,6 @@ export async function GET() {
   } catch (error) {
     console.error("[v0] Failed to fetch connection statuses:", error)
     await SystemLogger.logError(error, "api", "GET /api/connections/status")
-    return NextResponse.json({ error: "Failed to fetch connection statuses" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch connection statuses", statuses: [] }, { status: 500 })
   }
 }

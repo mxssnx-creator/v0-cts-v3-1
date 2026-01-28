@@ -1,0 +1,346 @@
+/**
+ * Connection Coordinator v3
+ * Comprehensive connection management with API type support, rate limiting, and batch operations
+ */
+
+import { loadConnections, saveConnections, type Connection } from "@/lib/file-storage"
+import { SystemLogger } from "@/lib/system-logger"
+import { createExchangeConnector } from "@/lib/exchange-connectors"
+import { BatchProcessor } from "@/lib/batch-processor"
+import { getRateLimiter } from "@/lib/rate-limiter"
+
+export type ConnectionApiType = "rest" | "websocket" | "unified" | "perpetual_futures" | "spot" | "margin"
+export type ConnectionStatus = "active" | "inactive" | "error" | "testing" | "paused"
+
+export interface ConnectionHealth {
+  connectionId: string
+  status: ConnectionStatus
+  lastCheck: Date
+  responseTime: number
+  errorCount: number
+  successCount: number
+  uptime: number // percentage
+  rateLimitUsage: number // percentage
+}
+
+export interface ConnectionMetrics {
+  totalRequests: number
+  successfulRequests: number
+  failedRequests: number
+  averageResponseTime: number
+  rateLimitHits: number
+  lastErrorMessage?: string
+  lastSuccessTime?: Date
+}
+
+/**
+ * ConnectionCoordinator - Manages all exchange connections with health monitoring
+ */
+export class ConnectionCoordinator {
+  private static instance: ConnectionCoordinator
+  private connections: Map<string, Connection> = new Map()
+  private health: Map<string, ConnectionHealth> = new Map()
+  private metrics: Map<string, ConnectionMetrics> = new Map()
+  private batchProcessor: BatchProcessor
+  private healthCheckInterval: NodeJS.Timeout | null = null
+
+  private constructor() {
+    this.batchProcessor = BatchProcessor.getInstance()
+    this.initializeConnections()
+    this.startHealthChecks()
+  }
+
+  static getInstance(): ConnectionCoordinator {
+    if (!ConnectionCoordinator.instance) {
+      ConnectionCoordinator.instance = new ConnectionCoordinator()
+    }
+    return ConnectionCoordinator.instance
+  }
+
+  /**
+   * Initialize all connections from storage
+   */
+  private initializeConnections(): void {
+    try {
+      const connections = loadConnections()
+      if (!Array.isArray(connections)) {
+        console.error("[v0] Connections is not an array")
+        return
+      }
+
+      this.connections.clear()
+      for (const conn of connections) {
+        this.connections.set(conn.id, conn)
+        this.initializeMetrics(conn.id)
+        this.initializeHealth(conn.id, conn)
+      }
+
+      console.log(`[v0] ConnectionCoordinator initialized with ${this.connections.size} connections`)
+    } catch (error) {
+      console.error("[v0] Failed to initialize connections:", error)
+    }
+  }
+
+  /**
+   * Initialize metrics for a connection
+   */
+  private initializeMetrics(connectionId: string): void {
+    this.metrics.set(connectionId, {
+      totalRequests: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+      averageResponseTime: 0,
+      rateLimitHits: 0,
+    })
+  }
+
+  /**
+   * Initialize health for a connection
+   */
+  private initializeHealth(connectionId: string, connection: Connection): void {
+    this.health.set(connectionId, {
+      connectionId,
+      status: connection.is_enabled ? "active" : "inactive",
+      lastCheck: new Date(),
+      responseTime: 0,
+      errorCount: 0,
+      successCount: 0,
+      uptime: 100,
+      rateLimitUsage: 0,
+    })
+  }
+
+  /**
+   * Start periodic health checks
+   */
+  private startHealthChecks(): void {
+    // Run health checks every 5 minutes
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthChecks()
+    }, 300000)
+
+    // Initial health check
+    this.performHealthChecks()
+  }
+
+  /**
+   * Perform health checks on all active connections
+   */
+  private async performHealthChecks(): Promise<void> {
+    console.log("[v0] Starting health checks on all connections")
+
+    const tasks = Array.from(this.connections.values())
+      .filter((conn) => conn.is_enabled)
+      .map((conn) => ({
+        id: `health-${conn.id}`,
+        connectionId: conn.id,
+        operation: "health-check" as const,
+        priority: 5,
+      }))
+
+    if (tasks.length > 0) {
+      this.batchProcessor.enqueueBatch(tasks)
+    }
+  }
+
+  /**
+   * Test a single connection
+   */
+  async testConnection(connectionId: string): Promise<{
+    success: boolean
+    balance?: number
+    error?: string
+    logs?: string[]
+  }> {
+    const connection = this.connections.get(connectionId)
+    if (!connection) {
+      return { success: false, error: "Connection not found" }
+    }
+
+    const startTime = Date.now()
+
+    try {
+      if (!connection.api_key) {
+        return { success: false, error: "API credentials not configured" }
+      }
+
+      const connector = await createExchangeConnector(connection.exchange, {
+        apiKey: connection.api_key,
+        apiSecret: connection.api_secret,
+        apiPassphrase: connection.api_passphrase,
+        isTestnet: connection.is_testnet,
+      })
+
+      const result = await connector.testConnection()
+      const duration = Date.now() - startTime
+
+      this.updateMetrics(connectionId, true, duration)
+      this.updateHealth(connectionId, true, duration)
+
+      return {
+        success: result.success,
+        balance: result.balance,
+        logs: result.logs,
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime
+      this.updateMetrics(connectionId, false, duration)
+      this.updateHealth(connectionId, false, duration)
+
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      return {
+        success: false,
+        error: errorMessage,
+      }
+    }
+  }
+
+  /**
+   * Test multiple connections in batch
+   */
+  async testConnections(connectionIds: string[]): Promise<Map<string, { success: boolean; error?: string }>> {
+    const results = new Map()
+
+    for (const connectionId of connectionIds) {
+      const result = await this.testConnection(connectionId)
+      results.set(connectionId, result)
+    }
+
+    return results
+  }
+
+  /**
+   * Update metrics for a connection
+   */
+  private updateMetrics(connectionId: string, success: boolean, duration: number): void {
+    const metrics = this.metrics.get(connectionId)
+    if (!metrics) return
+
+    metrics.totalRequests++
+    if (success) {
+      metrics.successfulRequests++
+      metrics.lastSuccessTime = new Date()
+    } else {
+      metrics.failedRequests++
+    }
+
+    // Update average response time
+    metrics.averageResponseTime =
+      (metrics.averageResponseTime * (metrics.totalRequests - 1) + duration) / metrics.totalRequests
+  }
+
+  /**
+   * Update health status for a connection
+   */
+  private updateHealth(connectionId: string, success: boolean, duration: number): void {
+    const health = this.health.get(connectionId)
+    if (!health) return
+
+    health.lastCheck = new Date()
+    health.responseTime = duration
+
+    if (success) {
+      health.successCount++
+      health.status = "active"
+    } else {
+      health.errorCount++
+      health.status = health.errorCount > 3 ? "error" : "active"
+    }
+
+    // Calculate uptime percentage
+    const total = health.successCount + health.errorCount
+    health.uptime = total > 0 ? (health.successCount / total) * 100 : 100
+  }
+
+  /**
+   * Get connection health
+   */
+  getConnectionHealth(connectionId: string): ConnectionHealth | undefined {
+    return this.health.get(connectionId)
+  }
+
+  /**
+   * Get all connections health
+   */
+  getAllConnectionsHealth(): ConnectionHealth[] {
+    return Array.from(this.health.values())
+  }
+
+  /**
+   * Get connection metrics
+   */
+  getConnectionMetrics(connectionId: string): ConnectionMetrics | undefined {
+    return this.metrics.get(connectionId)
+  }
+
+  /**
+   * Get all connections metrics
+   */
+  getAllConnectionsMetrics(): ConnectionMetrics[] {
+    return Array.from(this.metrics.values())
+  }
+
+  /**
+   * Get connection by ID
+   */
+  getConnection(connectionId: string): Connection | undefined {
+    return this.connections.get(connectionId)
+  }
+
+  /**
+   * Get all connections
+   */
+  getAllConnections(): Connection[] {
+    return Array.from(this.connections.values())
+  }
+
+  /**
+   * Get connections by exchange
+   */
+  getConnectionsByExchange(exchange: string): Connection[] {
+    return Array.from(this.connections.values()).filter(
+      (conn) => conn.exchange.toLowerCase() === exchange.toLowerCase(),
+    )
+  }
+
+  /**
+   * Get connections by API type
+   */
+  getConnectionsByApiType(apiType: ConnectionApiType): Connection[] {
+    return Array.from(this.connections.values()).filter((conn) => conn.api_type === apiType)
+  }
+
+  /**
+   * Get active connections
+   */
+  getActiveConnections(): Connection[] {
+    return Array.from(this.connections.values()).filter((conn) => conn.is_enabled && conn.is_active)
+  }
+
+  /**
+   * Reload connections from storage
+   */
+  reloadConnections(): void {
+    this.initializeConnections()
+  }
+
+  /**
+   * Stop health checks
+   */
+  stop(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval)
+      this.healthCheckInterval = null
+    }
+  }
+
+  /**
+   * Cleanup old health data
+   */
+  cleanup(): void {
+    this.batchProcessor.clearOldResults()
+    console.log("[v0] ConnectionCoordinator cleanup completed")
+  }
+}
+
+export type { Connection }

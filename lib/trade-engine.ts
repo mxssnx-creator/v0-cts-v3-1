@@ -508,7 +508,7 @@ export function initializeGlobalCoordinator(): GlobalTradeEngineCoordinator {
 }
 
 export function getGlobalCoordinator(): GlobalTradeEngineCoordinator | null {
-  return getTradeEngine()
+  return globalCoordinator
 }
 
 export function getGlobalTradeEngineCoordinator(): GlobalTradeEngineCoordinator {
