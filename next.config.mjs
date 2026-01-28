@@ -14,7 +14,15 @@ const nextConfig = {
     '@dydxprotocol/v4-proto',
     'long',
     'protobufjs/minimal',
+    'better-sqlite3',
   ],
+  webpack: (config, { isServer }) => {
+    config.externals = {
+      ...config.externals,
+      'better-sqlite3': 'commonjs better-sqlite3',
+    }
+    return config
+  },
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
