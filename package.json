@@ -35,8 +35,9 @@
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
-    "prebuild": "node scripts/prebuild.js --skip-db 2>/dev/null || true",
+    "prebuild": "npm run build:clean",
     "build": "next build",
+    "build:clean": "rm -rf .next node_modules/.cache 2>/dev/null; true",
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
     "clean:aggressive": "node scripts/prebuild.js",
@@ -49,7 +50,7 @@
     "db:migrate": "node scripts/run-migrations.js",
     "db:reset": "node scripts/reset-database.js",
     "db:status": "node scripts/check-db-status.js",
-    "dev": "node scripts/startup-init.js && bash scripts/clear-local-cache.sh && next dev -p ${PORT:-3000}",
+    "dev": "next dev -p ${PORT:-3000}",
     "dev:nocache": "next dev -p ${PORT:-3000}",
     "dev:quick": "next dev -p ${PORT:-3000}",
     "health": "curl http://localhost:3000/api/system/health-check || echo 'Server not running'",
@@ -66,7 +67,7 @@
     "predeploy": "npm run verify",
     "rebuild": "npm run clean && npm run build",
     "setup": "node scripts/setup.js",
-    "prestart": "node scripts/startup-init.js",
+    "prestart": "echo 'Starting application...'",
     "start": "next start -p ${PORT:-3000}",
     "system:check": "node scripts/system-check.js",
     "system:health": "node scripts/health-check.js",
