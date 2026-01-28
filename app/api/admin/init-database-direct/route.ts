@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getClient, getDatabaseType } from "@/lib/db"
 import fs from "fs"
 import path from "path"
-import Database from "better-sqlite3"
 
 export const runtime = "nodejs"
 
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
     const scriptPath = path.join(process.cwd(), "scripts", "unified_complete_setup.sql")
     const sql = fs.readFileSync(scriptPath, "utf-8")
     
-    const db = getClient() as Database.Database
+    const db = getClient() as any
     
     // Execute the entire SQL file as a batch
     console.log("[v0] Executing unified_complete_setup.sql directly...")

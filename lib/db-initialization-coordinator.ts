@@ -38,7 +38,7 @@ export async function executeCompleteInitialization(): Promise<InitializationRes
     const dbType = getDatabaseType()
 
     if (dbType === "sqlite") {
-      const db = getClient() as Database.Database
+      const db = getClient() as any
 
       console.log("[v0] ================================================")
       console.log("[v0] SQLite Complete Initialization Starting")

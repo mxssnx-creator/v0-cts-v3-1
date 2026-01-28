@@ -53,7 +53,7 @@ function getExecutedMigrations(db: any): Set<string> {
   }
 }
 
-function recordMigration(db: Database.Database, id: string, name: string): void {
+function recordMigration(db: any, id: string, name: string): void {
   try {
     db.prepare(`
       INSERT INTO ${MIGRATIONS_TABLE} (id, name, executedAt)
@@ -68,7 +68,7 @@ function recordMigration(db: Database.Database, id: string, name: string): void 
 export async function runMigrations(): Promise<void> {
   console.log("[v0] Starting database migrations...")
 
-  let db: Database.Database | null = null
+  let db: any | null = null
 
   try {
     db = getDatabase()

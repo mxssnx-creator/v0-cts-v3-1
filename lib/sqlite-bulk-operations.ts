@@ -56,7 +56,7 @@ export async function bulkInsert(
   let totalInserted = 0
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
     const placeholders = columns.map(() => "?").join(", ")
     const insertQuery = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`
     const stmt = db.prepare(insertQuery)
@@ -152,7 +152,7 @@ export async function bulkUpdate(
   const errors: string[] = []
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
 
     const setClause = Object.keys(updates)
       .map((key) => `${key} = ?`)
@@ -213,7 +213,7 @@ export async function bulkDelete(
   const errors: string[] = []
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
     const deleteQuery = `DELETE FROM ${table} WHERE ${whereClause}`
 
     try {
@@ -281,7 +281,7 @@ export async function bulkUpsert(
   let totalUpdated = 0
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
 
     // Determine which columns to update on conflict
     const colsToUpdate = updateColumns || columns.filter((col) => col !== uniqueKeyColumn)
@@ -374,7 +374,7 @@ export async function bulkUpsert(
  */
 export async function getDatabaseStats(): Promise<Record<string, any>> {
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
 
     // Get table information
     const tables = db
@@ -435,7 +435,7 @@ export async function optimizeDatabase(): Promise<{ success: boolean; duration: 
   const startTime = Date.now()
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
 
     console.log("[v0] Starting database optimization...")
 
@@ -464,7 +464,7 @@ export async function checkpoint(): Promise<{ success: boolean; duration: number
   const startTime = Date.now()
 
   try {
-    const db = getClient() as Database.Database
+    const db = getClient() as any
 
     // Perform WAL checkpoint (if WAL mode is enabled)
     db.exec("PRAGMA wal_checkpoint(RESTART)")

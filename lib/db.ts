@@ -269,7 +269,7 @@ export async function execute(
     const client = getClient()
     
     if (DATABASE_TYPE === "sqlite") {
-      const stmt = (client as Database.Database).prepare(queryText)
+      const stmt = (client as any).prepare(queryText)
       const result = stmt.run(...params)
       return {
         rowCount: result.changes,
@@ -292,7 +292,7 @@ export async function execute(
 export async function insertReturning<T = any>(queryText: string, params: any[] = []): Promise<T | null> {
   try {
     if (DATABASE_TYPE === "sqlite") {
-      const client = getClient() as Database.Database
+      const client = getClient() as any
       const stmt = client.prepare(queryText)
       const result = stmt.run(...params)
 
@@ -338,7 +338,7 @@ export const sql = async <T = any>(strings: TemplateStringsArray, ...values: any
       params.push(values[i])
     }
 
-    const sqliteClient = client as Database.Database
+    const sqliteClient = client as any
     const stmt = sqliteClient.prepare(queryText)
     return stmt.all(...params) as T[]
   } else {

@@ -101,7 +101,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS exchange_connections (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
@@ -166,7 +166,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS pseudo_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
@@ -249,7 +249,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS real_positions (
               id TEXT PRIMARY KEY,
               connection_id TEXT NOT NULL,
@@ -298,7 +298,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS market_data (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               connection_id TEXT NOT NULL,
@@ -320,7 +320,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS system_settings (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL,
@@ -342,7 +342,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS logs (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               level TEXT NOT NULL,
@@ -368,7 +368,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS errors (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               type TEXT NOT NULL,
@@ -396,7 +396,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS site_logs (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               level TEXT NOT NULL,
@@ -439,7 +439,7 @@ class DatabaseManager {
             )
           `)
         } else {
-          ;(client as Database.Database).exec(`
+          ;(client as any).exec(`
             CREATE TABLE IF NOT EXISTS auto_optimal_configurations (
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
