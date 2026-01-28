@@ -11,6 +11,7 @@ import { AddConnectionDialog } from "@/components/settings/add-connection-dialog
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,

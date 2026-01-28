@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     if (!exchange || !api_key || !api_secret) {
       return NextResponse.json(
-        { message: "Missing required fields", log: ["Error: API Key and Secret are required"] },
+        { success: false, log: ["Error: API Key and Secret are required"] },
         { status: 400 }
       )
     }
@@ -35,27 +35,49 @@ export async function POST(request: NextRequest) {
 
       if (result.success) {
         testLog.push(`[${new Date().toISOString()}] ✓ Connection successful`)
-        testLog.push(`[${new Date().toISOString()}] Timestamp: ${result.timestamp}`)
-        if (result.message) {
-          testLog.push(`[${new Date().toISOString()}] Message: ${result.message}`)
-        }
-        return NextResponse.json({ success: true, log: testLog, message: "Connection test passed" })
+        testLog.push(`[${new Date().toISOString()}] Balance: $${result.balance?.toFixed(2) || "0.00"}`)
+        testLog.push(`[${new Date().toISOString()}] Capabilities: ${result.capabilities?.join(", ") || "N/A"}`)
+        
+        return NextResponse.json({ 
+          success: true, 
+          log: testLog, 
+          balance: result.balance,
+          capabilities: result.capabilities 
+        })
       } else {
         testLog.push(`[${new Date().toISOString()}] ✗ Connection failed`)
-        if (result.message) {
-          testLog.push(`[${new Date().toISOString()}] Error: ${result.message}`)
-        }
-        return NextResponse.json({ success: false, log: testLog, message: result.message || "Connection test failed" }, { status: 400 })
+        testLog.push(`[${new Date().toISOString()}] Error: ${result.error || "Unknown error"}`)
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            log: testLog,
+            error: result.error || "Connection test failed"
+          }, 
+          { status: 400 }
+        )
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error"
       testLog.push(`[${new Date().toISOString()}] ✗ Error: ${errorMsg}`)
-      return NextResponse.json({ success: false, log: testLog, message: errorMsg }, { status: 500 })
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          log: testLog,
+          error: errorMsg
+        }, 
+        { status: 500 }
+      )
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Invalid request"
     return NextResponse.json(
-      { success: false, log: [`Error: ${errorMsg}`], message: errorMsg },
+      { 
+        success: false, 
+        log: [`Error: ${errorMsg}`],
+        error: errorMsg
+      },
       { status: 400 }
     )
   }

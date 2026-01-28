@@ -92,18 +92,18 @@ export default function Dashboard() {
       const response = await fetch("/api/settings/connections")
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] Connections API returned error, no connections available")
+        setActiveConnections([])
+        setAvailableConnections([])
         return
       }
 
       const data = await response.json()
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] No connections from API")
+        setActiveConnections([])
+        setAvailableConnections([])
         return
       }
 
