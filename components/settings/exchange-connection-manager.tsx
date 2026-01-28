@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 const EXCHANGES: Record<string, { name: string }> = {
   bybit: { name: "Bybit" },
