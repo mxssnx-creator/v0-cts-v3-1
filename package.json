@@ -111,7 +111,7 @@
     "autoprefixer": "10.4.20",
     "axios": "1.7.9",
     "bcryptjs": "2.4.3",
-    "better-sqlite3": "11.8.1",
+    "better-sqlite3": "12.6.2",
     "bingx-api": "1.21.0",
     "bufferutil": "latest",
     "bybit-api": "4.0.0",
@@ -157,7 +157,6 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "2.4.6",
-    "@types/better-sqlite3": "7.6.12",
     "@types/node": "22.10.2",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.2",
