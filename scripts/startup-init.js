@@ -3,11 +3,26 @@
 /**
  * CTS v3.1 - Startup Initialization Script
  * Ensures database is properly initialized before Next.js starts
+ * SKIPPED FOR V0 DEV PREVIEW - Database init deferred to first use
  */
 
 const fs = require("fs")
 const path = require("path")
-const Database = require("better-sqlite3")
+
+// Skip initialization if we're in dev/preview mode
+if (process.env.VERCEL || process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build") {
+  console.log("[Init] Skipping database initialization in dev/preview mode")
+  process.exit(0)
+}
+
+// Only proceed if we're in a production Node.js environment with better-sqlite3 available
+let Database
+try {
+  Database = require("better-sqlite3")
+} catch (e) {
+  console.log("[Init] better-sqlite3 not available - database will initialize on first use")
+  process.exit(0)
+}
 
 console.log("🚀 CTS v3.1 - Pre-Startup Initialization")
 console.log("=".repeat(60))
@@ -45,9 +60,6 @@ async function initializeDatabase() {
       }
       
       const sql = fs.readFileSync(sqlPath, "utf-8")
-      
-      // Execute SQL statements
-      const statements = sql
         .split('\n')
         .filter(line => !line.trim().startsWith('--'))
         .join('\n')
