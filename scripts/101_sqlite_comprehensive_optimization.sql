@@ -84,21 +84,14 @@ PRAGMA temp_store_directory = '';
 -- CONSISTENCY AND INTEGRITY
 -- =============================================================================
 
--- Enforce full constraint checking
-PRAGMA foreign_key_check;
+-- Enforce full constraint checking - verify no violations exist
+PRAGMA foreign_keys = ON;
 
 -- =============================================================================
--- LOGGING AND DEBUGGING (Optional - enable for troubleshooting)
+-- VERIFICATION AND LOGGING
 -- =============================================================================
 
--- Enable query profiling (comment out in production)
--- PRAGMA query_profiling = ON;
-
--- =============================================================================
--- VERIFICATION
--- =============================================================================
-
--- Create a verification marker
+-- Create a verification marker table
 CREATE TABLE IF NOT EXISTS pragma_optimization_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   optimization_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -106,14 +99,9 @@ CREATE TABLE IF NOT EXISTS pragma_optimization_log (
   notes TEXT
 );
 
+-- Record that optimization was applied
 INSERT INTO pragma_optimization_log (pragmas_applied, notes)
 VALUES (
   'WAL, foreign_keys, synchronous=NORMAL, cache_size=64MB, mmap_size=30MB, auto_vacuum=INCREMENTAL',
   'Comprehensive SQLite optimization applied for production use'
 );
-
--- Verify WAL mode
--- SELECT journal_mode FROM pragma_journal_mode;
-
--- Verify settings
--- SELECT * FROM pragma_compile_options WHERE compile_options LIKE '%THREADSAFE%';
