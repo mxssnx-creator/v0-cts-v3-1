@@ -1,58 +1,65 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { connectionDb, connectionLogsDb } from "@/lib/db-service"
+import { SystemLogger } from "@/lib/system-logger"
+import { loadConnections, saveConnections, type Connection } from "@/lib/file-storage"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const connection = await connectionDb.getById(id)
+    const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
+    const connection = connections.find((c) => c.id === id && c.is_active)
 
     if (!connection) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
-    return NextResponse.json(connection)
+    return NextResponse.json(connection, { status: 200 })
   } catch (error) {
-    console.error("[v0] Error fetching connection:", error)
-    return NextResponse.json({ error: "Failed to fetch connection" }, { status: 500 })
-  }
-}
-
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params
-    const body = await request.json()
-
-    const connection = await connectionDb.update(id, body)
-
-    if (!connection) {
-      return NextResponse.json({ error: "Connection not found" }, { status: 404 })
-    }
-
-    await connectionLogsDb.add(id, "update", "success", `Connection ${connection.name} updated`)
-
-    return NextResponse.json(connection)
-  } catch (error) {
-    console.error("[v0] Error updating connection:", error)
-    return NextResponse.json({ error: "Failed to update connection" }, { status: 500 })
+    console.error("[v0] Failed to fetch connection:", error)
+    await SystemLogger.logError(error, "api", `GET /api/settings/connections/${(await params).id}`)
+    return NextResponse.json(
+      { error: "Failed to fetch connection", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const connection = await connectionDb.getById(id)
 
-    if (!connection) {
-      return NextResponse.json({ error: "Connection not found" }, { status: 404 })
+    console.log("[v0] Deleting connection:", id)
+    await SystemLogger.logConnection(`Deleting connection`, id, "info")
+
+    const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
     }
 
-    await connectionDb.delete(id)
-    await connectionLogsDb.deleteByConnectionId(id)
+    const updatedConnections = connections.map((conn) =>
+      conn.id === id ? { ...conn, is_active: false, updated_at: new Date().toISOString() } : conn,
+    )
 
-    return NextResponse.json({ success: true, message: "Connection deleted" })
+    saveConnections(updatedConnections)
+    await SystemLogger.logConnection(`Connection deleted`, id, "info")
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] Error deleting connection:", error)
-    return NextResponse.json({ error: "Failed to delete connection" }, { status: 500 })
+    console.error("[v0] Failed to delete connection:", error)
+    await SystemLogger.logError(error, "api", `DELETE /api/settings/connections/${(await params).id}`)
+    return NextResponse.json(
+      { error: "Failed to delete connection", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }
 
@@ -61,17 +68,43 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params
     const body = await request.json()
 
-    const connection = await connectionDb.update(id, body)
+    console.log("[v0] Updating connection:", id, body)
+    await SystemLogger.logConnection(`Updating connection`, id, "info", body)
 
-    if (!connection) {
+    const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
+    const connectionIndex = connections.findIndex((c) => c.id === id)
+
+    if (connectionIndex === -1) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
-    await connectionLogsDb.add(id, "update", "success", `Connection ${connection.name} updated`)
+    const updatedConnection: Connection = {
+      ...connections[connectionIndex],
+      ...body,
+      id: connections[connectionIndex].id, // Preserve original ID
+      created_at: connections[connectionIndex].created_at, // Preserve creation time
+      updated_at: new Date().toISOString(),
+    }
 
-    return NextResponse.json({ success: true, connection })
+    connections[connectionIndex] = updatedConnection
+    saveConnections(connections)
+
+    await SystemLogger.logConnection(`Connection updated successfully`, id, "info")
+
+    return NextResponse.json({ success: true, connection: updatedConnection })
   } catch (error) {
-    console.error("[v0] Error updating connection:", error)
-    return NextResponse.json({ error: "Failed to update connection" }, { status: 500 })
+    console.error("[v0] Failed to update connection:", error)
+    await SystemLogger.logError(error, "api", `PATCH /api/settings/connections/${(await params).id}`)
+    return NextResponse.json(
+      { error: "Failed to update connection", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }

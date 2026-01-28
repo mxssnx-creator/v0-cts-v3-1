@@ -1,13 +1,38 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { connectionLogsDb } from "@/lib/db-service"
+import { sql } from "@/lib/db"
 
+// GET connection logs
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const logs = await connectionLogsDb.getByConnectionId(id)
-    return NextResponse.json(logs)
+    const connectionId = id
+
+    console.log("[v0] Fetching logs for connection:", connectionId)
+
+    // Get recent logs from database
+    const logs = await sql`
+      SELECT 
+        timestamp,
+        level,
+        message,
+        metadata
+      FROM site_logs
+      WHERE connection_id = ${connectionId}
+      ORDER BY timestamp DESC
+      LIMIT 100
+    `
+
+    // Format logs for display
+    const formattedLogs = logs.map((log: any) => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+    }))
+
+    return NextResponse.json({ logs: formattedLogs })
   } catch (error) {
-    console.error("[v0] Error fetching logs:", error)
-    return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 })
+    console.error("[v0] Failed to fetch connection logs:", error)
+    // Return empty logs if database fails
+    return NextResponse.json({ logs: [] })
   }
 }

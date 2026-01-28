@@ -1,33 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { connectionDb, connectionLogsDb } from "@/lib/db-service"
+import { SystemLogger } from "@/lib/system-logger"
+import { loadConnections, saveConnections } from "@/lib/file-storage"
 
+// POST toggle connection enabled status
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const body = await request.json()
-    const { type } = body
+    const connectionId = id
+    const { is_enabled, is_live_trade, is_preset_trade } = await request.json()
 
-    if (!type || !["enabled", "active"].includes(type)) {
-      return NextResponse.json({ error: "Invalid toggle type" }, { status: 400 })
+    console.log("[v0] Toggling connection:", connectionId, {
+      is_enabled,
+      is_live_trade,
+      is_preset_trade,
+    })
+
+    const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
     }
 
-    let connection
-    if (type === "enabled") {
-      connection = await connectionDb.toggleEnabled(id)
-    } else {
-      connection = await connectionDb.toggleActive(id)
-    }
+    const connectionIndex = connections.findIndex((c) => c.id === connectionId)
 
-    if (!connection) {
+    if (connectionIndex === -1) {
+      console.error("[v0] Connection not found:", connectionId)
       return NextResponse.json({ error: "Connection not found" }, { status: 404 })
     }
 
-    const action = type === "enabled" ? (connection.is_enabled ? "enabled" : "disabled") : connection.is_active ? "activated" : "deactivated"
-    await connectionLogsDb.add(id, `toggle_${type}`, "success", `Connection ${connection.name} ${action}`)
+    const connection = connections[connectionIndex]
 
-    return NextResponse.json(connection)
+    if (is_live_trade && !is_enabled) {
+      console.warn("[v0] Cannot enable live trade without enabling connection first")
+      return NextResponse.json(
+        { error: "Invalid state", details: "Cannot enable live trade without enabling connection first" },
+        { status: 400 },
+      )
+    }
+
+    // Update connection in file storage
+    const updatedConnection = {
+      ...connection,
+      is_enabled,
+      is_live_trade: is_enabled ? is_live_trade : false, // Disable trading if connection disabled
+      is_preset_trade: is_enabled ? is_preset_trade : false,
+      updated_at: new Date().toISOString(),
+    }
+
+    connections[connectionIndex] = updatedConnection
+    saveConnections(connections)
+
+    await SystemLogger.logConnection(
+      `Connection toggled: ${connection.name} - enabled: ${is_enabled}, live: ${is_live_trade}`,
+      connectionId,
+      "info",
+      { is_enabled, is_live_trade, is_preset_trade },
+    )
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] Error toggling connection:", error)
-    return NextResponse.json({ error: "Failed to toggle connection" }, { status: 500 })
+    console.error("[v0] Failed to toggle connection:", error)
+    await SystemLogger.logError(error, "api", "POST /api/settings/connections/[id]/toggle")
+
+    return NextResponse.json(
+      {
+        error: "Failed to toggle connection",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

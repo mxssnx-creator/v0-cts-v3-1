@@ -9,7 +9,6 @@ import { AuthProvider } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
 import { DatabaseInitAlert } from "@/components/database-init-alert"
-import { initializeDatabase } from "@/lib/db-init"
 
 export const metadata: Metadata = {
   title: "CTS v3 - Crypto Trading System",
@@ -17,14 +16,11 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Initialize database and run migrations on startup
-  await initializeDatabase()
-
   return (
     <html lang="en" className="antialiased style-default" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans">
