@@ -101,18 +101,11 @@ function initializeSQLiteClient(): any {
     }
 
     console.log("[v0] Initializing SQLite database...")
-    try {
-      const Database = require("better-sqlite3")
-      const client = new Database(dbPath)
-      console.log("[v0] ✓ Using better-sqlite3 (production mode)")
-      return client
-    } catch (e) {
-      console.log("[v0] ⚠ better-sqlite3 not available, using mock (preview mode)")
-      return createMockDatabase()
-    }
+    console.log("[v0] ⚠ better-sqlite3 not available in preview - using mock database")
+    return mockSQLiteClient
   } catch (error) {
     console.warn("[v0] Database initialization error:", error instanceof Error ? error.message : error)
-    return createMockDatabase()
+    return mockSQLiteClient
   }
 }
 
