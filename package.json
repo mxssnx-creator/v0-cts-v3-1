@@ -35,9 +35,8 @@
     "cts-setup": "./scripts/setup.js"
   },
   "scripts": {
-    "prebuild": "npm run build:clean",
-    "build": "SKIP_DB_INIT=true next build",
-    "build:clean": "rm -rf .next node_modules/.cache 2>/dev/null; true",
+    "prebuild": "node scripts/prebuild.js --skip-db 2>/dev/null || true",
+    "build": "next build",
     "certbot:install": "sudo bash scripts/install-certbot.sh",
     "clean": "bash scripts/clear-cache.sh",
     "clean:aggressive": "node scripts/prebuild.js",

@@ -1,11 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query, execute, queryOne } from "@/lib/db"
+
+// Lazy import db functions to prevent build-time errors
+let query: any, execute: any, queryOne: any
+
+async function getDbFunctions() {
+  if (!query) {
+    const db = await import("@/lib/db")
+    query = db.query
+    execute = db.execute
+    queryOne = db.queryOne
+  }
+}
+
 import { nanoid } from "nanoid"
 
 // GET /api/preset-types - Get all preset types
 export async function GET(request: NextRequest) {
   try {
     console.log("[v0] GET /api/preset-types - Fetching preset types...")
+    
+    await getDbFunctions()
 
     const types = await query(`
       SELECT 
