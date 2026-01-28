@@ -1,6 +1,5 @@
 import { getClient, getDatabaseType } from "./db"
 import type { Pool } from "./pg-compat"
-import type Database from "better-sqlite3"
 import { DynamicOperationHandler } from "./core/dynamic-operations"
 import { EntityTypes, ConfigSubTypes } from "./core/entity-types"
 

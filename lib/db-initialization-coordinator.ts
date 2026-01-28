@@ -6,7 +6,6 @@
 
 import path from "path"
 import fs from "fs"
-import Database from "better-sqlite3"
 import { getClient, getDatabaseType } from "./db"
 
 export interface InitializationResult {

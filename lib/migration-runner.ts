@@ -1,4 +1,3 @@
-import Database from "better-sqlite3"
 import path from "path"
 import fs from "fs"
 
@@ -12,16 +11,17 @@ interface MigrationRecord {
 
 const MIGRATIONS_TABLE = "migrations"
 
-function getDatabase(): Database.Database {
+function getDatabase(): any {
   try {
-    return new Database(DB_PATH)
+    const { getClient } = require("./db")
+    return getClient()
   } catch (error) {
     console.error("[v0] Failed to connect to database:", error)
     throw error
   }
 }
 
-function initMigrationsTable(db: Database.Database): void {
+function initMigrationsTable(db: any): void {
   try {
     db.exec(`
       CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
@@ -41,7 +41,7 @@ function getMigrationId(filename: string): string {
   return filename.replace(/\.sql$/, "")
 }
 
-function getExecutedMigrations(db: Database.Database): Set<string> {
+function getExecutedMigrations(db: any): Set<string> {
   try {
     const migrations = db
       .prepare(`SELECT id FROM ${MIGRATIONS_TABLE}`)

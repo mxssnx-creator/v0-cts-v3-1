@@ -1,6 +1,5 @@
 import { type EntityType, EntityMetadataMap, type ConfigSubType } from "./entity-types"
 import type { Pool } from "../pg-compat"
-import type { Database } from "better-sqlite3"
 
 export interface QueryFilter {
   field: string
@@ -17,15 +16,15 @@ export interface QueryOptions {
 }
 
 export class DynamicOperationHandler {
-  private db: Database | null = null
+  private db: any = null
   private sqlClient: Pool | null = null
   private isPostgreSQL: boolean
 
-  constructor(dbClient: Database | Pool, isPostgreSQL: boolean) {
+  constructor(dbClient: any, isPostgreSQL: boolean) {
     if (isPostgreSQL) {
       this.sqlClient = dbClient as Pool
     } else {
-      this.db = dbClient as Database
+      this.db = dbClient as any
     }
     this.isPostgreSQL = isPostgreSQL
   }
