@@ -219,13 +219,6 @@ export async function auditDatabase() {
 }
 
 /**
- * Main export function for database audit
- */
-export async function auditDatabase(): Promise<DatabaseAudit> {
-  return checkDatabaseIntegrity()
-}
-
-/**
  * Export the audit type for use elsewhere
  */
 export type { DatabaseAudit, TableInfo }
