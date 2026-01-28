@@ -14,7 +14,7 @@ function getDatabaseURL(): string | undefined {
 const DATABASE_URL = getDatabaseURL()
 
 let sqlClient: Pool | null = null
-let sqliteClient: Database.Database | null = null
+let sqliteClient: any = null
 
 function getDatabaseTypeFromSettings(): string {
   console.log("[v0] Determining database type...")
