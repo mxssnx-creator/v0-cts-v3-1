@@ -84,7 +84,10 @@ export async function runMigrations(): Promise<void> {
 
     const migrationFiles = fs
       .readdirSync(migrationsDir)
-      .filter((file) => file.startsWith("db-") && file.endsWith(".sql"))
+      .filter((file) => {
+        // Include all numbered migrations (e.g., 000_*, 001_*, etc.) and db-* files
+        return (file.match(/^\d{3}_/) || file.startsWith("db-")) && file.endsWith(".sql")
+      })
       .sort()
 
     const executedMigrations = getExecutedMigrations(db)

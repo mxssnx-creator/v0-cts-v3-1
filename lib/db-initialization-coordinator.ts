@@ -344,3 +344,16 @@ export function getDatabaseHealthReport(db: Database.Database): Record<string, a
 
   return report
 }
+
+/**
+ * Run comprehensive database audit
+ */
+export async function runDatabaseAudit() {
+  try {
+    const { auditDatabase } = await import("./db-audit")
+    return await auditDatabase()
+  } catch (error) {
+    console.error("[v0] Database audit failed:", error)
+    return null
+  }
+}

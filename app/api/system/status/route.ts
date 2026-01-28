@@ -19,6 +19,26 @@ export async function GET(request: NextRequest) {
     const allHealth = coordinator.getAllConnectionsHealth()
     const allMetrics = coordinator.getAllConnectionsMetrics()
 
+    // Get database audit information
+    let databaseInfo: any = { status: "unavailable" }
+    try {
+      const { runDatabaseAudit } = await import("@/lib/db-initialization-coordinator")
+      const audit = await runDatabaseAudit()
+      if (audit) {
+        databaseInfo = {
+          status: "available",
+          size: audit.size,
+          tables: audit.totalTables,
+          indexes: audit.totalIndexes,
+          integrity: audit.pragmaSettings,
+          hasIssues: audit.issues.length > 0,
+          issues: audit.issues,
+        }
+      }
+    } catch (error) {
+      databaseInfo.error = "Audit unavailable"
+    }
+
     // Group by exchange
     const byExchange: Record<string, number> = {}
     const byApiType: Record<string, number> = {}
@@ -40,6 +60,7 @@ export async function GET(request: NextRequest) {
     const systemStatus = {
       timestamp: new Date().toISOString(),
       status: activeConnections.length > 0 ? "healthy" : "degraded",
+      database: databaseInfo,
       connections: {
         total: allConnections.length,
         active: activeConnections.length,
