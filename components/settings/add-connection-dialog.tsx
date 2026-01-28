@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, AlertCircle, Lock, ExternalLink } from "lucide-react"
+import { Loader2, AlertCircle, Lock, ExternalLink, Check } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 import type { Connection } from "@/lib/file-storage"
 import { CONNECTION_PREDEFINITIONS, type ConnectionPredefinition } from "@/lib/connection-predefinitions"
@@ -24,7 +24,6 @@ interface AddConnectionDialogProps {
 export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: AddConnectionDialogProps) {
   const [loading, setLoading] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ConnectionPredefinition | null>(null)
-  const [showForm, setShowForm] = useState(false)
   const [existingConnections, setExistingConnections] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("basic")
   
@@ -45,8 +44,6 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
   useEffect(() => {
     if (open) {
       loadExistingConnections()
-      setShowForm(true)
-      setSelectedTemplate(null)
       setActiveTab("basic")
       resetForm()
     }
@@ -80,6 +77,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       position_mode: "hedge",
       is_testnet: false,
     })
+    setSelectedTemplate(null)
   }
 
   const handleSelectTemplate = (template: ConnectionPredefinition) => {
@@ -99,12 +97,6 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       position_mode: template.positionMode,
       is_testnet: template.testnetSupported ? false : false,
     })
-  }
-
-  const handleBackToTemplates = () => {
-    setShowForm(false)
-    setSelectedTemplate(null)
-    resetForm()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,92 +142,172 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
     }
   }
 
-  if (true) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Connection</DialogTitle>
-            <DialogDescription>Configure a new exchange API connection. Optionally use a predefined template to auto-fill settings.</DialogDescription>
-          </DialogHeader>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Connection</DialogTitle>
+          <DialogDescription>Configure a new exchange API connection. Select a predefined template or configure manually.</DialogDescription>
+        </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Quick Setup Template Section */}
-            <div className="border rounded-lg p-4 bg-blue-50">
-              <h3 className="font-semibold text-sm mb-2">Quick Setup - Use Predefined Template (Optional)</h3>
-              <p className="text-xs text-muted-foreground mb-3">Select a predefined connection template to auto-fill the form</p>
-              
-              <Select onValueChange={(templateId) => {
-                const template = CONNECTION_PREDEFINITIONS.find(t => t.id === templateId)
-                if (template) handleSelectTemplate(template)
-              }}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Choose a template to auto-fill form..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONNECTION_PREDEFINITIONS.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{template.displayName}</span>
-                        <Badge variant="secondary">{template.maxLeverage}x</Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {selectedTemplate && (
-                <Card className="mt-3 border-blue-200">
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">Contract Type</p>
-                        <p className="font-medium">{selectedTemplate.contractType}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Position Mode</p>
-                        <p className="font-medium capitalize">{selectedTemplate.positionMode}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Margin Type</p>
-                        <p className="font-medium capitalize">{selectedTemplate.marginType}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Method</p>
-                        <p className="font-medium uppercase">{selectedTemplate.connectionMethod}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Modern 2-Line Template Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold">Select Exchange Template</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose a predefined configuration to get started quickly</p>
+              </div>
             </div>
 
-            {/* Configuration Form */}
+            <div className="grid grid-cols-1 gap-2">
+              {CONNECTION_PREDEFINITIONS.map((template) => {
+                const isSelected = selectedTemplate?.id === template.id
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => handleSelectTemplate(template)}
+                    className={`
+                      text-left p-3 rounded-lg border-2 transition-all
+                      ${isSelected 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
+                      }
+                    `}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-1.5">
+                        {/* Line 1: Exchange Name and Leverage Badge */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm">{template.displayName}</span>
+                          <Badge className="bg-blue-600 text-white text-xs">{template.maxLeverage}x Leverage</Badge>
+                          {isSelected && <Check className="h-4 w-4 text-blue-600 ml-auto" />}
+                        </div>
+                        
+                        {/* Line 2: Details with Library and Types */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-foreground">{template.contractType}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400">•</span>
+                            <span>Library: <span className="font-medium text-foreground uppercase">{template.connectionMethod}</span></span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400">•</span>
+                            <span>Type: <span className="font-medium text-foreground capitalize">{template.apiType}</span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Template Details Card */}
+            {selectedTemplate && (
+              <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 mt-4">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">{selectedTemplate.displayName}</CardTitle>
+                      <CardDescription className="text-xs mt-1">{selectedTemplate.description}</CardDescription>
+                    </div>
+                    <a
+                      href={selectedTemplate.documentationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <span className="text-xs font-medium">Docs</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Contract Type</p>
+                      <p className="text-sm font-semibold">{selectedTemplate.contractType}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Position Mode</p>
+                      <p className="text-sm font-semibold capitalize">{selectedTemplate.positionMode}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Margin Type</p>
+                      <p className="text-sm font-semibold capitalize">{selectedTemplate.marginType}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Connection Method</p>
+                      <p className="text-sm font-semibold uppercase">{selectedTemplate.connectionMethod}</p>
+                    </div>
+                  </div>
+
+                  {/* Default Settings Section */}
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-slate-700">Default Settings</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Check className="h-3 w-3 text-green-600" />
+                        <span>Live Volume: {selectedTemplate.defaultSettings.profitFactorMinBase}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Check className="h-3 w-3 text-green-600" />
+                        <span>Preset Volume: {selectedTemplate.defaultSettings.profitFactorMinMain}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        {selectedTemplate.defaultSettings.trailingWithTrailing ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <span className="h-3 w-3" />
+                        )}
+                        <span>Trailing Enabled</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        {selectedTemplate.defaultSettings.blockEnabled ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <span className="h-3 w-3" />
+                        )}
+                        <span>Block Enabled</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Configuration Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="api">API Configuration</TabsTrigger>
-              <TabsTrigger value="trading">Trading Settings</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 bg-slate-100">
+              <TabsTrigger value="basic" className="text-xs sm:text-sm">Basic Info</TabsTrigger>
+              <TabsTrigger value="api" className="text-xs sm:text-sm">API Credentials</TabsTrigger>
+              <TabsTrigger value="trading" className="text-xs sm:text-sm">Trading Settings</TabsTrigger>
             </TabsList>
 
             {/* Basic Info Tab */}
-            <TabsContent value="basic" className="space-y-4">
+            <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Connection Name</Label>
+                <Label htmlFor="name" className="font-medium">Connection Name</Label>
                 <Input
                   id="name"
                   placeholder="e.g., My Trading Account"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   disabled={loading}
+                  className="bg-white"
                 />
                 <p className="text-xs text-muted-foreground">A unique identifier for this connection</p>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <div>
                   <Label className="font-medium text-sm">Testnet Mode</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Use exchange testnet for testing</p>
+                  <p className="text-xs text-muted-foreground mt-1">Use exchange testnet for testing trades</p>
                 </div>
                 <Switch
                   checked={formData.is_testnet}
@@ -245,19 +317,19 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
               </div>
             </TabsContent>
 
-            {/* API Configuration Tab */}
-            <TabsContent value="api" className="space-y-4">
+            {/* API Credentials Tab */}
+            <TabsContent value="api" className="space-y-4 mt-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900 flex gap-2">
                 <Lock className="h-4 w-4 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium mb-1">Security Note</p>
-                  <p className="text-xs">Your credentials are encrypted and only used for API communication. Never share your API keys.</p>
+                  <p className="font-semibold mb-0.5">Security Notice</p>
+                  <p className="text-xs">Your credentials are encrypted and never exposed. API keys are only used for authorized requests to the exchange.</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="api-key">API Key</Label>
+                  <Label htmlFor="api-key" className="font-medium">API Key</Label>
                   <Input
                     id="api-key"
                     type="password"
@@ -265,11 +337,12 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                     value={formData.api_key}
                     onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
                     disabled={loading}
+                    className="bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="api-secret">API Secret</Label>
+                  <Label htmlFor="api-secret" className="font-medium">API Secret</Label>
                   <Input
                     id="api-secret"
                     type="password"
@@ -277,45 +350,64 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                     value={formData.api_secret}
                     onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
                     disabled={loading}
+                    className="bg-white"
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="api-passphrase">API Passphrase (Optional)</Label>
+                  <Label htmlFor="api-passphrase" className="font-medium">API Passphrase (Optional)</Label>
                   <Input
                     id="api-passphrase"
                     type="password"
-                    placeholder="Enter API passphrase if required by exchange"
+                    placeholder="Enter API passphrase if required"
                     value={formData.api_passphrase}
                     onChange={(e) => setFormData({ ...formData, api_passphrase: e.target.value })}
                     disabled={loading}
+                    className="bg-white"
                   />
+                  <p className="text-xs text-muted-foreground">Required by some exchanges (e.g., OKX, Bybit)</p>
                 </div>
               </div>
             </TabsContent>
 
             {/* Trading Settings Tab */}
-            <TabsContent value="trading" className="space-y-4">
+            <TabsContent value="trading" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="api-type">API Type</Label>
-                  <Select value={formData.api_type} onValueChange={(value) => setFormData({ ...formData, api_type: value })}>
-                    <SelectTrigger id="api-type" disabled={loading}>
+                  <Label htmlFor="exchange" className="font-medium">Exchange</Label>
+                  <Select value={formData.exchange} onValueChange={(value) => setFormData({ ...formData, exchange: value })}>
+                    <SelectTrigger id="exchange" disabled={loading} className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="perpetual_futures">Perpetual Futures</SelectItem>
-                      <SelectItem value="spot">Spot</SelectItem>
-                      <SelectItem value="unified">Unified</SelectItem>
-                      <SelectItem value="margin">Margin</SelectItem>
+                      <SelectItem value="bybit">Bybit</SelectItem>
+                      <SelectItem value="bingx">BingX</SelectItem>
+                      <SelectItem value="binance">Binance</SelectItem>
+                      <SelectItem value="okx">OKX</SelectItem>
+                      <SelectItem value="gateio">Gate.io</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="margin-type">Margin Type</Label>
+                  <Label htmlFor="api-type" className="font-medium">API Type</Label>
+                  <Select value={formData.api_type} onValueChange={(value) => setFormData({ ...formData, api_type: value })}>
+                    <SelectTrigger id="api-type" disabled={loading} className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="perpetual_futures">Perpetual Futures</SelectItem>
+                      <SelectItem value="spot">Spot Trading</SelectItem>
+                      <SelectItem value="unified">Unified Account</SelectItem>
+                      <SelectItem value="margin">Margin Trading</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="margin-type" className="font-medium">Margin Type</Label>
                   <Select value={formData.margin_type} onValueChange={(value) => setFormData({ ...formData, margin_type: value })}>
-                    <SelectTrigger id="margin-type" disabled={loading}>
+                    <SelectTrigger id="margin-type" disabled={loading} className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -326,28 +418,42 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="position-mode">Position Mode</Label>
+                  <Label htmlFor="position-mode" className="font-medium">Position Mode</Label>
                   <Select value={formData.position_mode} onValueChange={(value) => setFormData({ ...formData, position_mode: value })}>
-                    <SelectTrigger id="position-mode" disabled={loading}>
+                    <SelectTrigger id="position-mode" disabled={loading} className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="hedge">Hedge Mode</SelectItem>
-                      <SelectItem value="one-way">One-Way Mode</SelectItem>
+                      <SelectItem value="hedge">Hedge Mode (Both Long & Short)</SelectItem>
+                      <SelectItem value="one-way">One-Way Mode (Long or Short)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="connection-method">Connection Method</Label>
+                  <Label htmlFor="connection-method" className="font-medium">Connection Method</Label>
                   <Select value={formData.connection_method} onValueChange={(value) => setFormData({ ...formData, connection_method: value })}>
-                    <SelectTrigger id="connection-method" disabled={loading}>
+                    <SelectTrigger id="connection-method" disabled={loading} className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="library">Library (Default)</SelectItem>
                       <SelectItem value="rest">REST API</SelectItem>
                       <SelectItem value="websocket">WebSocket</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="connection-library" className="font-medium">Library Type</Label>
+                  <Select value={formData.connection_library} onValueChange={(value) => setFormData({ ...formData, connection_library: value })}>
+                    <SelectTrigger id="connection-library" disabled={loading} className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="library">Built-in Library</SelectItem>
+                      <SelectItem value="ccxt">CCXT</SelectItem>
+                      <SelectItem value="native">Native SDK</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -360,16 +466,23 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                resetForm()
+                onOpenChange(false)
+              }}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
+                  Adding Connection...
                 </>
               ) : (
                 "Add Connection"
