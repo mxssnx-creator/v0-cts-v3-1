@@ -255,83 +255,151 @@ export default function ExchangeConnectionManager() {
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <CardTitle className="text-lg">{conn.name}</CardTitle>
                           <Badge variant="outline">{exchangeName}</Badge>
-                          <Badge variant={conn.is_enabled ? "default" : "secondary"}>
-                            {conn.is_enabled ? "Enabled" : "Disabled"}
-                          </Badge>
                           {conn.is_testnet && <Badge variant="outline">Testnet</Badge>}
-                          {conn.last_test_status === "success" && <Badge className="bg-green-500">✓ Tested</Badge>}
+                          {conn.last_test_status === "success" && <Badge className="bg-green-500 text-white">✓ Tested</Badge>}
                           {conn.last_test_status === "failed" && <Badge variant="destructive">✗ Failed</Badge>}
                         </div>
-                        <CardDescription className="flex flex-wrap gap-4">
+                        <CardDescription className="flex flex-wrap gap-4 text-xs">
                           <span>API Type: <span className="font-medium">{conn.api_type}</span></span>
                           <span>Margin: <span className="font-medium capitalize">{conn.margin_type}</span></span>
                           <span>Position: <span className="font-medium capitalize">{conn.position_mode}</span></span>
+                          <span>Library: <span className="font-mono text-xs font-semibold">{conn.connection_library}</span></span>
                         </CardDescription>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      
+                      {/* Right Side Action Buttons - Stacked Vertically */}
+                      <div className="flex flex-col gap-2 items-stretch flex-shrink-0 min-w-24">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              variant="outline"
+                              size="sm"
                               title="Edit Settings"
+                              className="justify-center"
                             >
-                              <Settings className="h-4 w-4" />
+                              <Settings className="h-4 w-4 mr-2" />
+                              Edit
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>Edit Connection Settings - {conn.name}</DialogTitle>
+                              <DialogTitle>Connection Settings - {conn.name}</DialogTitle>
+                              <DialogDescription>{exchangeName} - {conn.api_type}</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="edit-name">Connection Name</Label>
-                                <Input id="edit-name" value={conn.name} readOnly />
-                              </div>
+                            <div className="space-y-6">
+                              {/* Connection Info */}
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label>API Type</Label>
-                                  <div className="text-sm font-medium">{conn.api_type}</div>
+                                  <Label className="text-xs text-muted-foreground">Connection Name</Label>
+                                  <Input value={conn.name} readOnly className="mt-1" />
                                 </div>
                                 <div>
-                                  <Label>Margin Type</Label>
-                                  <div className="text-sm font-medium capitalize">{conn.margin_type}</div>
-                                </div>
-                                <div>
-                                  <Label>Position Mode</Label>
-                                  <div className="text-sm font-medium capitalize">{conn.position_mode}</div>
-                                </div>
-                                <div>
-                                  <Label>Connection Method</Label>
-                                  <div className="text-sm font-medium capitalize">{conn.connection_method}</div>
+                                  <Label className="text-xs text-muted-foreground">Exchange</Label>
+                                  <Input value={exchangeName} readOnly className="mt-1" />
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <Label>Testnet Mode</Label>
-                                <Switch checked={conn.is_testnet || false} disabled />
+
+                              {/* API Configuration */}
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold text-sm mb-3">API Configuration</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">API Type</Label>
+                                    <div className="text-sm font-medium mt-2">{conn.api_type}</div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Connection Method</Label>
+                                    <div className="text-sm font-medium mt-2 capitalize">{conn.connection_method || "REST"}</div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Connection Library</Label>
+                                    <div className="text-sm font-mono font-semibold mt-2">{conn.connection_library}</div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Testnet Mode</Label>
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <Switch checked={conn.is_testnet || false} disabled />
+                                      <span className="text-sm">{conn.is_testnet ? "Testnet" : "Live"}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Trading Settings */}
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold text-sm mb-3">Trading Settings</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Margin Type</Label>
+                                    <div className="text-sm font-medium mt-2 capitalize">{conn.margin_type}</div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Position Mode</Label>
+                                    <div className="text-sm font-medium mt-2 capitalize">{conn.position_mode}</div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Test Status */}
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold text-sm mb-3">Connection Status</h4>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Badge variant={conn.last_test_status === "success" ? "default" : "secondary"}>
+                                    {conn.last_test_status === "success" ? "✓ Tested" : conn.last_test_status === "failed" ? "✗ Failed" : "Not Tested"}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {conn.last_test_timestamp ? new Date(conn.last_test_timestamp).toLocaleString() : "Never"}
+                                  </span>
+                                </div>
+                                {conn.last_test_log && conn.last_test_log.length > 0 && (
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button variant="outline" size="sm">
+                                        <Info className="h-4 w-4 mr-2" />
+                                        View Test Log
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-3xl max-h-[70vh] overflow-y-auto">
+                                      <DialogHeader>
+                                        <DialogTitle>{conn.name} - Test Connection Log</DialogTitle>
+                                      </DialogHeader>
+                                      <div className="space-y-2 font-mono text-xs bg-slate-900 text-slate-100 p-4 rounded overflow-auto max-h-96 border border-slate-700">
+                                        {conn.last_test_log.map((log, idx) => (
+                                          <div key={idx} className="text-slate-300">
+                                            {log}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
                               </div>
                             </div>
                           </DialogContent>
                         </Dialog>
+
                         <Button
-                          variant="ghost"
+                          variant={conn.is_enabled ? "default" : "outline"}
                           size="sm"
                           title={conn.is_enabled ? "Disable" : "Enable"}
                           onClick={() => toggleEnabled(conn.id, !conn.is_enabled)}
+                          className="justify-center"
                         >
                           {conn.is_enabled ? "Enabled" : "Disabled"}
                         </Button>
+
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Delete"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          variant="destructive"
+                          size="sm"
+                          title="Delete Connection"
+                          className="justify-center"
                           onClick={() => deleteConnection(conn.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </Button>
                       </div>
                     </div>
