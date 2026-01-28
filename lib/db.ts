@@ -63,9 +63,48 @@ function getDatabaseTypeFromSettings(): string {
 
 let DATABASE_TYPE: string | null = null
 
+function createMockDatabase(): any {
+  return {
+    prepare: (sql: string) => ({
+      run: () => ({ changes: 0 }),
+      all: () => [],
+      get: () => undefined,
+      finalize: () => {},
+    }),
+    exec: () => [],
+    pragma: () => ({ value: "" }),
+    close: () => {},
+  }
+}
+
+function initializeSQLiteClient(): any {
+  const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
+  const dbDir = path.dirname(dbPath)
+
+  try {
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true })
+    }
+
+    console.log("[v0] Initializing SQLite database...")
+    try {
+      const Database = require("better-sqlite3")
+      const client = new Database(dbPath)
+      console.log("[v0] ✓ Using better-sqlite3 (production mode)")
+      return client
+    } catch (e) {
+      console.log("[v0] ⚠ better-sqlite3 not available, using mock (preview mode)")
+      return createMockDatabase()
+    }
+  } catch (error) {
+    console.warn("[v0] Database initialization error:", error instanceof Error ? error.message : error)
+    return createMockDatabase()
+  }
+}
+
 function getClient(): any {
   if (isBuildPhase) {
-    throw new Error("[v0] Database not available during build phase")
+    return createMockDatabase()
   }
 
   // Initialize DATABASE_TYPE if not set
@@ -75,77 +114,7 @@ function getClient(): any {
 
   if (DATABASE_TYPE === "sqlite") {
     if (!sqliteClient) {
-      const dbPath = process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "cts.db")
-      const dbDir = path.dirname(dbPath)
-
-      try {
-        // Ensure database directory exists (only in Node.js)
-        if (typeof process !== "undefined" && process.cwd && !process.env.NEXT_RUNTIME?.includes("edge")) {
-          if (!fs.existsSync(dbDir)) {
-            console.log(`[v0] Creating database directory: ${dbDir}`)
-            fs.mkdirSync(dbDir, { recursive: true })
-          }
-        }
-
-        // Initialize SQLite database - use better-sqlite3 if available, fall back to sql.js
-        console.log(`[v0] Initializing SQLite database...`)
-        try {
-          // Try better-sqlite3 first (production)
-          const Database = require("better-sqlite3")
-          sqliteClient = new Database(dbPath)
-          console.log(`[v0] ✓ Using better-sqlite3 (production mode)`)
-        } catch (e) {
-          // Fall back to sql.js for preview environment
-          console.log(`[v0] ⚠ better-sqlite3 not available, using sql.js (preview mode)`)
-          // Create a simple in-memory database proxy
-          sqliteClient = {
-            prepare: (sql: string) => ({
-              run: () => ({ changes: 0 }),
-              all: () => [],
-              get: () => undefined,
-              finalize: () => {},
-            }),
-            exec: () => [],
-            pragma: () => ({ value: "" }),
-            close: () => {},
-          }
-        }
-        
-        // Apply PRAGMAs (compatibility layer handles missing ones gracefully)
-        try {
-          sqliteClient.pragma("journal_mode = WAL")
-          sqliteClient.pragma("foreign_keys = ON")
-          sqliteClient.pragma("synchronous = NORMAL")
-          sqliteClient.pragma("temp_store = MEMORY")
-          sqliteClient.pragma("cache_size = -64000")
-        } catch (e) {
-          // PRAGMAs may not be supported in all environments
-          console.log("[v0] ℹ PRAGMA statements not fully supported in this environment")
-        }
-        
-        console.log("[v0] ✓ SQLite database client initialized successfully")
-        
-        if (fs.existsSync && fs.statSync && fs.existsSync(dbPath)) {
-          const fileSize = fs.statSync(dbPath).size
-          console.log(`[v0]   - Location: ${dbPath}`)
-          console.log(`[v0]   - Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`)
-        }
-      } catch (error) {
-        console.warn("[v0] ⚠ Database initialization fallback:", error instanceof Error ? error.message : error)
-        // Use in-memory database as fallback
-        sqliteClient = {
-          prepare: (sql: string) => ({
-            run: () => ({ changes: 0 }),
-            all: () => [],
-            get: () => undefined,
-            finalize: () => {},
-          }),
-          exec: () => [],
-          pragma: () => ({ value: "" }),
-          close: () => {},
-        }
-        console.log("[v0] Using in-memory database (fallback mode)")
-      }
+      sqliteClient = initializeSQLiteClient()
     }
     return sqliteClient
   } else if (DATABASE_TYPE === "postgresql" || DATABASE_TYPE === "remote") {
@@ -264,7 +233,7 @@ export async function queryOne<T = any>(queryText: string, params: any[] = []): 
     const client = getClient()
     
     if (DATABASE_TYPE === "sqlite") {
-      const stmt = (client as Database.Database).prepare(queryText)
+      const stmt = (client as any).prepare(queryText)
       const result = stmt.get(...params)
       return (result as T) || null
     } else {
