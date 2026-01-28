@@ -37,23 +37,30 @@ const mockSQLiteClient = {
  * Determine database type from environment
  */
 function getDatabaseTypeFromSettings(): string {
-  if (process.env.DATABASE_TYPE) {
-    const dbType = process.env.DATABASE_TYPE.toLowerCase()
-    if (dbType === "postgresql" || dbType === "postgres") return "postgresql"
-    if (dbType === "sqlite") return "sqlite"
-  }
-
-  const DATABASE_URL = process.env.DATABASE_URL
-  if (DATABASE_URL?.startsWith("postgres")) return "postgresql"
-
   try {
-    const settingsPath = path.join(process.cwd(), "data", "settings.json")
-    if (fs.existsSync(settingsPath)) {
-      const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-      if (settings.database_type === "postgresql") return "postgresql"
+    if (process.env.DATABASE_TYPE) {
+      const dbType = process.env.DATABASE_TYPE.toLowerCase()
+      if (dbType === "postgresql" || dbType === "postgres") return "postgresql"
+      if (dbType === "sqlite") return "sqlite"
+    }
+
+    const DATABASE_URL = process.env.DATABASE_URL
+    if (DATABASE_URL?.startsWith("postgres")) return "postgresql"
+
+    // Only try to read settings file if we have a safe environment
+    if (typeof process !== "undefined" && process.cwd && typeof fs?.existsSync === "function") {
+      try {
+        const settingsPath = path.join(process.cwd(), "data", "settings.json")
+        if (fs.existsSync(settingsPath)) {
+          const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
+          if (settings.database_type === "postgresql") return "postgresql"
+        }
+      } catch (e) {
+        // Silently fail - file system access not available
+      }
     }
   } catch (e) {
-    // Silently fail
+    // If anything fails, silently continue
   }
 
   return "sqlite"

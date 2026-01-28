@@ -37,26 +37,13 @@ class DatabaseManager {
   private queryCache: Map<string, { data: any; timestamp: number }> = new Map()
   private readonly CACHE_TTL = 5000 // 5 seconds cache
   private dynamicOps: DynamicOperationHandler | null = null
+  private clientInitialized = false
 
   private constructor() {
+    // Do NOT call getClient() in constructor - defer to first use
     if (isBuildPhase) {
       console.log("[v0] Skipping database initialization during build phase")
       return
-    }
-
-    try {
-      const client = getClient()
-      const dbType = getDatabaseType()
-      const isPostgres = dbType === "postgresql" || dbType === "remote"
-
-      this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
-      this.initializeTables().catch((error) => {
-        console.error("[v0] Failed to initialize DatabaseManager tables:", error)
-        console.log("[v0] System will use file-based storage as fallback")
-      })
-    } catch (error) {
-      console.error("[v0] Failed to initialize DatabaseManager:", error)
-      console.log("[v0] System will use file-based storage as fallback")
     }
   }
 
@@ -65,6 +52,27 @@ class DatabaseManager {
       DatabaseManager.instance = new DatabaseManager()
     }
     return DatabaseManager.instance
+  }
+
+  private initializeClient() {
+    if (this.clientInitialized || isBuildPhase) return
+
+    try {
+      const client = getClient()
+      const dbType = getDatabaseType()
+      const isPostgres = dbType === "postgresql" || dbType === "remote"
+
+      this.dynamicOps = new DynamicOperationHandler(client, isPostgres)
+      this.clientInitialized = true
+      this.initializeTables().catch((error) => {
+        console.error("[v0] Failed to initialize DatabaseManager tables:", error)
+        console.log("[v0] System will use file-based storage as fallback")
+      })
+    } catch (error) {
+      console.error("[v0] Failed to initialize DatabaseManager:", error)
+      console.log("[v0] System will use file-based storage as fallback")
+      this.clientInitialized = true
+    }
   }
 
   private async initializeTables() {
@@ -727,6 +735,7 @@ class DatabaseManager {
     subType: (typeof ConfigSubTypes)[keyof typeof ConfigSubTypes] | null,
     data: Record<string, any>,
   ) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.insert(entityType, subType, data)
   }
@@ -736,16 +745,19 @@ class DatabaseManager {
     id: string | number,
     updates: Record<string, any>,
   ) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.update(entityType, id, updates)
   }
 
   public async query(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], options?: any) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.query(entityType, options)
   }
 
   public async delete(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], id: string | number) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.delete(entityType, id)
   }
@@ -754,19 +766,22 @@ class DatabaseManager {
     entityType: (typeof EntityTypes)[keyof typeof EntityTypes],
     dataArray: Record<string, any>[],
   ) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.batchInsert(entityType, dataArray)
   }
 
   public async batchUpdate(
     entityType: (typeof EntityTypes)[keyof typeof EntityTypes],
-    updates: Array<{ id: string | number; data: Record<string, any> }>,
+    updates: Record<string, any>[],
   ) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.batchUpdate(entityType, updates)
   }
 
   public async count(entityType: (typeof EntityTypes)[keyof typeof EntityTypes], options?: any) {
+    this.initializeClient()
     if (!this.dynamicOps) throw new Error("[v0] Dynamic operations not initialized")
     return await this.dynamicOps.count(entityType, options)
   }
