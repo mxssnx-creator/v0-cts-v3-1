@@ -931,7 +931,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding Connection...
+                  Adding...
                 </>
               ) : (
                 "Add Connection"
