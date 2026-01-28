@@ -10,12 +10,14 @@ export interface ConnectionPredefinition {
   description: string
   apiType: string
   connectionMethod: string
+  connectionLibrary: string
   marginType: string
   positionMode: string
   maxLeverage: number
   contractType: string
   documentationUrl: string
   testnetSupported: boolean
+  ccxtSupported: boolean
   apiKey?: string
   apiSecret?: string
   defaultSettings: {
@@ -66,12 +68,14 @@ export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
     description: "Bybit Unified Trading Account with up to 125x leverage",
     apiType: "unified",
     connectionMethod: "library",
+    connectionLibrary: "native",
     marginType: "cross",
     positionMode: "hedge",
     maxLeverage: 125,
     contractType: "usdt-perpetual",
     documentationUrl: "https://bybit-exchange.github.io/docs/v5/intro",
     testnetSupported: true,
+    ccxtSupported: true,
     apiKey: "00998877009988770099887700998877",
     apiSecret: "00998877009988770099887700998877",
     defaultSettings: {

@@ -115,6 +115,7 @@
     "bingx-api": "1.21.0",
     "bufferutil": "latest",
     "bybit-api": "4.0.0",
+    "ccxt": "4.5.34",
     "child_process": "1.0.2",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.1",

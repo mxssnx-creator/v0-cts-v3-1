@@ -38,6 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     testLog.push(`[${new Date().toISOString()}] Connection found: ${connection.name} (${connection.exchange})`)
     testLog.push(`[${new Date().toISOString()}] API Type: ${connection.api_type}`)
     testLog.push(`[${new Date().toISOString()}] Connection Method: ${connection.connection_method}`)
+    testLog.push(`[${new Date().toISOString()}] Connection Library: ${connection.connection_library || "native"}`)
     testLog.push(`[${new Date().toISOString()}] Testnet: ${connection.is_testnet ? "Yes" : "No"}`)
 
     if (!connection.api_key || connection.api_key === "" || connection.api_key.includes("PLACEHOLDER")) {

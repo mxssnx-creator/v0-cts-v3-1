@@ -372,6 +372,18 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
 
             {/* Trading Settings Tab */}
             <TabsContent value="trading" className="space-y-4 mt-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900 flex gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold mb-1">Connection Library Info</p>
+                  <ul className="text-xs space-y-1">
+                    <li><strong>Built-in Library:</strong> Native, optimized connector for direct exchange API</li>
+                    <li><strong>CCXT:</strong> Universal library supporting 100+ exchanges globally</li>
+                    <li><strong>Native SDK:</strong> Official exchange SDK (fastest, most features)</li>
+                  </ul>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="exchange" className="font-medium">Exchange</Label>
@@ -445,17 +457,37 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="connection-library" className="font-medium">Library Type</Label>
+                  <Label htmlFor="connection-library" className="font-medium">Connection Library</Label>
                   <Select value={formData.connection_library} onValueChange={(value) => setFormData({ ...formData, connection_library: value })}>
                     <SelectTrigger id="connection-library" disabled={loading} className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="library">Built-in Library</SelectItem>
-                      <SelectItem value="ccxt">CCXT</SelectItem>
-                      <SelectItem value="native">Native SDK</SelectItem>
+                      <SelectItem value="native">
+                        <div className="flex items-center gap-2">
+                          <span>Native SDK</span>
+                          <Badge variant="secondary" className="text-xs">Fast</Badge>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="ccxt">
+                        <div className="flex items-center gap-2">
+                          <span>CCXT Universal</span>
+                          <Badge variant="secondary" className="text-xs">100+ Exchanges</Badge>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="library">
+                        <div className="flex items-center gap-2">
+                          <span>Built-in Library</span>
+                          <Badge variant="secondary" className="text-xs">Default</Badge>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.connection_library === "ccxt" && "CCXT supports 100+ cryptocurrency exchanges with a unified interface"}
+                    {formData.connection_library === "native" && "Uses the official exchange SDK for best performance and features"}
+                    {formData.connection_library === "library" && "Built-in optimized connector for direct API integration"}
+                  </p>
                 </div>
               </div>
             </TabsContent>
