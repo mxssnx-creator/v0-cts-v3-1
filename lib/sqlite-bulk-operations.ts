@@ -4,7 +4,6 @@
  * Uses prepare + transaction batching for maximum performance
  */
 
-import Database from "better-sqlite3"
 import { getClient } from "./db"
 
 /**

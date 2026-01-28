@@ -3,9 +3,9 @@
  * Verifies SQLite database integrity, schema completeness, and performance configuration
  */
 
-import Database from "better-sqlite3"
 import path from "path"
 import fs from "fs"
+import { getClient } from "./db"
 
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "data", "database.db")
 
@@ -55,7 +55,7 @@ async function checkDatabaseIntegrity(): Promise<DatabaseAudit> {
     const stats = fs.statSync(DB_PATH)
     audit.size = `${(stats.size / 1024 / 1024).toFixed(2)} MB`
 
-    const db = new Database(DB_PATH)
+    const db = getClient()
 
     // Check critical PRAGMA settings
     const pragmas = [
@@ -217,3 +217,15 @@ export async function auditDatabase() {
 
   return audit
 }
+
+/**
+ * Main export function for database audit
+ */
+export async function auditDatabase(): Promise<DatabaseAudit> {
+  return checkDatabaseIntegrity()
+}
+
+/**
+ * Export the audit type for use elsewhere
+ */
+export type { DatabaseAudit, TableInfo }
