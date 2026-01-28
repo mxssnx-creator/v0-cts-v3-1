@@ -479,7 +479,7 @@ class DatabaseManager {
             ADD COLUMN IF NOT EXISTS losing_positions INTEGER DEFAULT 0
           `)
         } else {
-          const sqliteDb = client as Database.Database
+          const sqliteDb = client as any
 
           // Check which columns exist and add only missing ones
           const columns = [

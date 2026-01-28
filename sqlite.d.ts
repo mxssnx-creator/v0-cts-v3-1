@@ -25,4 +25,7 @@ declare namespace Database {
   }
 }
 
+// Export as a type for use in casts
+export type DatabaseType = Database.Database
+
 export {}
