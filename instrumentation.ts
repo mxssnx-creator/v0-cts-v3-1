@@ -25,8 +25,8 @@ export async function register() {
 
   console.log("[v0] CTS v3.1 - Server initialization started")
   
-  // Run initialization asynchronously (non-blocking)
-  process.nextTick(async () => {
+  // Run initialization asynchronously (non-blocking) using setTimeout instead of process.nextTick
+  setTimeout(async () => {
     try {
       // Step 1: Initialize database
       try {

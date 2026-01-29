@@ -109,7 +109,6 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       const connections = Array.isArray(data) ? data : (data?.connections || [])
       const names = connections.map((c: Connection) => `${c.exchange}-${c.name}`)
       setExistingConnections(names)
-      }
     } catch (error) {
       console.error("[v0] Error loading existing connections:", error)
     }
