@@ -1,10 +1,10 @@
 export default function Page() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-background/80">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold">CTS v3.1</h1>
-        <p className="text-xl text-muted-foreground">Cryptocurrency Trading System</p>
-        <p className="text-sm text-muted-foreground/70">Dev preview loaded successfully</p>
+    <main className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4">CTS v3.1</h1>
+        <p className="text-lg text-gray-600">Development Preview - Minimal Build</p>
+        <p className="text-sm text-gray-500 mt-4">Testing incrementally to identify issues</p>
       </div>
     </main>
   )
