@@ -1,3 +1,5 @@
+"use client"
+
 import { Suspense, lazy } from "react"
 import { DatabaseInitAlert } from "@/components/database-init-alert"
 import { Dashboard } from "@/components/dashboard"
