@@ -225,6 +225,10 @@ importers:
       ws:
         specifier: 8.18.0
         version: 8.18.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+    optionalDependencies:
+      pg:
+        specifier: 8.17.2
+        version: 8.17.2
     devDependencies:
       '@types/bcryptjs':
         specifier: 2.4.6
@@ -256,10 +260,6 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
-    optionalDependencies:
-      pg:
-        specifier: 8.17.2
-        version: 8.17.2
 
 packages:
 
@@ -2321,8 +2321,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.5.279:
-    resolution: {integrity: sha512-0bblUU5UNdOt5G7XqGiJtpZMONma6WAfq9vsFmtn9x1+joAObr6x1chfqyxFSDCAFwFhCQDrqeAr6MYdpwJ9Hg==}
+  electron-to-chromium@1.5.282:
+    resolution: {integrity: sha512-FCPkJtpst28UmFzd903iU7PdeVTfY0KAeJy+Lk0GLZRwgwYHn/irRcaCbQQOmr5Vytc/7rcavsYLvTM8RiHYhQ==}
 
   embla-carousel-react@8.5.2:
     resolution: {integrity: sha512-Tmx+uY3MqseIGdwp0ScyUuxpBgx5jX1f7od4Cm5mDwg/dptEiTKf9xp6tw0lZN2VA9JbnVMl/aikmbc53c6QFA==}
@@ -6154,7 +6154,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.9.19
       caniuse-lite: 1.0.30001766
-      electron-to-chromium: 1.5.279
+      electron-to-chromium: 1.5.282
       node-releases: 2.0.27
       update-browserslist-db: 1.2.3(browserslist@4.28.1)
 
@@ -6466,7 +6466,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.5.279: {}
+  electron-to-chromium@1.5.282: {}
 
   embla-carousel-react@8.5.2(react@19.0.0):
     dependencies:

@@ -1,5 +1,7 @@
-"use client"
+"use client";
+
+import React from "react";
 
 export function SiteLogger() {
-  return null
+  return <div />;
 }
