@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 interface User {
   id: string;
   email: string;
+  username?: string;
   name?: string;
 }
 
@@ -12,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,8 +42,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
   }, []);
 
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setUser(null);
+    } catch (err) {
+      console.error("[v0] Logout error:", err);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider value={{ user, loading, error, logout }}>
       {children}
     </AuthContext.Provider>
   );
