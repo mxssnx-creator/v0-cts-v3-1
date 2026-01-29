@@ -1,10 +1,8 @@
-"use client"
-
 import { Suspense, lazy } from "react"
 import { DatabaseInitAlert } from "@/components/database-init-alert"
 import { Dashboard } from "@/components/dashboard"
 import { Header } from "@/components/header"
-import { Sidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
 import { SiteLogger } from "@/components/site-logger"
 
 export default function Page() {
@@ -13,7 +11,7 @@ export default function Page() {
       <DatabaseInitAlert />
       <SiteLogger />
       <div className="flex min-h-screen">
-        <Sidebar />
+        <AppSidebar />
         <div className="flex-1 flex flex-col">
           <Header />
           <main className="flex-1 overflow-auto">
