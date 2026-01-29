@@ -17,7 +17,11 @@ import {
   CONNECTION_PREDEFINITIONS, 
   type ConnectionPredefinition,
   EXCHANGE_API_TYPES,
-  EXCHANGE_LIBRARY_PACKAGES
+  EXCHANGE_LIBRARY_PACKAGES,
+  CONNECTION_METHODS,
+  API_SUBTYPES,
+  EXCHANGE_SUBTYPES,
+  EXCHANGE_CONNECTION_METHODS,
 } from "@/lib/connection-predefinitions"
 
 interface AddConnectionDialogProps {
@@ -56,6 +60,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
     name: "",
     exchange: "bybit",
     api_type: "perpetual_futures",
+    api_subtype: "perpetual",
     connection_method: "rest",
     connection_library: "native",
     api_key: "",
@@ -88,11 +93,22 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
   const loadExistingConnections = async () => {
     try {
       const response = await fetch("/api/settings/connections")
-      if (response.ok) {
-        const data = await response.json()
-        const connections = Array.isArray(data) ? data : (data?.connections || [])
-        const names = connections.map((c: Connection) => `${c.exchange}-${c.name}`)
-        setExistingConnections(names)
+      if (!response.ok) {
+        console.error("[v0] Failed to load connections:", response.status)
+        return
+      }
+      
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error("[v0] Failed to parse connections response:", parseError)
+        return
+      }
+      
+      const connections = Array.isArray(data) ? data : (data?.connections || [])
+      const names = connections.map((c: Connection) => `${c.exchange}-${c.name}`)
+      setExistingConnections(names)
       }
     } catch (error) {
       console.error("[v0] Error loading existing connections:", error)
@@ -104,6 +120,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       name: "",
       exchange: "bybit",
       api_type: "perpetual_futures",
+      api_subtype: "perpetual",
       connection_method: "rest",
       connection_library: "native",
       api_key: "",
@@ -122,6 +139,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
       name: template.displayName,
       exchange: template.exchange,
       api_type: template.apiType,
+      api_subtype: "perpetual",
       connection_method: "rest",
       connection_library: "native",
       api_key: template.apiKey || "",
@@ -159,17 +177,38 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
         }),
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error("[v0] JSON parse error:", parseError)
+        throw new Error("Invalid response format from server")
+      }
       
       // Extract and format log
-      let logs = data.log || []
-      if (!Array.isArray(logs)) {
-        logs = [logs.toString()]
+      let logs = [`[${new Date().toLocaleTimeString()}] Starting connection test...\n`]
+      
+      // Add API connection info
+      logs.push(`Exchange: ${formData.exchange.toUpperCase()}\n`)
+      logs.push(`API Type: ${formData.api_type} | Subtype: ${formData.api_subtype}\n`)
+      logs.push(`Connection: ${formData.connection_method.toUpperCase()} | Library: ${formData.connection_library}\n`)
+      logs.push(`---\n`)
+      
+      // Add response logs
+      let responseLogs = data.log || []
+      if (!Array.isArray(responseLogs)) {
+        responseLogs = [responseLogs.toString()]
       }
+      logs.push(...responseLogs)
 
       // Add balance and price info if available
       if (data.balance !== undefined) {
-        logs.push(`[${new Date().toISOString()}] Account Balance: $${parseFloat(data.balance).toFixed(2)}`)
+        const balanceUSD = parseFloat(data.balance).toFixed(2)
+        logs.push(`\n✓ Account Balance: $${balanceUSD}`)
       }
 
       // Fetch BTC price for context
@@ -178,25 +217,24 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
         if (priceResponse.ok) {
           const priceData = await priceResponse.json()
           const btcPrice = priceData.data?.amount || "N/A"
-          logs.push(`[${new Date().toISOString()}] BTC Price: $${btcPrice}`)
+          logs.push(`✓ BTC Price: $${btcPrice}`)
+
         }
       } catch (e) {
         console.log("[v0] Could not fetch BTC price")
       }
 
-      setTestLog(logs)
-
       if (response.ok) {
-        logs.push(`[${new Date().toISOString()}] ✓ Connection test PASSED`)
+        logs.push(`\n✓ Connection test PASSED - Ready to trade!`)
         toast.success("Connection test passed!")
       } else {
-        logs.push(`[${new Date().toISOString()}] ✗ Connection test FAILED: ${data.error || "Unknown error"}`)
+        logs.push(`\n✗ Connection test FAILED: ${data.error || "Unknown error"}`)
         toast.error(data.error || "Connection test failed")
       }
       setTestLog(logs)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Test connection error"
-      setTestLog([`Error: ${errorMsg}`])
+      setTestLog([`✗ Error: ${errorMsg}`])
       toast.error(errorMsg)
     } finally {
       setTesting(false)
@@ -368,9 +406,53 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                     Library: <span className="font-mono font-semibold">{libraryPackage}</span>
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="api-subtype" className="font-medium">Trading Type</Label>
+                  <Select value={formData.api_subtype} onValueChange={(value) => setFormData({ ...formData, api_subtype: value })}>
+                    <SelectTrigger id="api-subtype" disabled={loading} className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(EXCHANGE_SUBTYPES[formData.exchange] || []).map((subtype) => {
+                        const subtypeInfo = API_SUBTYPES[subtype as keyof typeof API_SUBTYPES]
+                        return (
+                          <SelectItem key={subtype} value={subtype}>
+                            <span>{subtypeInfo?.icon || ''} {subtypeInfo?.label || subtype}</span>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {API_SUBTYPES[formData.api_subtype as keyof typeof API_SUBTYPES]?.description}
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="connection-method" className="font-medium">Connection Method</Label>
+                  <Select value={formData.connection_method} onValueChange={(value) => setFormData({ ...formData, connection_method: value })}>
+                    <SelectTrigger id="connection-method" disabled={loading} className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(EXCHANGE_CONNECTION_METHODS[formData.exchange] || ["rest"]).map((method) => {
+                        const methodInfo = CONNECTION_METHODS[method as keyof typeof CONNECTION_METHODS]
+                        return (
+                          <SelectItem key={method} value={method}>
+                            {methodInfo?.label || method.toUpperCase()}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {CONNECTION_METHODS[formData.connection_method as keyof typeof CONNECTION_METHODS]?.description}
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="margin-type" className="font-medium">Margin Type</Label>
                   <Select value={formData.margin_type} onValueChange={(value) => setFormData({ ...formData, margin_type: value })}>
@@ -383,7 +465,9 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="position-mode" className="font-medium">Position Mode</Label>
                   <Select value={formData.position_mode} onValueChange={(value) => setFormData({ ...formData, position_mode: value })}>
@@ -396,21 +480,21 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between border-t pt-4">
-                <div>
-                  <Label htmlFor="testnet" className="font-medium">Use Testnet</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formData.is_testnet ? "Testnet enabled - Paper trading mode" : "Live trading mode"}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="testnet" className="font-medium">Use Testnet</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formData.is_testnet ? "Testnet enabled - Paper trading mode" : "Live trading mode"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="testnet"
+                    checked={formData.is_testnet}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })}
+                    disabled={loading}
+                  />
                 </div>
-                <Switch
-                  id="testnet"
-                  checked={formData.is_testnet}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })}
-                  disabled={loading}
-                />
               </div>
             </TabsContent>
 
@@ -506,16 +590,19 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
               {/* Test Connection Section */}
               <Card className="border-orange-200 bg-orange-50/50">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Test Connection</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Test Connection
+                  </CardTitle>
                   <CardDescription>Verify your credentials before saving</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {!showTestLog && (
+                  <div className="flex gap-2">
                     <Button
                       type="button"
                       onClick={handleTestConnection}
                       disabled={testing || !formData.api_key || !formData.api_secret || loading}
-                      className="w-full bg-orange-600 hover:bg-orange-700"
+                      className="flex-1 bg-orange-600 hover:bg-orange-700"
                     >
                       {testing ? (
                         <>
@@ -529,13 +616,25 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                         </>
                       )}
                     </Button>
-                  )}
+                    {showTestLog && testLog.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={testing || loading}
+                        className="flex items-center gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        View Logs
+                      </Button>
+                    )}
+                  </div>
 
                   {showTestLog && testLog.length > 0 && (
                     <div className="space-y-2">
-                      <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs space-y-1 max-h-48 overflow-y-auto border border-slate-700">
+                      <div className="bg-slate-900 text-slate-100 p-4 rounded font-mono text-xs space-y-1 max-h-56 overflow-y-auto border border-slate-700 whitespace-pre-wrap">
                         {testLog.map((log, idx) => (
-                          <div key={idx} className="text-slate-300">
+                          <div key={idx} className="text-slate-300 leading-relaxed">
                             {log}
                           </div>
                         ))}

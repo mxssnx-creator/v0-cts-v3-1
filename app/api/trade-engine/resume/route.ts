@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getTradeEngine } from "@/lib/trade-engine"
+import { getGlobalTradeEngineCoordinator } from "@/lib/trade-engine"
 import { SystemLogger } from "@/lib/system-logger"
 
 export const runtime = "nodejs"
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic"
  */
 export async function POST() {
   try {
-    const coordinator = getTradeEngine()
+    const coordinator = getGlobalTradeEngineCoordinator()
 
     if (!coordinator) {
       return NextResponse.json({ success: false, error: "Trade engine coordinator not initialized" }, { status: 503 })

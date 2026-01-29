@@ -45,6 +45,10 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
   const [showTestLog, setShowTestLog] = useState(false)
   const [showSecrets, setShowSecrets] = useState(false)
   const [formData, setFormData] = useState({
+    api_type: connection.api_type || "perpetual_futures",
+    api_subtype: connection.api_subtype || "perpetual",
+    connection_method: connection.connection_method || "rest",
+    connection_library: connection.connection_library || "native",
     api_key: connection.api_key || "",
     api_secret: connection.api_secret || "",
     api_passphrase: connection.api_passphrase || "",
@@ -52,6 +56,16 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
     position_mode: connection.position_mode || "hedge",
     is_testnet: connection.is_testnet || false,
   })
+
+  const apiSubtypes: Record<string, string[]> = {
+    spot: ["spot"],
+    perpetual_futures: ["perpetual", "futures"],
+    derivatives: ["derivatives"],
+    margin: ["margin"],
+  }
+
+  const connectionMethods = ["rest", "websocket", "hybrid"]
+  const connectionLibraries = ["native", "ccxt", "custom"]
 
   const handleTestConnection = async () => {
     if (!formData.api_key || !formData.api_secret) {
@@ -69,9 +83,10 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           exchange: connection.exchange,
-          api_type: connection.api_type,
-          connection_method: connection.connection_method,
-          connection_library: connection.connection_library,
+          api_type: formData.api_type,
+          api_subtype: formData.api_subtype,
+          connection_method: formData.connection_method,
+          connection_library: formData.connection_library,
           api_key: formData.api_key,
           api_secret: formData.api_secret,
           api_passphrase: formData.api_passphrase || "",
@@ -79,20 +94,47 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
         }),
       })
 
+      let logs = [`[${new Date().toLocaleTimeString()}] Starting connection test...\n`]
+      
+      logs.push(`Exchange: ${connection.exchange.toUpperCase()}\n`)
+      logs.push(`API Type: ${formData.api_type} | Subtype: ${formData.api_subtype}\n`)
+      logs.push(`Connection: ${formData.connection_method.toUpperCase()} | Library: ${formData.connection_library}\n`)
+      logs.push(`Mode: ${formData.is_testnet ? "Testnet" : "Live"}\n`)
+      logs.push(`---\n`)
+
       const data = await response.json()
-      let logs = data.log || []
-      if (!Array.isArray(logs)) logs = [logs.toString()]
-      if (data.balance !== undefined) logs.push(`[${new Date().toISOString()}] Account Balance: $${parseFloat(data.balance).toFixed(2)}`)
-      setTestLog(logs)
+      let responseLogs = data.log || []
+      if (!Array.isArray(responseLogs)) responseLogs = [responseLogs.toString()]
+      logs.push(...responseLogs)
+
+      if (data.balance !== undefined) {
+        const balanceUSD = parseFloat(data.balance).toFixed(2)
+        logs.push(`\n✓ Account Balance: $${balanceUSD}`)
+      }
+
+      try {
+        const priceResponse = await fetch("https://api.coinbase.com/v2/prices/BTC-USD/spot")
+        if (priceResponse.ok) {
+          const priceData = await priceResponse.json()
+          const btcPrice = priceData.data?.amount || "N/A"
+          logs.push(`✓ BTC Price: $${btcPrice}`)
+        }
+      } catch (e) {
+        console.log("[v0] Could not fetch BTC price")
+      }
 
       if (response.ok) {
+        logs.push(`\n✓ Connection test PASSED - Ready to trade!`)
         toast.success("Connection test passed!")
       } else {
+        logs.push(`\n✗ Connection test FAILED: ${data.error || "Unknown error"}`)
         toast.error(data.error || "Connection test failed")
       }
+      
+      setTestLog(logs)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Test connection error"
-      setTestLog([`Error: ${errorMsg}`])
+      setTestLog([`✗ Error: ${errorMsg}`])
       toast.error(errorMsg)
     } finally {
       setTesting(false)
@@ -106,6 +148,10 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          api_type: formData.api_type,
+          api_subtype: formData.api_subtype,
+          connection_method: formData.connection_method,
+          connection_library: formData.connection_library,
           api_key: formData.api_key,
           api_secret: formData.api_secret,
           api_passphrase: formData.api_passphrase,
@@ -127,9 +173,10 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
 
   return (
     <Tabs defaultValue="credentials" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="credentials">API Credentials</TabsTrigger>
-        <TabsTrigger value="settings">Settings & Test</TabsTrigger>
+        <TabsTrigger value="config">Configuration</TabsTrigger>
+        <TabsTrigger value="test">Test & Logs</TabsTrigger>
       </TabsList>
 
       <TabsContent value="credentials" className="space-y-4 mt-4">
@@ -193,7 +240,82 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
         </div>
       </TabsContent>
 
-      <TabsContent value="settings" className="space-y-4 mt-4">
+      <TabsContent value="config" className="space-y-4 mt-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-3">
+          <Info className="h-4 w-4 shrink-0 text-blue-900 mt-0.5" />
+          <div className="text-sm text-blue-900">
+            <p className="font-semibold mb-1">Connection Configuration</p>
+            <p className="text-xs">Configure API type, connection method, and library settings</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-medium">API Type</Label>
+            <Select value={formData.api_type} onValueChange={(value) => setFormData({ ...formData, api_type: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spot">Spot</SelectItem>
+                <SelectItem value="perpetual_futures">Perpetual/Futures</SelectItem>
+                <SelectItem value="derivatives">Derivatives</SelectItem>
+                <SelectItem value="margin">Margin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="font-medium">API Subtype</Label>
+            <Select value={formData.api_subtype} onValueChange={(value) => setFormData({ ...formData, api_subtype: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {apiSubtypes[formData.api_type]?.map((subtype) => (
+                  <SelectItem key={subtype} value={subtype}>
+                    {subtype.charAt(0).toUpperCase() + subtype.slice(1)}
+                  </SelectItem>
+                )) || <SelectItem value={formData.api_subtype}>{formData.api_subtype}</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-medium">Connection Method</Label>
+            <Select value={formData.connection_method} onValueChange={(value) => setFormData({ ...formData, connection_method: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {connectionMethods.map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {method.charAt(0).toUpperCase() + method.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="font-medium">Connection Library</Label>
+            <Select value={formData.connection_library} onValueChange={(value) => setFormData({ ...formData, connection_library: value })}>
+              <SelectTrigger disabled={loading} className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {connectionLibraries.map((lib) => (
+                  <SelectItem key={lib} value={lib}>
+                    {lib.charAt(0).toUpperCase() + lib.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="font-medium">Margin Type</Label>
@@ -229,7 +351,9 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
           </div>
           <Switch checked={formData.is_testnet} onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })} disabled={loading} />
         </div>
+      </TabsContent>
 
+      <TabsContent value="test" className="space-y-4 mt-4">
         <div className="border-t pt-4 space-y-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-orange-600" />
@@ -254,9 +378,9 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
 
           {showTestLog && testLog.length > 0 && (
             <div className="space-y-2">
-              <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs space-y-1 max-h-48 overflow-y-auto border border-slate-700">
+              <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs space-y-1 max-h-64 overflow-y-auto border border-slate-700">
                 {testLog.map((log, idx) => (
-                  <div key={idx} className="text-slate-300">
+                  <div key={idx} className="text-slate-300 whitespace-pre-wrap">
                     {log}
                   </div>
                 ))}
@@ -392,16 +516,17 @@ export default function ExchangeConnectionManager() {
   const deleteConnection = async (id: string) => {
     if (!confirm("Delete this connection?")) return
 
+    // Optimistically remove from UI immediately
+    setConnections((prev) => prev.filter((c) => c.id !== id))
+
     try {
-      // Optimistically remove from UI first
-      setConnections((prev) => prev.filter((c) => c.id !== id))
-      
       const response = await fetch(`/api/settings/connections/${id}`, {
         method: "DELETE",
       })
 
       if (!response.ok) {
-        // Restore if deletion failed
+        // Reload on failure to restore the card
+        console.error("[v0] Delete failed, reloading connections")
         await loadConnections()
         throw new Error("Failed to delete")
       }
@@ -410,8 +535,6 @@ export default function ExchangeConnectionManager() {
     } catch (error) {
       console.error("[v0] Delete error:", error)
       toast.error("Failed to delete connection")
-      // Reload to ensure UI is in sync
-      await loadConnections()
     }
   }
 

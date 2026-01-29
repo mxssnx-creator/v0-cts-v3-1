@@ -54,11 +54,16 @@ export function GlobalTradeEngineControls() {
   const handleStart = async () => {
     setIsStarting(true)
     try {
-      const response = await fetch("/api/trade-engine/start", { method: "POST" })
+      // Send empty body to start all engines
+      const response = await fetch("/api/trade-engine/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
       const data = await response.json()
 
       if (response.ok) {
-        toast.success("Global Trade Engine started successfully")
+        toast.success(data.message || "Global Trade Engine started successfully")
         await loadStatus()
       } else {
         toast.error(data.error || "Failed to start engine")

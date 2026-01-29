@@ -85,6 +85,56 @@ export const EXCHANGE_LIBRARY_PACKAGES: Record<string, string> = {
   coinbase: "coinbase-advanced-py",
 }
 
+// Connection Methods
+export const CONNECTION_METHODS = {
+  rest: { label: "REST API", description: "HTTP-based REST API (lower latency)" },
+  websocket: { label: "WebSocket", description: "Real-time data streaming (fastest)" },
+  hybrid: { label: "Hybrid", description: "REST + WebSocket combined" },
+}
+
+// API Subtypes/Trading Types
+export const API_SUBTYPES = {
+  spot: { label: "Spot", description: "Buy/sell cryptocurrencies directly", icon: "🏪" },
+  perpetual: { label: "Perpetual", description: "Perpetual futures contracts", icon: "♾️" },
+  futures: { label: "Futures", description: "Time-limited futures contracts", icon: "📅" },
+  margin: { label: "Margin", description: "Margin trading with leverage", icon: "📈" },
+  derivatives: { label: "Derivatives", description: "General derivatives trading", icon: "📊" },
+}
+
+// Exchange subtype support
+export const EXCHANGE_SUBTYPES: Record<string, string[]> = {
+  bybit: ["spot", "perpetual", "derivatives"],
+  bingx: ["spot", "perpetual"],
+  binance: ["spot", "perpetual", "futures", "margin"],
+  okx: ["spot", "perpetual", "futures", "margin"],
+  gateio: ["spot", "perpetual", "margin"],
+  kucoin: ["spot", "perpetual", "margin"],
+  mexc: ["spot", "perpetual"],
+  bitget: ["spot", "perpetual", "margin"],
+  pionex: ["spot", "perpetual"],
+  orangex: ["spot", "perpetual"],
+  huobi: ["spot", "perpetual", "margin"],
+  kraken: ["spot", "futures"],
+  coinbase: ["spot"],
+}
+
+// Exchange connection method support
+export const EXCHANGE_CONNECTION_METHODS: Record<string, string[]> = {
+  bybit: ["rest", "websocket", "hybrid"],
+  bingx: ["rest", "websocket"],
+  binance: ["rest", "websocket", "hybrid"],
+  okx: ["rest", "websocket", "hybrid"],
+  gateio: ["rest", "websocket"],
+  kucoin: ["rest", "websocket"],
+  mexc: ["rest", "websocket"],
+  bitget: ["rest", "websocket"],
+  pionex: ["rest", "websocket"],
+  orangex: ["rest"],
+  huobi: ["rest", "websocket"],
+  kraken: ["rest", "websocket"],
+  coinbase: ["rest"],
+}
+
 export const CONNECTION_PREDEFINITIONS: ConnectionPredefinition[] = [
   {
     id: "bybit-x03",

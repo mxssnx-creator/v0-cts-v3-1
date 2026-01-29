@@ -8,6 +8,40 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { connectionId } = body
 
+    // If no connectionId, start all connections
+    if (!connectionId) {
+      console.log("[v0] [Trade Engine] Starting all trade engines")
+      const coordinator = getGlobalTradeEngineCoordinator()
+      
+      if (!coordinator) {
+        console.error("[v0] [Trade Engine] Coordinator not initialized")
+        return NextResponse.json(
+          { error: "Trade engine coordinator not initialized" },
+          { status: 503 }
+        )
+      }
+
+      try {
+        await coordinator.startAllEngines()
+        await SystemLogger.logTradeEngine(`All trade engines started successfully`, "info")
+        return NextResponse.json({
+          success: true,
+          message: "All trade engines started successfully",
+          connectionId: "all",
+        })
+      } catch (error) {
+        console.error("[v0] [Trade Engine] Failed to start all engines:", error)
+        return NextResponse.json(
+          {
+            error: "Failed to start all trade engines",
+            details: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Start single connection
     console.log("[v0] [Trade Engine] Starting trade engine for connection:", connectionId)
     await SystemLogger.logTradeEngine(`Starting trade engine for connection: ${connectionId}`, "info", { connectionId })
 

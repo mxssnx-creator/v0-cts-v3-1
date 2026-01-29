@@ -8,6 +8,41 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { connectionId } = body
 
+    // If no connectionId, stop all engines
+    if (!connectionId) {
+      console.log("[v0] [Trade Engine] Stopping all trade engines")
+      const coordinator = getGlobalTradeEngineCoordinator()
+
+      if (!coordinator) {
+        console.error("[v0] [Trade Engine] Coordinator not initialized")
+        return NextResponse.json(
+          { success: false, error: "Trade engine coordinator not initialized" },
+          { status: 503 }
+        )
+      }
+
+      try {
+        await coordinator.stopAllEngines()
+        await SystemLogger.logTradeEngine(`All trade engines stopped successfully`, "info")
+        return NextResponse.json({
+          success: true,
+          message: "All trade engines stopped successfully",
+          connectionId: "all",
+        })
+      } catch (error) {
+        console.error("[v0] [Trade Engine] Failed to stop all engines:", error)
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to stop all trade engines",
+            details: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Stop single connection
     if (!connectionId) {
       return NextResponse.json(
         { success: false, error: "Connection ID is required" },
