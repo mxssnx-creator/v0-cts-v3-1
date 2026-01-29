@@ -100,19 +100,24 @@ export default function Dashboard() {
       }
 
       const data = await response.json()
+      
+      // Handle both array response and nested response format
+      let connections: ExchangeConnection[] = Array.isArray(data) ? data : (data?.connections || [])
 
-      if (!Array.isArray(data) || data.length === 0) {
+      if (!Array.isArray(connections) || connections.length === 0) {
         console.log("[v0] No connections from API")
         setActiveConnections([])
         setAvailableConnections([])
         return
       }
 
-      console.log("[v0] Loaded connections:", data.length)
+      console.log("[v0] Loaded connections:", connections.length)
 
-      const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
-      const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
+      // Show all connections by default, filter by active status
+      const activeConns = connections.filter((c: ExchangeConnection) => c?.is_active !== false)
+      const notActive = connections.filter((c: ExchangeConnection) => c && c.is_active === false)
 
+      console.log("[v0] Active connections:", activeConns.length, "Inactive:", notActive.length)
       setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 

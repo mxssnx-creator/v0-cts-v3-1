@@ -782,6 +782,7 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [reorganizing, setReorganizing] = useState(false)
+  const [migrating, setMigrating] = useState(false)
 
   const [isRestarting, setIsRestarting] = useState(false)
   const [restartHistory, setRestartHistory] = useState<
@@ -827,6 +828,35 @@ export default function SettingsPage() {
       })
     } finally {
       setIsRestarting(false)
+    }
+  }
+
+  const handleRunMigrations = async () => {
+    setMigrating(true)
+    try {
+      const response = await fetch("/api/admin/run-migrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Migrations Completed", {
+          description: `Applied: ${data.applied}, Skipped: ${data.skipped}${data.failed > 0 ? `, Failed: ${data.failed}` : ""}`,
+        })
+      } else {
+        toast.error("Migration Failed", {
+          description: data.error || "Failed to run migrations",
+        })
+      }
+    } catch (error) {
+      console.error("Error running migrations:", error)
+      toast.error("Error", {
+        description: "Failed to run database migrations",
+      })
+    } finally {
+      setMigrating(false)
     }
   }
 
@@ -1908,6 +1938,10 @@ export default function SettingsPage() {
             <Button onClick={importSettings} disabled={importing} variant="outline" size="sm">
               <Upload className="h-4 w-4 mr-2" />
               Import
+            </Button>
+            <Button onClick={handleRunMigrations} disabled={migrating} variant="outline" size="sm">
+              <RefreshCw className={`h-4 w-4 mr-2 ${migrating ? 'animate-spin' : ''}`} />
+              {migrating ? "Running..." : "Migrate"}
             </Button>
             <Button onClick={saveAllSettings} disabled={saving} size="sm">
               <Save className="h-4 w-4 mr-2" />

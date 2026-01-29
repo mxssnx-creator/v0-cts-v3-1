@@ -393,18 +393,25 @@ export default function ExchangeConnectionManager() {
     if (!confirm("Delete this connection?")) return
 
     try {
+      // Optimistically remove from UI first
+      setConnections((prev) => prev.filter((c) => c.id !== id))
+      
       const response = await fetch(`/api/settings/connections/${id}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("Failed to delete")
+      if (!response.ok) {
+        // Restore if deletion failed
+        await loadConnections()
+        throw new Error("Failed to delete")
+      }
 
       toast.success("Connection deleted")
-      // Reload all connections to ensure sync
-      await loadConnections()
     } catch (error) {
       console.error("[v0] Delete error:", error)
       toast.error("Failed to delete connection")
+      // Reload to ensure UI is in sync
+      await loadConnections()
     }
   }
 
