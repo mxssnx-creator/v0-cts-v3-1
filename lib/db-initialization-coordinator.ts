@@ -183,7 +183,8 @@ async function applyUnifiedSchema(
   const transaction = db.transaction(() => {
     for (const statement of statements) {
       try {
-        db.exec(statement)
+        // Use prepare + run for individual statements within transaction
+        db.prepare(statement).run()
 
         // Count what we created
         if (statement.includes("CREATE TABLE")) tableCount++
