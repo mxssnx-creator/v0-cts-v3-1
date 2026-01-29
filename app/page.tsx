@@ -1,14 +1,26 @@
+"use client"
+
+import { Suspense, lazy } from "react"
 import { DatabaseInitAlert } from "@/components/database-init-alert"
+import { Dashboard } from "@/components/dashboard"
+import { Header } from "@/components/header"
+import { Sidebar } from "@/components/app-sidebar"
+import { SiteLogger } from "@/components/site-logger"
 
 export default function Page() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
       <DatabaseInitAlert />
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">CTS v3.1</h1>
-        <p className="text-lg text-gray-600">Development Preview</p>
-        <p className="text-sm text-gray-500 mt-4">Building incrementally to identify issues</p>
+      <SiteLogger />
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <Header />
+          <main className="flex-1 overflow-auto">
+            <Dashboard />
+          </main>
+        </div>
       </div>
-    </main>
+    </Suspense>
   )
 }
