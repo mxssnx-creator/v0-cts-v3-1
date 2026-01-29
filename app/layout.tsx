@@ -2,7 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/components/auth-provider"
+import { AuthProvider } from "@/lib/auth-context"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
 
 export const metadata: Metadata = {
