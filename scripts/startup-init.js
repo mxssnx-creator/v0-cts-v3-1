@@ -67,10 +67,10 @@ async function initializeDatabase() {
         .map(s => s.trim())
         .filter(s => s.length > 10)
       
-      console.log(`[Init] Executing ${sql.length} SQL statements...`)
+      console.log(`[Init] Executing ${statements.length} SQL statements...`)
       
       let executed = 0
-      for (const stmt of sql) {
+      for (const stmt of statements) {
         try {
           db.prepare(stmt).run()
           executed++
