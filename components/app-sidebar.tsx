@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { StyleSwitcher } from "@/components/style-switcher"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import type React from "react"
 

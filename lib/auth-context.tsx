@@ -1,58 +1,69 @@
-"use client";
+"use client"
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import type { User } from "@/lib/auth"
 
 interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
+  user: User | null
+  token: string | null
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  logout: () => void
+  isLoading: boolean
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>({
+    id: 1,
+    username: "Administrator",
+    email: "mxssnx@gmail.com",
+    role: "admin",
+  })
+  const [token, setToken] = useState<string | null>("admin-token-disabled")
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (err) {
-        console.error("[v0] Auth initialization error:", err);
-        setError(err instanceof Error ? err.message : "Auth error");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Authorization system disabled - user is always logged in as admin
+    setIsLoading(false)
+  }, [])
 
-    initializeAuth();
-  }, []);
+  const login = async (email: string, password: string) => {
+    setUser({
+      id: 1,
+      username: "Administrator",
+      email: "mxssnx@gmail.com",
+      role: "admin",
+    })
+    setToken("admin-token-disabled")
+    return { success: true }
+  }
+
+  const register = async (username: string, email: string, password: string) => {
+    setUser({
+      id: 1,
+      username: "Administrator",
+      email: "mxssnx@gmail.com",
+      role: "admin",
+    })
+    setToken("admin-token-disabled")
+    return { success: true }
+  }
+
+  const logout = () => {
+    // User remains logged in as admin
+  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>{children}</AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (context === undefined) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider")
   }
-  return context;
+  return context
 }
-
-export const AuthContextExport = AuthContext;
