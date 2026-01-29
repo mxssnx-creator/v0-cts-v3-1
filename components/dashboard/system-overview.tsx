@@ -92,21 +92,21 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Trading Overview */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Trading Overview</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h3 className="text-sm font-semibold mb-2">Trading</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {compactStats.slice(0, 4).map((stat, index) => {
             const Icon = iconMap[stat.icon]
             return (
               <Card key={index} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Icon className={`h-5 w-5 ${stat.color} shrink-0`} />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${stat.color} shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-muted-foreground truncate">{stat.title}</p>
-                      <p className="text-lg font-bold truncate">{stat.value}</p>
+                      <p className="text-base font-bold truncate">{stat.value}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -118,18 +118,18 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
 
       {/* System Status */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">System Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h3 className="text-sm font-semibold mb-2">System</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {compactStats.slice(4, 8).map((stat, index) => {
             const Icon = iconMap[stat.icon]
             return (
               <Card key={index} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Icon className={`h-5 w-5 ${stat.color} shrink-0`} />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${stat.color} shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-muted-foreground truncate">{stat.title}</p>
-                      <p className="text-lg font-bold truncate">{stat.value}</p>
+                      <p className="text-base font-bold truncate">{stat.value}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -141,43 +141,43 @@ export function SystemOverview({ stats }: SystemOverviewProps) {
 
       {/* System Health */}
       <Card>
-        <CardHeader>
-          <CardTitle>System Health</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Health</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>CPU Usage</span>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span>CPU</span>
               <span>{stats.systemLoad}%</span>
             </div>
-            <Progress value={stats.systemLoad} className="h-2" />
+            <Progress value={stats.systemLoad} className="h-1" />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Memory Usage</span>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span>Memory</span>
               <span>65%</span>
             </div>
-            <Progress value={65} className="h-2" />
+            <Progress value={65} className="h-1" />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Database Load</span>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span>Database</span>
               <span>42%</span>
             </div>
-            <Progress value={42} className="h-2" />
+            <Progress value={42} className="h-1" />
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Badge variant="outline" className="text-green-600">
-              Trade Engine: Online
+          <div className="flex gap-1 pt-1 flex-wrap">
+            <Badge variant="outline" className="text-green-600 text-xs py-1">
+              Trade: Online
             </Badge>
-            <Badge variant="outline" className="text-green-600">
-              Web Engine: Online
+            <Badge variant="outline" className="text-green-600 text-xs py-1">
+              Web: Online
             </Badge>
-            <Badge variant="outline" className="text-blue-600">
-              Database: Healthy
+            <Badge variant="outline" className="text-blue-600 text-xs py-1">
+              DB: Healthy
             </Badge>
           </div>
         </CardContent>
