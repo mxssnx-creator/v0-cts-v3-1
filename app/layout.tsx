@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { SiteLoggerProvider } from "@/components/site-logger-provider"
+import { SidebarProvider } from "@/components/ui/sidebar"
 
 export const metadata: Metadata = {
   title: "CTS v3.1 - Crypto Trading System",
@@ -27,7 +28,9 @@ export default function RootLayout({
         >
           <AuthProvider>
             <SiteLoggerProvider>
-              {children}
+              <SidebarProvider>
+                {children}
+              </SidebarProvider>
             </SiteLoggerProvider>
           </AuthProvider>
         </ThemeProvider>
