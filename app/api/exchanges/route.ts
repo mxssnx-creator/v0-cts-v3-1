@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/db"
+
+// Lazy import db functions to prevent build-time database initialization
+let query: any
+
+async function getDbFunctions() {
+  if (!query) {
+    const db = await import("@/lib/db")
+    query = db.query
+  }
+}
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching exchanges from database")
+    await getDbFunctions()
 
     const exchanges = await query(`
       SELECT 
@@ -21,16 +30,9 @@ export async function GET() {
       ORDER BY display_name
     `)
 
-    console.log("[v0] Found exchanges:", exchanges.length)
-
-    exchanges.forEach((ex: any) => {
-      console.log("[v0] - Exchange:", ex.name, "->", ex.display_name)
-    })
-
-    return NextResponse.json(exchanges)
+    return NextResponse.json(exchanges || [])
   } catch (error) {
-    console.error("[v0] Failed to fetch exchanges:", error)
-    console.error("[v0] Error details:", error instanceof Error ? error.message : "Unknown error")
+    console.error("[v0] GET /api/exchanges failed:", error)
     return NextResponse.json([])
   }
 }
