@@ -8,6 +8,7 @@ import { TradingOverview } from "@/components/live-trading/trading-overview"
 import { TradeEngineProgression } from "@/components/live-trading/trade-engine-progression"
 import { PositionCard } from "@/components/live-trading/position-card"
 import type { TradingPosition, TradingStats, TimeRangeStats } from "@/lib/trading"
+import { TradingEngine } from "@/lib/trading"
 import { Activity, RefreshCw, BarChart3, History } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
 
@@ -85,10 +86,11 @@ export default function LiveTradingPage() {
       const data = await response.json()
       console.log("[v0] Loaded connections:", data.length, "total,", data.filter((c: any) => c.is_enabled).length, "enabled")
 
-      const enabledConnections = data.filter((c: any) => c.is_enabled)
+      // Filter for enabled connections (base exchange connections)
+      const enabledConnections = data.filter((c: any) => c.is_enabled === true)
 
       if (enabledConnections.length > 0) {
-        console.log("[v0] Real connections detected - using real data")
+        console.log("[v0] Found", enabledConnections.length, "enabled connections - using real data")
         setHasRealConnections(true)
         const mappedConnections = enabledConnections.map((c: any) => ({
           id: c.id,
@@ -96,29 +98,29 @@ export default function LiveTradingPage() {
           is_enabled: true,
         }))
         setConnections(mappedConnections)
+        
         // Set first enabled connection as default
-        if (selectedConnection === "") {
+        if (!selectedConnection || selectedConnection === "") {
           setSelectedConnection(mappedConnections[0].id)
+          console.log("[v0] Auto-selected first connection:", mappedConnections[0].name)
         }
         return
       }
 
-      console.log("[v0] No real connections - using mock data")
+      console.log("[v0] No enabled connections found - using mock data")
       setHasRealConnections(false)
     } catch (error) {
       console.error("[v0] Failed to load connections:", error)
       setHasRealConnections(false)
     }
 
-    // Default mock connections
+    // Default mock connections (fallback only)
     const mockConnections = [
-      { id: "bybit-x03", name: "Bybit X03 (BYBIT)", is_enabled: false },
-      { id: "bingx-x01", name: "BingX X01 (BINGX)", is_enabled: false },
-      { id: "pionex-x01", name: "Pionex X01 (PIONEX)", is_enabled: false },
-      { id: "orangex-x01", name: "OrangeX X01" },
+      { id: "bybit-mock", name: "Bybit Demo (BYBIT)", is_enabled: false },
+      { id: "bingx-mock", name: "BingX Demo (BINGX)", is_enabled: false },
     ]
     setConnections(mockConnections)
-    if (selectedConnection === "") {
+    if (!selectedConnection || selectedConnection === "") {
       setSelectedConnection(mockConnections[0].id)
     }
   }
@@ -146,13 +148,26 @@ export default function LiveTradingPage() {
       return () => clearInterval(interval)
     } else {
       console.log("[v0] Loading real trading data from connected exchanges")
-      refreshData()
       
-      // Poll real data every 5 seconds
-      const interval = setInterval(() => {
-        refreshData()
-      }, 5000)
+      // Load real positions from API
+      const loadRealData = async () => {
+        try {
+          const response = await fetch(`/api/trading/positions?connectionId=${selectedConnection}`)
+          if (response.ok) {
+            const positions = await response.json()
+            console.log("[v0] Loaded", positions.length, "real positions")
+            const connectionPositions = positions.filter((p: any) => 
+              !selectedConnection || p.connection_id === selectedConnection
+            ) as TradingPosition[]
+            setOpenPositions(connectionPositions)
+          }
+        } catch (error) {
+          console.error("[v0] Failed to load real positions:", error)
+        }
+      }
       
+      loadRealData()
+      const interval = setInterval(loadRealData, 5000) // Refresh every 5 seconds
       return () => clearInterval(interval)
     }
   }, [selectedConnection, hasRealConnections])
@@ -185,7 +200,7 @@ export default function LiveTradingPage() {
           // Filter to connection-specific positions if needed
           const connectionPositions = positions.filter((p: any) => 
             !selectedConnection || p.connection_id === selectedConnection
-          )
+          ) as TradingPosition[]
           setOpenPositions(connectionPositions)
         }
         

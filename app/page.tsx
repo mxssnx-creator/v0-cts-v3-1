@@ -9,6 +9,7 @@ import { ConnectionCard } from "@/components/dashboard/connection-card"
 import { SystemOverview } from "@/components/dashboard/system-overview"
 import { GlobalTradeEngineControls } from "@/components/dashboard/global-trade-engine-controls"
 import { StrategiesOverview } from "@/components/dashboard/strategies-overview"
+import { CompactTradingOverview } from "@/components/dashboard/compact-trading-overview"
 import type { ExchangeConnection } from "@/lib/types"
 import { RefreshCw, Plus } from "lucide-react"
 import { toast } from "@/lib/simple-toast"
@@ -43,10 +44,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const initialize = async () => {
-      console.log("[v0] Dashboard initializing...")
-
-      setActiveConnections([])
-
       await loadConnections()
       await loadSystemStats()
       await loadStrategies()
@@ -60,14 +57,6 @@ export default function Dashboard() {
     initialize().catch((error) => {
       console.error("[v0] Dashboard initialization error:", error)
     })
-
-    const interval = setInterval(() => {
-      loadConnections()
-      loadSystemStats()
-      loadStrategies()
-    }, 10000)
-
-    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -104,26 +93,31 @@ export default function Dashboard() {
       const response = await fetch("/api/settings/connections")
 
       if (!response.ok) {
-        console.log("[v0] Connections API returned error")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+        console.log("[v0] Connections API returned error, no connections available")
+        setActiveConnections([])
+        setAvailableConnections([])
         return
       }
 
       const data = await response.json()
+      
+      // Handle both array response and nested response format
+      let connections: ExchangeConnection[] = Array.isArray(data) ? data : (data?.connections || [])
 
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log("[v0] No connections from API, showing predefined")
-        const predefinedConnections = getPredefinedConnectionsAsStatic()
-        setAvailableConnections(predefinedConnections)
+      if (!Array.isArray(connections) || connections.length === 0) {
+        console.log("[v0] No connections from API")
+        setActiveConnections([])
+        setAvailableConnections([])
         return
       }
 
-      console.log("[v0] Loaded connections:", data.length)
+      console.log("[v0] Loaded connections:", connections.length)
 
-      const activeConns = data.filter((c: ExchangeConnection) => c?.is_active === true)
-      const notActive = data.filter((c: ExchangeConnection) => c && c.is_active !== true)
+      // Show all connections by default, filter by active status
+      const activeConns = connections.filter((c: ExchangeConnection) => c?.is_active !== false)
+      const notActive = connections.filter((c: ExchangeConnection) => c && c.is_active === false)
 
+      console.log("[v0] Active connections:", activeConns.length, "Inactive:", notActive.length)
       setActiveConnections(activeConns)
       setAvailableConnections(notActive)
 
@@ -312,20 +306,25 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="flex-1 space-y-6 p-6">
+        <main className="flex-1 space-y-4 p-4">
           <SystemOverview stats={systemStats} />
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <StrategiesOverview strategies={strategies} />
-            </div>
-            <div>
-              <GlobalTradeEngineControls />
-            </div>
+          <CompactTradingOverview
+            stats={{
+              balance: systemStats.totalBalance,
+              openPositions: systemStats.livePositions,
+              totalPnL: systemStats.dailyPnL,
+              winRate: 65,
+            }}
+          />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <StrategiesOverview strategies={strategies} />
+            <GlobalTradeEngineControls />
           </div>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
                 <CardTitle>Active Connections</CardTitle>
                 <CardDescription>Manage your exchange connections</CardDescription>
@@ -335,13 +334,13 @@ export default function Dashboard() {
                 Add
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4">
               {activeConnections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
                   <p className="text-muted-foreground">No active connections. Add a connection to get started.</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {activeConnections.map((connection) => (
                     <ConnectionCard
                       key={connection.id}

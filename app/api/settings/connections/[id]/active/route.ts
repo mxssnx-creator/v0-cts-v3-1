@@ -11,6 +11,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.log("[v0] Adding connection to active:", connectionId)
 
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
     const connectionIndex = connections.findIndex((c) => c.id === connectionId)
 
     if (connectionIndex === -1) {
@@ -49,6 +56,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     console.log("[v0] Removing connection from active:", connectionId)
 
     const connections = loadConnections()
+    
+    // Ensure connections is an array
+    if (!Array.isArray(connections)) {
+      console.error("[v0] Connections is not an array:", typeof connections)
+      return NextResponse.json({ error: "Invalid connections data" }, { status: 500 })
+    }
+
     const connectionIndex = connections.findIndex((c) => c.id === connectionId)
 
     if (connectionIndex === -1) {

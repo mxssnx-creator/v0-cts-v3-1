@@ -161,110 +161,60 @@ export function GlobalTradeEngineControls() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Global Trade Engine
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Activity className="h-4 w-4" />
+              Trade Engine
             </CardTitle>
-            <CardDescription>Coordinate all trading operations</CardDescription>
           </div>
           {getStatusBadge()}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-2">
         {/* Status Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Connected Exchanges</p>
-            <p className="text-2xl font-bold">{status?.connectedExchanges || 0}</p>
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
+          <div className="space-y-0.5">
+            <p className="text-xs text-muted-foreground">Exchanges</p>
+            <p className="text-lg font-bold">{status?.connectedExchanges || 0}</p>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Active Positions</p>
-            <p className="text-2xl font-bold">{status?.activePositions || 0}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Total Profit</p>
-            <p className="text-2xl font-bold">${status?.totalProfit?.toFixed(2) || "0.00"}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Uptime</p>
-            <p className="text-2xl font-bold">{status?.uptime ? formatUptime(status.uptime) : "0s"}</p>
+          <div className="space-y-0.5">
+            <p className="text-xs text-muted-foreground">Positions</p>
+            <p className="text-lg font-bold">{status?.activePositions || 0}</p>
           </div>
         </div>
 
-        {/* Cycle Statistics */}
-        {status?.cycleStats && (
-          <div className="pt-4 border-t">
-            <p className="text-sm font-medium mb-3 flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              Cycle Performance
-            </p>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Main Engine</p>
-                <p className="text-sm font-medium">{status.cycleStats.mainEngineCycleCount} cycles</p>
-                <p className="text-xs text-muted-foreground">
-                  Avg: {status.cycleStats.avgMainCycleDuration.toFixed(0)}ms
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Preset Engine</p>
-                <p className="text-sm font-medium">{status.cycleStats.presetEngineCycleCount} cycles</p>
-                <p className="text-xs text-muted-foreground">
-                  Avg: {status.cycleStats.avgPresetCycleDuration.toFixed(0)}ms
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Order Handler</p>
-                <p className="text-sm font-medium">{status.cycleStats.activeOrderCycleCount} cycles</p>
-                <p className="text-xs text-muted-foreground">
-                  Avg: {status.cycleStats.avgOrderCycleDuration.toFixed(0)}ms
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Control Buttons */}
-        <div className="flex flex-wrap gap-2 pt-4 border-t">
+        <div className="flex gap-1.5 pt-2">
           {!status?.running && (
-            <Button onClick={handleStart} disabled={isStarting} className="flex-1">
-              <Play className="h-4 w-4 mr-2" />
-              {isStarting ? "Starting..." : "Start Engine"}
+            <Button onClick={handleStart} disabled={isStarting} size="sm" className="flex-1 text-xs">
+              <Play className="h-3 w-3 mr-1" />
+              {isStarting ? "..." : "Start"}
             </Button>
           )}
 
           {status?.running && !status?.paused && (
-            <Button onClick={handlePause} disabled={isPausing} variant="outline" className="flex-1 bg-transparent">
-              <Pause className="h-4 w-4 mr-2" />
-              {isPausing ? "Pausing..." : "Pause"}
+            <Button onClick={handlePause} disabled={isPausing} variant="outline" size="sm" className="flex-1 text-xs">
+              <Pause className="h-3 w-3 mr-1" />
+              {isPausing ? "..." : "Pause"}
             </Button>
           )}
 
           {status?.running && status?.paused && (
-            <Button onClick={handleResume} disabled={isResuming} className="flex-1">
-              <Play className="h-4 w-4 mr-2" />
-              {isResuming ? "Resuming..." : "Resume"}
+            <Button onClick={handleResume} disabled={isResuming} size="sm" className="flex-1 text-xs">
+              <Play className="h-3 w-3 mr-1" />
+              {isResuming ? "..." : "Resume"}
             </Button>
           )}
 
           {status?.running && (
-            <Button onClick={handleStop} disabled={isStopping} variant="destructive" className="flex-1">
-              <Square className="h-4 w-4 mr-2" />
-              {isStopping ? "Stopping..." : "Stop"}
+            <Button onClick={handleStop} disabled={isStopping} variant="destructive" size="sm" className="flex-1 text-xs">
+              <Square className="h-3 w-3 mr-1" />
+              {isStopping ? "..." : "Stop"}
             </Button>
           )}
         </div>
-
-        {/* Last Update */}
-        {status?.lastUpdate && (
-          <div className="text-xs text-muted-foreground flex items-center gap-1 justify-center pt-2">
-            <Clock className="h-3 w-3" />
-            Last updated: {new Date(status.lastUpdate).toLocaleTimeString()}
-          </div>
-        )}
       </CardContent>
     </Card>
   )

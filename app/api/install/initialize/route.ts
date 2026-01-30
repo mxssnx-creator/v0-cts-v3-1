@@ -36,6 +36,26 @@ export async function POST() {
       
       console.log(`[v0] Found ${tables.length} tables:`, tables.map((t: any) => t.name).join(", "))
 
+      // Run optimization migration if not already applied
+      console.log("[v0] Applying performance optimizations...")
+      try {
+        const { getDatabaseStats, optimizeDatabase, checkpoint } = await import("@/lib/sqlite-bulk-operations")
+        
+        // Apply optimization pragmas
+        const stats = await getDatabaseStats()
+        console.log("[v0] Database stats before optimization:", stats)
+        
+        // Optimize
+        const optResult = await optimizeDatabase()
+        console.log(`[v0] Database optimization completed in ${optResult.duration}ms`)
+        
+        // Checkpoint
+        const checkpointResult = await checkpoint()
+        console.log(`[v0] WAL checkpoint completed in ${checkpointResult.duration}ms`)
+      } catch (error) {
+        console.warn("[v0] Performance optimization skipped:", error)
+      }
+
       // Run auto-migrations for additional setup
       console.log("[v0] Running auto-migrations...")
       try {

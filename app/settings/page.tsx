@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager-v2"
+import ExchangeConnectionManager from "@/components/settings/exchange-connection-manager"
 import InstallManager from "@/components/settings/install-manager"
 import { toast } from "@/lib/simple-toast"
 import { Save, Download, Upload, RefreshCw, Activity, Layers, X, Plus, Info } from "lucide-react"
@@ -782,6 +782,7 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [reorganizing, setReorganizing] = useState(false)
+  const [migrating, setMigrating] = useState(false)
 
   const [isRestarting, setIsRestarting] = useState(false)
   const [restartHistory, setRestartHistory] = useState<
@@ -827,6 +828,35 @@ export default function SettingsPage() {
       })
     } finally {
       setIsRestarting(false)
+    }
+  }
+
+  const handleRunMigrations = async () => {
+    setMigrating(true)
+    try {
+      const response = await fetch("/api/admin/run-migrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Migrations Completed", {
+          description: `Applied: ${data.applied}, Skipped: ${data.skipped}${data.failed > 0 ? `, Failed: ${data.failed}` : ""}`,
+        })
+      } else {
+        toast.error("Migration Failed", {
+          description: data.error || "Failed to run migrations",
+        })
+      }
+    } catch (error) {
+      console.error("Error running migrations:", error)
+      toast.error("Error", {
+        description: "Failed to run database migrations",
+      })
+    } finally {
+      setMigrating(false)
     }
   }
 
@@ -1909,6 +1939,10 @@ export default function SettingsPage() {
               <Upload className="h-4 w-4 mr-2" />
               Import
             </Button>
+            <Button onClick={handleRunMigrations} disabled={migrating} variant="outline" size="sm">
+              <RefreshCw className={`h-4 w-4 mr-2 ${migrating ? 'animate-spin' : ''}`} />
+              {migrating ? "Running..." : "Migrate"}
+            </Button>
             <Button onClick={saveAllSettings} disabled={saving} size="sm">
               <Save className="h-4 w-4 mr-2" />
               {reorganizing ? "Reorganizing..." : saving ? "Saving..." : "Save Changes"}
@@ -1976,8 +2010,6 @@ export default function SettingsPage() {
             <SystemTab
               settings={settings}
               handleSettingChange={handleSettingChange}
-              databaseType={databaseType}
-              setDatabaseType={setDatabaseType}
               databaseChanged={databaseChanged}
             />
           </TabsContent>
