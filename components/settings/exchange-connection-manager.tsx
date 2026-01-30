@@ -50,6 +50,22 @@ const CONNECTION_LIBRARIES = [
   { value: "custom", label: "Custom" },
 ]
 
+const EXCHANGE_CONNECTION_METHODS: Record<string, string[]> = {
+  bybit: ["rest", "websocket", "hybrid"],
+  bingx: ["rest", "websocket"],
+  binance: ["rest", "websocket", "hybrid"],
+  okx: ["rest", "websocket", "hybrid"],
+  gateio: ["rest", "websocket"],
+  kucoin: ["rest", "websocket"],
+  mexc: ["rest", "websocket"],
+  bitget: ["rest", "websocket"],
+  pionex: ["rest", "websocket"],
+  orangex: ["rest"],
+  huobi: ["rest", "websocket"],
+  kraken: ["rest", "websocket"],
+  coinbase: ["rest"],
+}
+
 // Edit Connection Dialog Component
 function EditConnectionDialog({ connection, onSave, exchangeName }: { connection: Connection; onSave: () => Promise<void>; exchangeName: string }) {
   const [loading, setLoading] = useState(false)
@@ -289,9 +305,11 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="rest">REST API</SelectItem>
-                  <SelectItem value="websocket">WebSocket</SelectItem>
-                  <SelectItem value="hybrid">Hybrid (REST + WebSocket)</SelectItem>
+                  {EXCHANGE_CONNECTION_METHODS[connection.exchange as keyof typeof EXCHANGE_CONNECTION_METHODS]?.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {CONNECTION_METHODS.find(m => m.value === method)?.label || method}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -263,6 +263,7 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
           name: formData.name,
           exchange: formData.exchange,
           api_type: formData.api_type,
+          api_subtype: formData.api_subtype,
           connection_method: formData.connection_method,
           connection_library: formData.connection_library,
           api_key: formData.api_key,
