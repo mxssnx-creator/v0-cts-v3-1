@@ -356,25 +356,24 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
             </TabsList>
 
             {/* Basic Info Tab */}
-            <TabsContent value="basic" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="font-medium">Connection Name</Label>
+            <TabsContent value="basic" className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="font-medium text-xs">Connection Name</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Bybit Main Account"
+                    placeholder="e.g., Main Account"
                     disabled={loading}
-                    className="bg-white"
+                    className="bg-white text-sm h-8"
                   />
-                  <p className="text-xs text-muted-foreground">Unique identifier for this connection</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="exchange" className="font-medium">Exchange</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="exchange" className="font-medium text-xs">Exchange</Label>
                   <Select value={formData.exchange} onValueChange={(value) => setFormData({ ...formData, exchange: value })}>
-                    <SelectTrigger id="exchange" disabled={loading} className="bg-white">
+                    <SelectTrigger id="exchange" disabled={loading} className="bg-white h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -387,29 +386,26 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="api-type" className="font-medium">API Type</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="api-type" className="font-medium text-xs">API Type</Label>
                   <Select value={formData.api_type} onValueChange={(value) => setFormData({ ...formData, api_type: value })}>
-                    <SelectTrigger id="api-type" disabled={loading} className="bg-white">
+                    <SelectTrigger id="api-type" disabled={loading} className="bg-white h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {availableApiTypes.map((type) => (
                         <SelectItem key={type} value={type}>
-                          <span className="capitalize">{type.replace(/_/g, " ")}</span>
+                          <span className="capitalize text-sm">{type.replace(/_/g, " ")}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Library: <span className="font-mono font-semibold">{libraryPackage}</span>
-                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="api-subtype" className="font-medium">Trading Type</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="api-subtype" className="font-medium text-xs">Trading Type</Label>
                   <Select value={formData.api_subtype} onValueChange={(value) => setFormData({ ...formData, api_subtype: value })}>
-                    <SelectTrigger id="api-subtype" disabled={loading} className="bg-white">
+                    <SelectTrigger id="api-subtype" disabled={loading} className="bg-white h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -417,23 +413,18 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                         const subtypeInfo = API_SUBTYPES[subtype as keyof typeof API_SUBTYPES]
                         return (
                           <SelectItem key={subtype} value={subtype}>
-                            <span>{subtypeInfo?.icon || ''} {subtypeInfo?.label || subtype}</span>
+                            <span className="text-sm">{subtypeInfo?.icon || ''} {subtypeInfo?.label || subtype}</span>
                           </SelectItem>
                         )
                       })}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {API_SUBTYPES[formData.api_subtype as keyof typeof API_SUBTYPES]?.description}
-                  </p>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="connection-method" className="font-medium">Connection Method</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="connection-method" className="font-medium text-xs">Connection</Label>
                   <Select value={formData.connection_method} onValueChange={(value) => setFormData({ ...formData, connection_method: value })}>
-                    <SelectTrigger id="connection-method" disabled={loading} className="bg-white">
+                    <SelectTrigger id="connection-method" disabled={loading} className="bg-white h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -441,59 +432,68 @@ export function AddConnectionDialog({ open, onOpenChange, onConnectionAdded }: A
                         const methodInfo = CONNECTION_METHODS[method as keyof typeof CONNECTION_METHODS]
                         return (
                           <SelectItem key={method} value={method}>
-                            {methodInfo?.label || method.toUpperCase()}
+                            <span className="text-sm">{methodInfo?.label || method.toUpperCase()}</span>
                           </SelectItem>
                         )
                       })}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {CONNECTION_METHODS[formData.connection_method as keyof typeof CONNECTION_METHODS]?.description}
-                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="margin-type" className="font-medium">Margin Type</Label>
-                  <Select value={formData.margin_type} onValueChange={(value) => setFormData({ ...formData, margin_type: value })}>
-                    <SelectTrigger id="margin-type" disabled={loading} className="bg-white">
+                <div className="space-y-1.5">
+                  <Label htmlFor="connection-library" className="font-medium text-xs">Library</Label>
+                  <Select value={formData.connection_library} onValueChange={(value) => setFormData({ ...formData, connection_library: value })}>
+                    <SelectTrigger id="connection-library" disabled={loading} className="bg-white h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cross">Cross Margin</SelectItem>
-                      <SelectItem value="isolated">Isolated Margin</SelectItem>
+                      <SelectItem value="native">Native</SelectItem>
+                      <SelectItem value="ccxt">CCXT</SelectItem>
+                      <SelectItem value="exchange-lib">Exchange SDK</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="margin-type" className="font-medium text-xs">Margin Type</Label>
+                  <Select value={formData.margin_type} onValueChange={(value) => setFormData({ ...formData, margin_type: value })}>
+                    <SelectTrigger id="margin-type" disabled={loading} className="bg-white h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cross">Cross</SelectItem>
+                      <SelectItem value="isolated">Isolated</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="position-mode" className="font-medium text-xs">Position Mode</Label>
+                  <Select value={formData.position_mode} onValueChange={(value) => setFormData({ ...formData, position_mode: value })}>
+                    <SelectTrigger id="position-mode" disabled={loading} className="bg-white h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hedge">Hedge</SelectItem>
+                      <SelectItem value="one-way">One-way</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="position-mode" className="font-medium">Position Mode</Label>
-                  <Select value={formData.position_mode} onValueChange={(value) => setFormData({ ...formData, position_mode: value })}>
-                    <SelectTrigger id="position-mode" disabled={loading} className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hedge">Hedge Mode</SelectItem>
-                      <SelectItem value="one-way">One-way Mode</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="flex items-center justify-between pt-1 border-t">
+                <div>
+                  <Label className="font-medium text-xs">Testnet</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {formData.is_testnet ? "Paper trading" : "Live trading"}
+                  </p>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="testnet" className="font-medium">Use Testnet</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formData.is_testnet ? "Testnet enabled - Paper trading mode" : "Live trading mode"}
-                    </p>
-                  </div>
-                  <Switch
-                    id="testnet"
-                    checked={formData.is_testnet}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })}
-                    disabled={loading}
-                  />
-                </div>
+                <Switch
+                  checked={formData.is_testnet}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_testnet: checked })}
+                  disabled={loading}
+                />
               </div>
             </TabsContent>
 

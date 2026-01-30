@@ -23,19 +23,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, Lock, Zap } from "lucide-react"
 
-const EXCHANGES: Record<string, { name: string }> = {
-  bybit: { name: "Bybit" },
-  bingx: { name: "BingX" },
-  pionex: { name: "Pionex" },
-  orangex: { name: "OrangeX" },
-  binance: { name: "Binance" },
-  okx: { name: "OKX" },
-  gateio: { name: "Gate.io" },
-  mexc: { name: "MEXC" },
-  bitget: { name: "Bitget" },
-  kucoin: { name: "KuCoin" },
-  huobi: { name: "Huobi" },
+const EXCHANGES: Record<string, { name: string; subtypes: string[] }> = {
+  bybit: { name: "Bybit", subtypes: ["perpetual", "futures", "spot", "options"] },
+  bingx: { name: "BingX", subtypes: ["perpetual", "spot"] },
+  pionex: { name: "Pionex", subtypes: ["spot"] },
+  orangex: { name: "OrangeX", subtypes: ["perpetual", "spot"] },
+  binance: { name: "Binance", subtypes: ["perpetual", "futures", "spot", "margin", "options"] },
+  okx: { name: "OKX", subtypes: ["perpetual", "futures", "spot", "margin", "options"] },
+  gateio: { name: "Gate.io", subtypes: ["perpetual", "futures", "spot", "margin", "options"] },
+  mexc: { name: "MEXC", subtypes: ["perpetual", "spot"] },
+  bitget: { name: "Bitget", subtypes: ["perpetual", "futures", "spot", "margin"] },
+  kucoin: { name: "KuCoin", subtypes: ["perpetual", "futures", "spot", "margin"] },
+  huobi: { name: "Huobi", subtypes: ["perpetual", "spot", "margin"] },
 }
+
+const CONNECTION_METHODS = [
+  { value: "rest", label: "REST API" },
+  { value: "websocket", label: "WebSocket" },
+  { value: "hybrid", label: "Hybrid (REST + WS)" },
+]
+
+const CONNECTION_LIBRARIES = [
+  { value: "native", label: "Native" },
+  { value: "ccxt", label: "CCXT" },
+  { value: "exchange-lib", label: "Exchange SDK" },
+  { value: "custom", label: "Custom" },
+]
 
 // Edit Connection Dialog Component
 function EditConnectionDialog({ connection, onSave, exchangeName }: { connection: Connection; onSave: () => Promise<void>; exchangeName: string }) {
@@ -260,11 +273,11 @@ function EditConnectionDialog({ connection, onSave, exchangeName }: { connection
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="perpetual">Perpetual Futures</SelectItem>
-                  <SelectItem value="futures">Futures</SelectItem>
-                  <SelectItem value="spot">Spot</SelectItem>
-                  <SelectItem value="margin">Margin</SelectItem>
-                  <SelectItem value="derivatives">Derivatives</SelectItem>
+                  {EXCHANGES[connection.exchange as keyof typeof EXCHANGES]?.subtypes.map((subtype) => (
+                    <SelectItem key={subtype} value={subtype}>
+                      {subtype.charAt(0).toUpperCase() + subtype.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -502,28 +515,23 @@ export default function ExchangeConnectionManager() {
   const deleteConnection = async (id: string) => {
     if (!confirm("Delete this connection?")) return
 
-    const originalConnections = connections
-    
     try {
-      // Optimistically remove from UI first
-      setConnections((prev) => prev.filter((c) => c.id !== id))
-      
+      // Delete immediately - no optimistic removal
       const response = await fetch(`/api/settings/connections/${id}`, {
         method: "DELETE",
       })
 
       if (!response.ok) {
-        // Restore if deletion failed
-        setConnections(originalConnections)
-        throw new Error("Failed to delete")
+        const data = await response.json()
+        throw new Error(data.error || "Failed to delete")
       }
 
+      // Only update state if deletion succeeded
+      setConnections((prev) => prev.filter((c) => c.id !== id))
       toast.success("Connection deleted")
     } catch (error) {
       console.error("[v0] Delete error:", error)
-      toast.error("Failed to delete connection")
-      // Restore original state on error - don't reload
-      setConnections(originalConnections)
+      toast.error(error instanceof Error ? error.message : "Failed to delete connection")
     }
   }
 
